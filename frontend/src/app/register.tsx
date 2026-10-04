@@ -7,15 +7,11 @@ export default function RegisterRoute() {
 
   const handleNavigate = (screen: ScreenKey) => {
     if (screen === 'login') {
-      router.push('/login');
-    } else if (screen === 'welcome') {
-      router.back();
-    } else if (screen === 'otp') {
-      router.push('/otp');
-    } else if (screen === 'city_select') {
-      router.push('/city_select');
-    } else {
-      router.replace('/(tabs)');
+      router.replace('/login');
+    } else if (screen === 'home') {
+      router.replace('/home');
+    } else if (screen === 'profile') {
+      router.replace('/profile');
     }
   };
 

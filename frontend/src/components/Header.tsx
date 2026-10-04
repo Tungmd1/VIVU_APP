@@ -29,7 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
       <View style={styles.left}>
         {showBack && (
           <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={24} color={COLORS.textDark} />
+            <Ionicons name="chevron-back" size={24} color={COLORS.text} />
           </TouchableOpacity>
         )}
         {title && (
@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
           rightAction
         ) : rightIcon ? (
           <TouchableOpacity onPress={onRightPress} style={styles.iconBtn} activeOpacity={0.7}>
-            <Ionicons name={rightIcon} size={22} color={COLORS.textDark} />
+            <Ionicons name={rightIcon} size={22} color={COLORS.text} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -59,9 +59,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    backgroundColor: COLORS.card,
+    backgroundColor: COLORS.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: COLORS.border,
   },
   transparent: {
     backgroundColor: 'transparent',
@@ -76,7 +76,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -87,11 +89,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.textDark,
+    color: COLORS.text,
   },
   subtitle: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.textMuted,
     marginTop: 2,
   },
   right: {
@@ -102,7 +104,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,

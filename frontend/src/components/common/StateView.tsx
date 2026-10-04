@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -19,7 +19,7 @@ export const LoadingSkeleton: React.FC<{
   height?: number;
   style?: ViewStyle;
 }> = ({ count = 3, height = 110, style }) => {
-  const shimmerAnim = useRef(new Animated.Value(0.3)).current;
+  const [shimmerAnim] = useState(() => new Animated.Value(0.3));
 
   useEffect(() => {
     const pulse = Animated.loop(

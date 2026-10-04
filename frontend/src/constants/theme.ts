@@ -1,64 +1,63 @@
 import { Platform, ViewStyle } from 'react-native';
 
 /**
- * Vivu Design System Tokens
- * Căn cứ đặc tả VIVU_UI_UX_GUIDELINES.md (Mục 4.1)
+ * Vivu Design System Tokens (Dark Theme / Jagat Social Map Standard)
+ * Màu chuẩn theo màn hình chính HomeScreen
  */
 export const COLORS = {
-  // Lời hứa sản phẩm & Bảng màu chủ đạo
-  coral: '#FF6B5E',            // CTA chính: Tạo kèo, Tham gia kèo, Gửi yêu cầu
-  primaryCoral: '#FF6B5E',
-  purple: '#7559E8',           // Matching, định danh thương hiệu, nhấn mạnh phụ
-  secondaryPurple: '#7559E8',
-  mint: '#27B58A',             // Xác nhận, thành công, trạng thái đã xác minh
-  accentMint: '#27B58A',
+  // Thương hiệu & Accent chính
+  coral: '#FF4B72',
+  primaryCoral: '#FF4B72',
+  primary: '#FF4B72',
+  primaryDark: '#E11D48',
+  primaryLight: '#FF6B8B',
+  primarySoft: 'rgba(255, 75, 114, 0.15)',
+  primaryGradient: ['#FF6B8B', '#FF4B72', '#E11D48'] as const,
 
-  // Tương thích ngược với các component cũ
-  primary: '#7559E8',          // Tím Vivu (Brand & Matching)
-  primaryDark: '#5E44C4',
-  primaryLight: '#947DF5',
-  primarySoft: '#F2EFFF',
-  primaryGradient: ['#FF6B5E', '#7559E8'] as const, // Coral to Purple gradient
-
-  accentOrange: '#FF6B5E',
-  accentPink: '#EC4899',
-  accentTeal: '#06B6D4',
-  accentGreen: '#27B58A',
+  // Accent phụ (Jagat Cyberpunk)
+  cyan: '#38BDF8',
+  purple: '#8B5CF6',
+  secondaryPurple: '#8B5CF6',
+  mint: '#10B981',
+  accentMint: '#10B981',
+  accentTeal: '#38BDF8',
+  accentGreen: '#10B981',
   accentYellow: '#F59E0B',
 
-  // Nền & Bề mặt (Ấm, dịu mắt theo đặc tả)
-  background: '#FAF8F5',       // Nền tổng thể ấm, không quá trắng gắt
-  surface: '#FFFFFF',
-  card: '#FFFFFF',
-  cardSecondary: '#F5F3EF',
+  // Bề mặt & Nền Dark Canvas
+  background: '#0B0F19', // Nền đen sâu chuẩn Jagat
+  surface: '#0F172A',    // Card chính Slate 900
+  card: '#0F172A',
+  cardSecondary: '#1E293B', // Card phụ / Input Slate 800
 
-  // Chữ & Độ tương phản (Theo đặc tả mục 4.1)
-  textDark: '#292633',         // Nội dung chính
-  textPrimary: '#292633',
-  textMedium: '#5C5766',
-  textLight: '#797482',        // Mô tả, thời gian, metadata
-  textMuted: '#797482',
-  textSecondary: '#797482',
+  // Chữ & Độ tương phản cao
+  text: '#FFFFFF',
+  textDark: '#FFFFFF',    // Tiêu đề, chữ chính
+  textPrimary: '#FFFFFF',
+  textMedium: '#E2E8F0',  // Nội dung phụ
+  textLight: '#94A3B8',   // Mô tả, gợi ý, phụ đề
+  textMuted: '#64748B',   // Placeholder
   textWhite: '#FFFFFF',
-  secondary: '#7559E8',
+  secondary: '#38BDF8',
 
-  // Trạng thái & Đường viền
-  success: '#27B58A',
+  // Trạng thái & Viền
+  success: '#10B981',
   warning: '#F59E0B',
   danger: '#EF4444',
   error: '#EF4444',
-  border: '#E9E4DF',           // Phân tách nhẹ
-  divider: '#E9E4DF',
+  border: '#1E293B',
+  borderLight: '#334155',
+  divider: '#1E293B',
 };
 
 const smShadow = Platform.select({
-  web: { boxShadow: '0px 2px 6px rgba(41, 38, 51, 0.04)' } as ViewStyle,
+  web: { boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.4)' } as ViewStyle,
   default: {
-    shadowColor: '#292633',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.4,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 3,
   },
 });
 
@@ -66,31 +65,31 @@ export const SHADOWS = {
   sm: smShadow,
   card: smShadow,
   md: Platform.select({
-    web: { boxShadow: '0px 4px 12px rgba(41, 38, 51, 0.08)' } as ViewStyle,
+    web: { boxShadow: '0px 6px 16px rgba(0, 0, 0, 0.5)' } as ViewStyle,
     default: {
-      shadowColor: '#292633',
+      shadowColor: '#000000',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.08,
+      shadowOpacity: 0.5,
       shadowRadius: 10,
-      elevation: 4,
+      elevation: 6,
     },
   }),
   glow: Platform.select({
-    web: { boxShadow: '0px 4px 14px rgba(255, 107, 94, 0.35)' } as ViewStyle,
+    web: { boxShadow: '0px 0px 18px rgba(255, 75, 114, 0.45)' } as ViewStyle,
     default: {
-      shadowColor: '#FF6B5E',
+      shadowColor: '#FF4B72',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.35,
+      shadowOpacity: 0.5,
       shadowRadius: 12,
       elevation: 8,
     },
   }),
   purpleGlow: Platform.select({
-    web: { boxShadow: '0px 4px 14px rgba(117, 89, 232, 0.35)' } as ViewStyle,
+    web: { boxShadow: '0px 0px 18px rgba(139, 92, 246, 0.45)' } as ViewStyle,
     default: {
-      shadowColor: '#7559E8',
+      shadowColor: '#8B5CF6',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.35,
+      shadowOpacity: 0.5,
       shadowRadius: 12,
       elevation: 8,
     },

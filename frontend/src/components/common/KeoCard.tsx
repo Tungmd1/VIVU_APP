@@ -129,11 +129,11 @@ export const KeoCard: React.FC<KeoCardProps> = ({
           </Text>
         </View>
 
-        {/* Địa điểm công cộng */}
+        {/* Địa điểm */}
         <View style={styles.metaRow}>
           <Ionicons name="location-outline" size={15} color={COLORS.secondaryPurple} />
           <Text style={styles.metaText} numberOfLines={1}>
-            {activity.location}
+            {(activity.location || '').startsWith('http') ? 'Xem điểm hẹn trên bản đồ' : activity.location}
           </Text>
         </View>
 

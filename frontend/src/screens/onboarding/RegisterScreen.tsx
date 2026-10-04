@@ -13,8 +13,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Header } from '../../components/Header';
-import { COLORS, SHADOWS } from '../../constants/theme';
 import { ApiClient } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
 import { ScreenKey } from '../../types';
@@ -24,100 +22,84 @@ interface RegisterScreenProps {
 }
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) => {
-  const activePhone = useAuthStore((s) => s.activePhone);
-  const setActivePhone = useAuthStore((s) => s.setActivePhone);
-  const setCurrentOtpCode = useAuthStore((s) => s.setCurrentOtpCode);
   const login = useAuthStore((s) => s.login);
+  const setActivePhone = useAuthStore((s) => s.setActivePhone);
 
-  const [identifier, setIdentifier] = useState(activePhone || '');
+  const [fullName, setFullName] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Handle register and send real SMS OTP
   const handleRegister = async () => {
-    const rawId = identifier.trim();
-    if (!rawId) {
-      Alert.alert('Lỗi', 'Vui lòng nhập số điện thoại hoặc email của bạn.');
+    const cleanName = fullName.trim();
+    const cleanId = identifier.trim();
+    const cleanPass = password.trim();
+
+    if (!cleanName) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập họ và tên của bạn.');
       return;
     }
-    setActivePhone(rawId);
+    if (!cleanId) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập số điện thoại hoặc email.');
+      return;
+    }
+    if (cleanPass.length < 6) {
+      Alert.alert('Mật khẩu quá ngắn', 'Mật khẩu phải chứa ít nhất 6 ký tự.');
+      return;
+    }
+
     setLoading(true);
-    // Register via API
     try {
-      const res = await ApiClient.register(rawId, password);
+      const res = await ApiClient.register(cleanId, cleanPass, cleanName);
+
       if (res?.success && res?.data?.token) {
-        // Successfully created user
-        const fakeUser = {
-          id: 'temp',
-          name: rawId.split('@')[0],
-          identifier: rawId,
-          phone: rawId,
-          city: 'Đà Nẵng',
-          trustScore: 100,
-        };
-        await login(res.data.token, fakeUser as any);
+        setActivePhone(cleanId);
         
-        // Cần OTP nếu là SĐT (giả định)
-        if (/^(0|\+84)[0-9]{8,10}$/.test(rawId)) {
-          const otpRes = await ApiClient.sendSmsOtp(rawId, res.data.token);
-          if (otpRes?.code) setCurrentOtpCode(otpRes.code);
-          onNavigate('otp');
-        } else {
-          onNavigate('city_select');
+        // Tự động lưu phiên đăng nhập để thông tin tài khoản được lưu giữ trọn vẹn
+        if (res.data.user) {
+          await login(res.data.token, res.data.user);
         }
-      } else {
-        Alert.alert('Lỗi đăng ký', res?.message || 'Có lỗi xảy ra.');
-      }
-    } catch (error: any) {
-      Alert.alert('Lỗi', 'Lỗi kết nối.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  // Google Login
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      const res = await ApiClient.loginWithGoogle({
-        googleId: 'gg_' + Date.now(),
-        email: 'user.new@vivu.vn',
-        name: 'VIVU Traveler',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300',
-      });
-      if (res?.token && res?.user) {
-        await login(res.token, res.user);
-        Alert.alert('Đăng ký thành công', `Chào mừng ${res.user.name || 'bạn'} gia nhập VIVU!`);
-        onNavigate('city_select');
+        Alert.alert(
+          'Đăng ký thành công! 🎉',
+          `Chào mừng ${cleanName} gia nhập bản đồ VIVU! Tài khoản của bạn đã được thiết lập.`,
+          [
+            {
+              text: 'Bắt đầu khám phá',
+              onPress: () => onNavigate('home'),
+            },
+          ]
+        );
+      } else if (
+        res?.code === 'ACCOUNT_EXISTS' ||
+        res?.message?.includes('tồn tại') ||
+        res?.message?.includes('đã được đăng ký')
+      ) {
+        // Xử lý rõ ràng trường hợp tài khoản đã tồn tại theo yêu cầu người dùng
+        Alert.alert(
+          'Tài khoản đã tồn tại ⚠️',
+          `Số điện thoại hoặc Email "${cleanId}" đã được đăng ký tài khoản trước đó trên Vivu.\n\nBạn có muốn chuyển sang màn hình Đăng nhập ngay không?`,
+          [
+            {
+              text: 'Đổi thông tin khác',
+              style: 'cancel',
+            },
+            {
+              text: 'Đăng nhập ngay',
+              style: 'default',
+              onPress: () => {
+                setActivePhone(cleanId);
+                onNavigate('login');
+              },
+            },
+          ]
+        );
       } else {
-        onNavigate('city_select');
+        Alert.alert('Đăng ký không thành công', res?.message || 'Vui lòng thử lại với thông tin khác.');
       }
     } catch {
-      onNavigate('city_select');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Apple Login
-  const handleAppleLogin = async () => {
-    setLoading(true);
-    try {
-      const res = await ApiClient.loginWithApple({
-        appleId: 'apple_' + Date.now(),
-        email: 'user.new@privaterelay.appleid.com',
-        fullName: 'VIVU Member',
-      });
-      if (res?.token && res?.user) {
-        await login(res.token, res.user);
-        Alert.alert('Đăng ký thành công', `Chào mừng ${res.user.name || 'bạn'} gia nhập VIVU!`);
-        onNavigate('city_select');
-      } else {
-        onNavigate('city_select');
-      }
-    } catch {
-      onNavigate('city_select');
+      Alert.alert('Lỗi kết nối', 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng.');
     } finally {
       setLoading(false);
     }
@@ -128,108 +110,113 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <Header onBack={() => onNavigate('welcome')} transparent />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerBlock}>
-          <Text style={styles.title}>Đăng ký tài khoản</Text>
-          <Text style={styles.subtitle}>Bắt đầu hành trình kết nối cùng VIVU</Text>
-        </View>
+      <View style={{ height: Platform.OS === 'ios' ? 48 : 32 }} />
 
-        <View style={styles.formBlock}>
-          {/* Identifier input */}
-          <View style={styles.inputGroup}>
-            <View style={styles.inputWrap}>
-              <Ionicons name="call-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Số điện thoại hoặc email"
-                placeholderTextColor={COLORS.textLight}
-                value={identifier}
-                onChangeText={setIdentifier}
-                keyboardType="phone-pad"
-              />
-            </View>
+      {/* Top Bar with Back Button */}
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          onPress={() => onNavigate('login')}
+          style={styles.backBtn}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+        <View style={styles.topBranding}>
+          <Text style={styles.topLogo}>VIVU</Text>
+          <View style={styles.livePulseDot} />
+        </View>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Card Form */}
+        <View style={styles.cardBox}>
+          <View style={styles.headerBlock}>
+            <Text style={styles.title}>Đăng ký tài khoản</Text>
+            <Text style={styles.subtitle}>Tạo hồ sơ và khám phá cộng đồng Đà Nẵng</Text>
           </View>
 
-          {/* Password input */}
-          <View style={styles.inputGroup}>
+          <View style={styles.formBlock}>
+            {/* Họ và tên */}
             <View style={styles.inputWrap}>
-              <Ionicons name="lock-closed-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
+              <Ionicons name="person-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Mật khẩu"
-                placeholderTextColor={COLORS.textLight}
+                placeholder="Họ và tên của bạn"
+                placeholderTextColor="#64748B"
+                value={fullName}
+                onChangeText={setFullName}
+              />
+            </View>
+
+            {/* Số điện thoại / Email */}
+            <View style={styles.inputWrap}>
+              <Ionicons name="call-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Số điện thoại hoặc Email"
+                placeholderTextColor="#64748B"
+                value={identifier}
+                onChangeText={setIdentifier}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            {/* Mật khẩu */}
+            <View style={styles.inputWrap}>
+              <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Mật khẩu (tối thiểu 6 ký tự)"
+                placeholderTextColor="#64748B"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <Ionicons
                   name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                   size={20}
-                  color={COLORS.textLight}
+                  color="#94A3B8"
                 />
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Register Button */}
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            activeOpacity={0.85}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={COLORS.primaryGradient}
-              style={styles.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.btnText}>Đăng ký (+20 Điểm Uy Tín)</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Hoặc tiếp tục với</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social login buttons */}
-          <View style={styles.socialRow}>
+            {/* Nút Đăng ký */}
             <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.7}
-              onPress={handleGoogleLogin}
+              style={styles.primaryBtn}
+              activeOpacity={0.85}
+              onPress={handleRegister}
               disabled={loading}
             >
-              <Ionicons name="logo-google" size={20} color="#EA4335" />
-              <Text style={styles.socialBtnText}>Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.7}
-              onPress={handleAppleLogin}
-              disabled={loading}
-            >
-              <Ionicons name="logo-apple" size={20} color="#000000" />
-              <Text style={styles.socialBtnText}>Apple</Text>
+              <LinearGradient
+                colors={['#FF6B8B', '#FF4B72', '#E11D48']}
+                style={styles.btnGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.btnText}>Tạo tài khoản</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* Chuyển sang Đăng nhập */}
         <TouchableOpacity
           style={styles.footerLink}
           onPress={() => onNavigate('login')}
+          activeOpacity={0.7}
         >
           <Text style={styles.footerText}>
-            Đã có tài khoản? <Text style={styles.boldPurple}>Đăng nhập</Text>
+            Đã có tài khoản? <Text style={styles.boldPink}>Đăng nhập ngay</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -240,39 +227,81 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ onNavigate }) =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0B0F19',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0F172A',
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topBranding: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  topLogo: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FF4B72',
+    letterSpacing: 1.5,
+  },
+  livePulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    marginLeft: 6,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
     paddingBottom: 36,
   },
+  cardBox: {
+    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   headerBlock: {
-    marginTop: 20,
-    marginBottom: 32,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    color: COLORS.textDark,
+    color: '#FFFFFF',
   },
   subtitle: {
-    fontSize: 14,
-    color: COLORS.textMedium,
+    fontSize: 13,
+    color: '#94A3B8',
     marginTop: 6,
   },
   formBlock: {
-    gap: 18,
-  },
-  inputGroup: {
-    gap: 6,
+    gap: 16,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#334155',
     paddingHorizontal: 16,
     height: 52,
   },
@@ -282,13 +311,17 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: COLORS.textDark,
+    color: '#FFFFFF',
   },
   primaryBtn: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginTop: 10,
-    ...SHADOWS.glow,
+    marginTop: 8,
+    shadowColor: '#FF4B72',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
   btnGradient: {
     paddingVertical: 15,
@@ -298,55 +331,19 @@ const styles = StyleSheet.create({
   btnText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 13,
-    color: COLORS.textLight,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FAFAFC',
-  },
-  socialBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textDark,
+    fontWeight: '800',
   },
   footerLink: {
     alignItems: 'center',
-    marginTop: 40,
-    paddingVertical: 8,
+    marginTop: 32,
+    paddingVertical: 10,
   },
   footerText: {
     fontSize: 14,
-    color: COLORS.textMedium,
+    color: '#94A3B8',
   },
-  boldPurple: {
-    color: COLORS.primary,
-    fontWeight: '700',
+  boldPink: {
+    color: '#FF4B72',
+    fontWeight: '800',
   },
 });

@@ -1,53 +1,56 @@
-import React, { useState } from 'react';
-import { Platform, StatusBar as RNStatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Stack } from 'expo-router';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
-import { ScreenNavigatorModal } from '../components/ScreenNavigatorModal';
-import { useAppNavigation } from '../hooks/useAppNavigation';
-import { COLORS, SHADOWS } from '../constants/theme';
-import { ScreenKey } from '../types';
+import { COLORS } from '../constants/theme';
+import { BottomDock } from '../components/common/BottomDock';
+import { useBeaconStore } from '../stores/beaconStore';
 
 export default function RootLayout() {
-  const [showNavigatorModal, setShowNavigatorModal] = useState(false);
-  const { navigateTo } = useAppNavigation();
+  const pathname = usePathname();
+  const router = useRouter();
+  const setShowCreateModal = useBeaconStore((s) => s.setShowCreateModal);
 
-  const handleSelectScreen = (screen: ScreenKey) => {
-    setShowNavigatorModal(false);
-    navigateTo(screen);
+  const showDock = pathname === '/home' || pathname === '/profile';
+  const activeTab = pathname === '/profile' ? 'profile' : 'home';
+
+  const handleNavigate = (screen: any) => {
+    if (screen === 'home' || screen === 'profile' || screen === 'login') {
+      router.replace(`/${screen}`);
+    } else {
+      router.push(`/${screen}`);
+    }
+  };
+
+  const handleFabPress = () => {
+    if (pathname !== '/home') {
+      router.replace('/home');
+    }
+    setTimeout(() => {
+      setShowCreateModal(true);
+    }, 150);
   };
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <View style={styles.container}>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
           <Stack.Screen name="index" />
+          <Stack.Screen name="home" />
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
-          <Stack.Screen name="otp" />
-          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="chat" />
         </Stack>
-
-        {/* Global Floating Quick Switcher Pill (luôn truy cập được để test 28 màn hình) */}
-        <TouchableOpacity
-          style={styles.floatingSwitcherPill}
-          activeOpacity={0.85}
-          onPress={() => setShowNavigatorModal(true)}
-          accessibilityLabel="Mở danh sách 28 màn hình"
-        >
-          <Ionicons name="apps" size={15} color="#FFFFFF" />
-          <Text style={styles.switcherPillText}>28 Màn hình</Text>
-        </TouchableOpacity>
-
-        {/* Screen Showcase Modal */}
-        <ScreenNavigatorModal
-          visible={showNavigatorModal}
-          currentScreen={'home_feed' as ScreenKey}
-          onClose={() => setShowNavigatorModal(false)}
-          onSelectScreen={handleSelectScreen}
-        />
+        {showDock && (
+          <BottomDock 
+            activeTab={activeTab} 
+            onNavigate={handleNavigate} 
+            onFabPress={handleFabPress} 
+          />
+        )}
       </View>
     </SafeAreaProvider>
   );
@@ -57,24 +60,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  floatingSwitcherPill: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? (RNStatusBar.currentHeight || 0) + 12 : 54,
-    right: 14,
-    zIndex: 9999,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(117, 89, 232, 0.92)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 20,
-    gap: 6,
-    ...SHADOWS.purpleGlow,
-  },
-  switcherPillText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
   },
 });

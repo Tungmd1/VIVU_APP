@@ -15,6 +15,10 @@ interface ActivityState {
   fetchActivityDetail: (id: string) => Promise<void>;
   joinActivity: (id: string, token: string, message?: string) => Promise<any>;
   toggleJoinActivity: () => void;
+  
+  // Hangout Session State
+  activeHangout: { userId: string, userName: string } | null;
+  setActiveHangout: (hangout: { userId: string, userName: string } | null) => void;
 }
 
 export const useActivityStore = create<ActivityState>((set) => ({
@@ -23,6 +27,8 @@ export const useActivityStore = create<ActivityState>((set) => ({
   isJoined: false,
   loading: false,
   error: null,
+  activeHangout: null,
+  setActiveHangout: (hangout) => set({ activeHangout: hangout }),
 
   fetchActivities: async (city = '', category = '') => {
     set({ loading: true });

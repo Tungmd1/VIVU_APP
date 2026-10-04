@@ -1,11 +1,178 @@
 import { Request, Response, Router } from 'express';
 import { z } from 'zod';
+import fs from 'fs';
+import path from 'path';
 import { redisCache } from '../../config/redis';
 import { prisma } from '../../config/database';
 import { authenticateJwt } from '../../middlewares/auth.middleware';
 import { validateRequest } from '../../middlewares/validate.middleware';
 
 export const feedRouter = Router();
+
+const BEACONS_FILE = path.join(__dirname, '../../../in_memory_beacons.json');
+
+function loadBeacons(): any[] {
+  try {
+    if (fs.existsSync(BEACONS_FILE)) {
+      const data = fs.readFileSync(BEACONS_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error reading beacons:', err);
+  }
+  return [];
+}
+
+function saveBeacons(beacons: any[]) {
+  try {
+    fs.writeFileSync(BEACONS_FILE, JSON.stringify(beacons, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error writing beacons:', err);
+  }
+}
+
+// 0. API NOW BEACON (Bong bóng nguyện vọng trên bản đồ)
+feedRouter.get('/beacons', async (req: Request, res: Response) => {
+  try {
+    const category = req.query.category as string;
+    const now = Date.now();
+    let beacons = loadBeacons();
+
+    // Lọc các beacon chưa hết hạn
+    beacons = beacons.filter((b) => !b.expiresAt || b.expiresAt > now);
+
+    if (category && category !== 'all') {
+      beacons = beacons.filter((b) => b.category === category);
+    }
+
+    res.json({ success: true, data: beacons });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi tải danh sách nguyện vọng' });
+  }
+});
+
+feedRouter.post('/beacons', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      userId,
+      userName,
+      userAvatar,
+      userAge,
+      userOccupation,
+      userInterests,
+      batteryLevel,
+      statusMode,
+      latitude,
+      longitude,
+      category,
+      emoji,
+      content,
+      ttlHours,
+      imageUrl,
+    } = req.body;
+
+    if (!content || !content.trim()) {
+      res.status(400).json({ success: false, message: 'Nội dung nguyện vọng không được để trống' });
+      return;
+    }
+
+    const duration = ttlHours ? Number(ttlHours) : 3;
+    const now = Date.now();
+    const expiresAt = now + duration * 60 * 60 * 1000;
+
+    const newBeacon = {
+      id: `beacon_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      userId: userId || `u_${Date.now()}`,
+      userName: userName || 'Người dùng Vivu',
+      userAvatar: userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      userAge: userAge ? Number(userAge) : undefined,
+      userOccupation: userOccupation || undefined,
+      userInterests: Array.isArray(userInterests) ? userInterests : [],
+      batteryLevel: batteryLevel ? Number(batteryLevel) : 85,
+      statusMode: statusMode || 'chilling',
+      latitude: latitude ? Number(latitude) : 16.0544,
+      longitude: longitude ? Number(longitude) : 108.2022,
+      category: category || 'cafe',
+      emoji: emoji || '☕',
+      content: content.trim(),
+      imageUrl: imageUrl || undefined,
+      createdAt: now,
+      expiresAt,
+      ttlHours: duration,
+      likesCount: 0,
+    };
+
+    let beacons = loadBeacons();
+    // Thay thế beacon cũ của cùng user (nếu có)
+    if (userId) {
+      beacons = beacons.filter((b) => b.userId !== userId);
+    }
+    beacons.unshift(newBeacon);
+    saveBeacons(beacons);
+
+    res.status(201).json({ success: true, data: newBeacon });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi phát tín hiệu nguyện vọng' });
+  }
+});
+
+feedRouter.post('/beacons/ai-voice', async (req: Request, res: Response) => {
+  try {
+    const { audioBase64 } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ success: false, message: 'Thiếu file ghi âm.' });
+    }
+
+    // Xử lý chuyển đổi giọng nói thành văn bản và phân loại nguyện vọng
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Simulate smart AI understanding of random voice inputs
+    const mockResponses = [
+      { content: "Trời mưa buồn quá, có ai đi uống cafe tâm sự không?", emoji: "🌧️", category: "cafe" },
+      { content: "Thèm ăn khuya quá, khu vực Hải Châu có quán nào ngon không mọi người?", emoji: "🍜", category: "food" },
+      { content: "Đang stress quá, cần người chạy bộ chung quanh bờ hồ.", emoji: "🏃", category: "sport" },
+    ];
+    
+    const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+
+    res.json({
+      success: true,
+      data: randomResponse
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi AI phân tích giọng nói' });
+  }
+});
+
+feedRouter.delete('/beacons/:id', async (req: Request, res: Response) => {
+  try {
+    const beaconId = req.params.id;
+    let beacons = loadBeacons();
+    beacons = beacons.filter((b) => b.id !== beaconId);
+    saveBeacons(beacons);
+    res.json({ success: true, message: 'Đã hủy tín hiệu' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi xóa tín hiệu' });
+  }
+});
+
+feedRouter.post('/beacons/:id/react', async (req: Request, res: Response) => {
+  try {
+    const beaconId = req.params.id;
+    let beacons = loadBeacons();
+    const beacon = beacons.find((b) => b.id === beaconId);
+    if (beacon) {
+      beacon.likesCount = (beacon.likesCount || 0) + 1;
+      saveBeacons(beacons);
+      res.json({ success: true, data: { likesCount: beacon.likesCount } });
+    } else {
+      res.status(404).json({ success: false, message: 'Không tìm thấy nguyện vọng' });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi gửi cảm xúc' });
+  }
+});
+
 
 const createPostSchema = z.object({
   body: z.object({

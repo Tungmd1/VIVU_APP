@@ -21,11 +21,15 @@ if (process.env.NODE_ENV !== 'production') {
   global.prisma = prisma;
 }
 
+export let isDatabaseConnected = false;
+
 export async function connectDatabase() {
   try {
     await prisma.$connect();
+    isDatabaseConnected = true;
     console.log('✅ Kết nối PostgreSQL Database (PgBouncer Pool) thành công!');
   } catch (error) {
+    isDatabaseConnected = false;
     console.warn('⚠️ Chưa kết nối PostgreSQL trực tiếp (Đang chạy chế độ In-Memory/Redis Cache).');
   }
 }

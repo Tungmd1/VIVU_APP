@@ -1,31 +1,28 @@
-export type ScreenKey =
-  | 'splash'            // 1. Splash Screen
-  | 'welcome'           // 2. Welcome
-  | 'register'          // 3. Đăng ký
-  | 'login'             // 4. Đăng nhập
-  | 'otp'               // 5. Xác thực tài khoản
-  | 'city_select'       // 6. Chọn thành phố
-  | 'goal_select'       // 7. Chọn mục tiêu
-  | 'interest_select'   // 8. Chọn sở thích
-  | 'social_level'      // 9. Mức độ giao tiếp
-  | 'privacy_setting'   // 10. Thiết lập quyền riêng tư
-  | 'home_feed'         // 11. Home Feed
-  | 'post_detail'       // 12. Chi tiết bài viết
-  | 'create_post'       // 13. Tạo bài viết
-  | 'edit_post'         // 14. Chỉnh sửa bài viết
-  | 'comment'           // 15. Comment
-  | 'match_home'        // 16. Match Home
-  | 'activity_detail'   // 17. Chi tiết hoạt động
-  | 'participant_list'  // 18. Danh sách người tham gia
-  | 'group_home'        // 19. Group Home
-  | 'group_detail'      // 20. Group chi tiết
-  | 'group_chat'        // 21. Group chat room
-  | 'message_home'      // 22. Message Home
-  | 'personal_chat'     // 23. Chat cá nhân
-  | 'map'               // 24. Map
-  | 'review'            // 25. Review
-  | 'profile'           // 27. Profile
-  | 'vivi_assistant';   // 28. ViVi Floating Assistant
+export type ScreenKey = 'login' | 'register' | 'profile' | 'home';
+
+export type BeaconCategory = 'all' | 'cafe' | 'sport' | 'food' | 'study' | 'travel';
+
+export interface NowBeacon {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  userAge?: number;
+  userOccupation?: string;
+  userInterests?: string[];
+  batteryLevel?: number;
+  statusMode?: 'chilling' | 'working' | 'moving' | 'online';
+  latitude: number;
+  longitude: number;
+  category: BeaconCategory;
+  emoji: string;
+  content: string;
+  imageUrl?: string;
+  createdAt: number;
+  expiresAt: number;
+  ttlHours: number;
+  likesCount?: number;
+}
 
 export interface UserProfile {
   id: string;
@@ -48,6 +45,18 @@ export interface UserProfile {
   joinDate?: string;
   badges?: string[];
   coverPhoto?: string;
+  // Bổ sung các trường phong cách Tinder & Jagat
+  age?: number;
+  occupation?: string;
+  education?: string;
+  bio?: string;
+  zodiac?: string;
+  photos?: string[];
+  privatePhotos?: string[];
+  pinnedPhoto?: string;
+  footprintPercent?: number;
+  exploredPlacesCount?: number;
+  ghostMode?: 'precise' | 'blurred' | 'frozen';
 }
 
 export interface PostItem {

@@ -8,13 +8,10 @@ export default function LoginRoute() {
   const handleNavigate = (screen: ScreenKey) => {
     if (screen === 'register') {
       router.push('/register');
-    } else if (screen === 'welcome') {
-      router.back();
-    } else if (screen === 'otp') {
-      router.push('/otp');
-    } else if (screen === 'home_feed') {
-      // Navigate to tabs
-      router.replace('/(tabs)');
+    } else if (screen === 'home') {
+      router.replace('/home');
+    } else if (screen === 'profile') {
+      router.replace('/profile');
     }
   };
 

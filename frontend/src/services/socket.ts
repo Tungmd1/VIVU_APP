@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 
 const SOCKET_URL =
-  Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+  process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'android' ? 'http://10.0.2.2:5005' : 'http://localhost:5005');
 
 class SocketService {
   private socket: Socket | null = null;

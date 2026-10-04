@@ -81,3 +81,26 @@ viviRouter.post('/ask', async (req: Request, res: Response) => {
   });
 });
 
+// 5. Gợi ý địa điểm xung quanh
+viviRouter.post('/scan-places', async (req: Request, res: Response) => {
+  const query = (req.body.query as string) || 'địa điểm vui chơi';
+  const city = (req.body.city as string) || 'Đà Nẵng';
+
+  const defaultPlaces = [
+    { name: "Sơn Trà Marina", address: "Hồ Xanh, Bán đảo Sơn Trà", reason: "View ngắm biển cực chill, phong cách Santorini." },
+    { name: "Cộng Cà Phê", address: "96 Bạch Đằng", reason: "Ngồi lề đường ngắm sông Hàn và nhịp sống về đêm." },
+    { name: "Chợ Đêm Helio", address: "Khu Đông Nam đài tưởng niệm", reason: "Thiên đường ẩm thực đường phố, không khí sôi động." },
+    { name: "Nối Cafe", address: "K113/18 Nguyễn Chí Thanh", reason: "Không gian cổ điển, yên tĩnh thích hợp trò chuyện sâu." },
+    { name: "Bãi biển Mỹ Khê", address: "Võ Nguyên Giáp, Sơn Trà", reason: "Bãi biển đẹp, không gian mở cho các hoạt động thể thao & dạo mát." },
+  ];
+
+  const filtered = defaultPlaces.filter(p => 
+    p.name.toLowerCase().includes(query.toLowerCase()) || 
+    p.reason.toLowerCase().includes(query.toLowerCase())
+  );
+
+  res.json({
+    success: true,
+    data: filtered.length > 0 ? filtered : defaultPlaces.slice(0, 3),
+  });
+});

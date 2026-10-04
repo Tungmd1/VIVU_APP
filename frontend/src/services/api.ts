@@ -2,9 +2,10 @@ import { Platform } from 'react-native';
 
 // Địa chỉ backend mặc định
 // Android Emulator dùng 10.0.2.2, iOS Simulator & Web dùng localhost, Thiết bị thật dùng IP LAN (qua biến môi trường EXPO_PUBLIC_API_URL)
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000');
+const resolveApiBaseUrl = () => { let u = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.94:5005'; return u.replace(':5000', ':5005'); };
+const API_BASE_URL = resolveApiBaseUrl();
 
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 1800): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -25,14 +26,33 @@ export class ApiClient {
   }
 
   /**
-   * 1. Đăng ký tài khoản
+   * Kiểm tra tài khoản đã tồn tại hay chưa
    */
-  public static async register(identifier: string, password: string = 'password123', city: string = 'Đà Nẵng') {
+  public static async checkIdentifier(identifier: string) {
+    try {
+      const res = await fetchWithTimeout(
+        `${this.baseUrl}/api/auth/check-identifier?identifier=${encodeURIComponent(identifier.trim())}`
+      );
+      return await res.json();
+    } catch {
+      return { success: false, exists: false };
+    }
+  }
+
+  /**
+   * 1. Đăng ký tài khoản (Hỗ trợ họ tên và thành phố)
+   */
+  public static async register(
+    identifier: string,
+    password: string = 'password123',
+    fullName?: string,
+    city: string = 'Đà Nẵng'
+  ) {
     try {
       const res = await fetchWithTimeout(`${this.baseUrl}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password, city }),
+        body: JSON.stringify({ identifier, password, fullName, city }),
       });
       return await res.json();
     } catch (error: any) {
@@ -57,6 +77,41 @@ export class ApiClient {
   }
 
   /**
+   * Đồng bộ cập nhật thông tin hồ sơ lên máy chủ
+   */
+  public static async syncProfile(token: string, profileData: any) {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileData),
+      });
+      return await res.json();
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Lỗi kết nối' };
+    }
+  }
+
+  /**
+   * Lấy hồ sơ cá nhân hiện tại từ máy chủ
+   */
+  public static async getMe(token: string) {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/auth/me`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      return await res.json();
+    } catch (error: any) {
+      return { success: false, message: error?.message || 'Lỗi kết nối' };
+    }
+  }
+
+  /**
    * 3. Tìm kiếm Ngữ nghĩa Lai qua AI
    */
   public static async search(query: string, category = '', city = 'Đà Nẵng') {
@@ -66,6 +121,22 @@ export class ApiClient {
       return await res.json();
     } catch {
       return { success: false, data: [] };
+    }
+  }
+
+  /**
+   * Quét và gợi ý địa điểm xung quanh
+   */
+  public static async scanPlaces(query: string, city: string = 'Đà Nẵng') {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/ai/scan-places`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, city }),
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e?.message };
     }
   }
 
@@ -560,6 +631,80 @@ export class ApiClient {
       return { success: false, message: e?.message };
     }
   }
+
+  /**
+   * 26. Lấy danh sách Bong bóng Nguyện Vọng (NOW Beacons)
+   */
+  public static async getBeacons(category?: string) {
+    try {
+      const query = category && category !== 'all' ? `?category=${category}` : '';
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/feed/beacons${query}`);
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e?.message };
+    }
+  }
+
+  /**
+   * 27. Đăng Nguyện Vọng mới (NOW Beacon)
+   */
+  public static async postBeacon(beaconData: any) {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/feed/beacons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(beaconData),
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e?.message };
+    }
+  }
+
+  /**
+   * 28. Xóa / Hủy Nguyện Vọng
+   */
+  public static async deleteBeacon(beaconId: string) {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/feed/beacons/${beaconId}`, {
+        method: 'DELETE',
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e?.message };
+    }
+  }
+
+  /**
+   * AI Voice-to-Beacon
+   */
+  public static async transcribeVoice(audioBase64: string) {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/feed/beacons/ai-voice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioBase64 }),
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e?.message };
+    }
+  }
+
+  /**
+   * 29. Thả cảm xúc / POPO vào Nguyện Vọng
+   */
+  public static async reactBeacon(beaconId: string) {
+    try {
+      const res = await fetchWithTimeout(`${this.baseUrl}/api/feed/beacons/${beaconId}/react`, {
+        method: 'POST',
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { success: false, message: e?.message };
+    }
+  }
 }
+
 
 

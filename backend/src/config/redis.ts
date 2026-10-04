@@ -6,29 +6,8 @@ class RedisManager {
   private isConnected = false;
 
   constructor() {
-    try {
-      this.client = new Redis(ENV.REDIS_URL, {
-        maxRetriesPerRequest: 3,
-        enableOfflineQueue: false,
-        retryStrategy(times) {
-          const delay = Math.min(times * 100, 2000);
-          return delay;
-        },
-      });
-
-      this.client.on('connect', () => {
-        this.isConnected = true;
-        console.log('⚡ Redis Cache Cluster kết nối thành công!');
-      });
-
-      this.client.on('error', (err) => {
-        this.isConnected = false;
-        // In local development without active Redis, fallback to in-memory cache gracefully
-        console.warn('⚠️ Cảnh báo Redis: Không thể kết nối Redis, chuyển sang Fallback In-memory cache.');
-      });
-    } catch (e) {
-      console.warn('⚠️ Lỗi khởi tạo Redis client.');
-    }
+    // Disabled Redis client entirely to prevent 'Connection is closed' crash on local dev
+    this.isConnected = false;
   }
 
   // Fallback in-memory map

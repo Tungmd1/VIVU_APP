@@ -31,7 +31,15 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.*
 .env*.local
+!.env.example
+*.env
+
+# Local mock persistence
+backend/in_memory_*.json
+in_memory_*.json
 
 # typescript
 *.tsbuildinfo

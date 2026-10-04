@@ -7,16 +7,19 @@ import { ENV } from '../../config/env';
 
 export class ChatGateway {
   public static init(io: Server): void {
-    // 0. Setup Redis Adapter for 10k CCU scaling
-    // fallback redis url if not provided in env for local testing
-    const redisUrl = ENV.REDIS_URL || 'redis://localhost:6379';
-    try {
-      const pubClient = new Redis(redisUrl);
-      const subClient = pubClient.duplicate();
-      io.adapter(createAdapter(pubClient, subClient));
-      console.log('✅ Socket.io Redis Adapter initialized');
-    } catch (e) {
-      console.warn('⚠️ Could not initialize Redis Adapter, using default in-memory adapter');
+    // 0. Setup Redis Adapter (chỉ bật khi có biến môi trường USE_REDIS)
+    if (process.env.USE_REDIS === 'true') {
+      try {
+        const redisUrl = ENV.REDIS_URL || 'redis://localhost:6379';
+        const pubClient = new Redis(redisUrl, { maxRetriesPerRequest: null });
+        const subClient = pubClient.duplicate();
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log('✅ Socket.io Redis Adapter initialized');
+      } catch (e) {
+        console.warn('⚠️ Could not initialize Redis Adapter, using default in-memory adapter');
+      }
+    } else {
+      console.log('⚡ Socket.io sử dụng default in-memory adapter (ổn định cho môi trường dev).');
     }
 
     // Middleware for Auth

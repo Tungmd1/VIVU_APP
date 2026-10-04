@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -11,9 +11,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Header } from '../../components/Header';
 import { COLORS, SHADOWS } from '../../constants/theme';
 import { ApiClient } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
@@ -24,145 +24,80 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate }) => {
-  const activePhone = useAuthStore((s) => s.activePhone);
-  const setActivePhone = useAuthStore((s) => s.setActivePhone);
-  const setCurrentOtpCode = useAuthStore((s) => s.setCurrentOtpCode);
   const login = useAuthStore((s) => s.login);
+  const activePhone = useAuthStore((s) => s.activePhone);
 
   const [identifier, setIdentifier] = useState(activePhone || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Check if identifier is phone number
-  const isPhone = /^(0|\+84)[0-9]{8,10}$/.test(identifier.trim());
+  useEffect(() => {
+    if (activePhone) {
+      setIdentifier(activePhone);
+    } else {
+      // Đọc tài khoản đăng nhập gần nhất đã lưu trên thiết bị
+      AsyncStorage.getItem('vivu_last_identifier').then((savedId) => {
+        if (savedId && !identifier) {
+          setIdentifier(savedId);
+        }
+      }).catch(() => {});
+    }
+  }, [activePhone]);
 
-  // Handle standard password / phone login
   const handleLogin = async () => {
-    const rawId = identifier.trim();
-    if (!rawId) {
-      Alert.alert('Lỗi', 'Vui lòng nhập số điện thoại hoặc email của bạn.');
+    const cleanId = identifier.trim();
+    const cleanPass = password.trim();
+
+    if (!cleanId) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập số điện thoại hoặc email của bạn.');
       return;
     }
-    setActivePhone(rawId);
+    if (!cleanPass) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập mật khẩu.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // If user typed phone number: trigger quick OTP
-      if (isPhone) {
-        const res = await ApiClient.sendSmsOtp(rawId, '');
-        if (res?.code) {
-          setCurrentOtpCode(res.code);
-        }
-        const currentUser = useAuthStore.getState().user;
-        if (currentUser) {
-          useAuthStore.setState({ user: { ...currentUser, identifier: rawId, phone: rawId } });
-        }
+      const res = await ApiClient.login(cleanId, cleanPass);
+
+      if (res?.success && res?.data?.token) {
+        // Lưu lại định danh tài khoản để các lần sau tự động nhớ
+        await AsyncStorage.setItem('vivu_last_identifier', cleanId).catch(() => {});
+        
+        const userObj = {
+          ...res.data.user,
+          identifier: res.data.user?.identifier || cleanId,
+        };
+        await login(res.data.token, userObj);
+        onNavigate('home');
+      } else if (res?.code === 'ACCOUNT_NOT_FOUND' || res?.message?.includes('chưa được đăng ký')) {
         Alert.alert(
-          'Mã Xác Thực OTP 📲',
-          `Mã OTP xác thực gửi về ${rawId} là: [ ${res?.code || '868686'} ]\n(Mã có hiệu lực trong 60 giây)`,
+          'Tài khoản chưa tồn tại ⚠️',
+          `Số điện thoại hoặc Email "${cleanId}" chưa được đăng ký trên Vivu.\n\nBạn có muốn đăng ký tài khoản mới ngay bây giờ không?`,
           [
+            { text: 'Kiểm tra lại', style: 'cancel' },
             {
-              text: 'Nhập mã ngay',
-              onPress: () => onNavigate('otp'),
+              text: 'Đăng ký tài khoản',
+              style: 'default',
+              onPress: () => onNavigate('register'),
             },
           ]
         );
-        return;
-      }
-
-      // Email/password regular login
-      const res = await ApiClient.login(rawId, password);
-      
-      if (res?.success && res?.data?.token) {
-        await login(res.data.token, res.data.user);
-        onNavigate('home_feed');
+      } else if (res?.code === 'INVALID_PASSWORD' || res?.message?.includes('Mật khẩu không chính xác')) {
+        Alert.alert(
+          'Mật khẩu chưa đúng 🔑',
+          'Mật khẩu bạn vừa nhập chưa chính xác. Bạn vui lòng bấm vào biểu tượng con mắt 👁️ để kiểm tra lại và tắt kiểu gõ Telex nếu có dấu lạ.'
+        );
       } else {
-        Alert.alert('Đăng nhập thất bại', res?.message || 'Vui lòng kiểm tra lại thông tin.');
-      }
-    } catch (error: any) {
-      Alert.alert('Lỗi', 'Lỗi hệ thống');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Quick SMS OTP login
-  const handleSmsOtpLogin = async () => {
-    const phone = identifier.trim();
-    if (!phone) {
-      Alert.alert('Nhập số điện thoại', 'Vui lòng nhập số điện thoại của bạn để nhận mã OTP.');
-      return;
-    }
-    setActivePhone(phone);
-    setLoading(true);
-    try {
-      const res = await ApiClient.sendSmsOtp(phone, '');
-      if (res?.code) {
-        setCurrentOtpCode(res.code);
-      }
-      const currentUser = useAuthStore.getState().user;
-      if (currentUser) {
-        useAuthStore.setState({ user: { ...currentUser, identifier: phone, phone } });
-      }
-      Alert.alert(
-        'Mã Xác Thực OTP 📲',
-        `Mã OTP xác thực gửi về ${phone} là: [ ${res?.code || '868686'} ]\n(Mã có hiệu lực trong 60 giây)`,
-        [
-          {
-            text: 'Nhập mã ngay',
-            onPress: () => onNavigate('otp'),
-          },
-        ]
-      );
-    } catch {
-      onNavigate('otp');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Google Login
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      const res = await ApiClient.loginWithGoogle({
-        googleId: 'gg_' + Date.now(),
-        email: 'user.google@vivu.vn',
-        name: 'VIVU Traveler (Google)',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300',
-      });
-      if (res?.token && res?.user) {
-        await login(res.token, res.user);
-        Alert.alert('Đăng nhập thành công', `Chào mừng ${res.user.name || 'bạn'} qua Google!`);
-        onNavigate('home_feed');
-      } else {
-        onNavigate('home_feed');
+        Alert.alert(
+          'Đăng nhập thất bại',
+          res?.message || 'Số điện thoại/Email hoặc mật khẩu không chính xác.'
+        );
       }
     } catch {
-      onNavigate('home_feed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Apple Login
-  const handleAppleLogin = async () => {
-    setLoading(true);
-    try {
-      const res = await ApiClient.loginWithApple({
-        appleId: 'apple_' + Date.now(),
-        email: 'user.apple@privaterelay.appleid.com',
-        fullName: 'VIVU Member (Apple)',
-      });
-      if (res?.token && res?.user) {
-        await login(res.token, res.user);
-        Alert.alert('Đăng nhập thành công', `Chào mừng ${res.user.name || 'bạn'} qua Apple!`);
-        onNavigate('home_feed');
-      } else {
-        onNavigate('home_feed');
-      }
-    } catch {
-      onNavigate('home_feed');
+      Alert.alert('Lỗi kết nối', 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại mạng.');
     } finally {
       setLoading(false);
     }
@@ -173,110 +108,93 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate }) => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <Header onBack={() => onNavigate('welcome')} transparent />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerBlock}>
-          <Text style={styles.title}>Đăng nhập</Text>
-          <Text style={styles.subtitle}>Chào mừng bạn quay trở lại VIVU!</Text>
+      <View style={{ height: Platform.OS === 'ios' ? 52 : 36 }} />
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Header Branding (Jagat Neon Standard) */}
+        <View style={styles.brandingHeader}>
+          <View style={styles.logoRow}>
+            <Text style={styles.logoText}>VIVU</Text>
+            <View style={styles.livePulseDot} />
+          </View>
+          <Text style={styles.tagline}>Bản đồ Mạng xã hội Thời gian thực</Text>
         </View>
 
-        <View style={styles.formBlock}>
-          <View style={styles.inputWrap}>
-            <Ionicons name="call-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Số điện thoại hoặc email"
-              placeholderTextColor={COLORS.textLight}
-              value={identifier}
-              onChangeText={setIdentifier}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+        {/* Card Form */}
+        <View style={styles.cardBox}>
+          <View style={styles.headerBlock}>
+            <Text style={styles.title}>Đăng nhập</Text>
+            <Text style={styles.subtitle}>Chào mừng bạn quay trở lại bản đồ VIVU</Text>
           </View>
 
-          <View style={styles.inputWrap}>
-            <Ionicons name="lock-closed-outline" size={20} color={COLORS.textLight} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Mật khẩu"
-              placeholderTextColor={COLORS.textLight}
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons
-                name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                size={20}
-                color={COLORS.textLight}
+          <View style={styles.formBlock}>
+            {/* Số điện thoại / Email */}
+            <View style={styles.inputWrap}>
+              <Ionicons name="call-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Số điện thoại hoặc Email"
+                placeholderTextColor="#64748B"
+                value={identifier}
+                onChangeText={setIdentifier}
+                keyboardType="email-address"
+                autoCapitalize="none"
               />
-            </TouchableOpacity>
-          </View>
+            </View>
 
-          <View style={styles.rowActions}>
-            <TouchableOpacity style={styles.smsOtpLink} onPress={handleSmsOtpLogin}>
-              <Ionicons name="phone-portrait-outline" size={15} color={COLORS.primary} />
-              <Text style={styles.smsOtpText}>Đăng nhập OTP SMS (+20 Uy tín)</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.forgotBtn}>
-              <Text style={styles.forgotText}>Quên mật khẩu?</Text>
-            </TouchableOpacity>
-          </View>
+            {/* Mật khẩu */}
+            <View style={styles.inputWrap}>
+              <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Mật khẩu"
+                placeholderTextColor="#64748B"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color="#94A3B8"
+                />
+              </TouchableOpacity>
+            </View>
 
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            activeOpacity={0.85}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={COLORS.primaryGradient}
-              style={styles.btnGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.btnText}>Đăng nhập</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Hoặc tiếp tục với</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialRow}>
+            {/* Nút Đăng nhập */}
             <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.7}
-              onPress={handleGoogleLogin}
+              style={styles.primaryBtn}
+              activeOpacity={0.85}
+              onPress={handleLogin}
               disabled={loading}
             >
-              <Ionicons name="logo-google" size={20} color="#EA4335" />
-              <Text style={styles.socialBtnText}>Google</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialBtn}
-              activeOpacity={0.7}
-              onPress={handleAppleLogin}
-              disabled={loading}
-            >
-              <Ionicons name="logo-apple" size={20} color="#000000" />
-              <Text style={styles.socialBtnText}>Apple</Text>
+              <LinearGradient
+                colors={['#FF6B8B', '#FF4B72', '#E11D48']}
+                style={styles.btnGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.btnText}>Đăng nhập</Text>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* Chuyển sang Đăng ký */}
         <TouchableOpacity
           style={styles.footerLink}
           onPress={() => onNavigate('register')}
+          activeOpacity={0.7}
         >
           <Text style={styles.footerText}>
-            Chưa có tài khoản? <Text style={styles.boldPurple}>Đăng ký ngay</Text>
+            Chưa có tài khoản? <Text style={styles.boldPink}>Đăng ký ngay</Text>
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -287,24 +205,63 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onNavigate }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0B0F19',
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingBottom: 36,
   },
-  headerBlock: {
+  brandingHeader: {
+    alignItems: 'center',
     marginTop: 20,
-    marginBottom: 32,
+    marginBottom: 28,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FF4B72',
+    letterSpacing: 2,
+  },
+  livePulseDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10B981',
+    marginLeft: 8,
+  },
+  tagline: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '600',
+    marginTop: 4,
+    letterSpacing: 0.5,
+  },
+  cardBox: {
+    backgroundColor: '#0F172A',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#1E293B',
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerBlock: {
+    marginBottom: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
-    color: COLORS.textDark,
+    color: '#FFFFFF',
   },
   subtitle: {
-    fontSize: 14,
-    color: COLORS.textMedium,
+    fontSize: 13,
+    color: '#94A3B8',
     marginTop: 6,
   },
   formBlock: {
@@ -313,10 +270,10 @@ const styles = StyleSheet.create({
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#334155',
     paddingHorizontal: 16,
     height: 52,
   },
@@ -326,39 +283,17 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    color: COLORS.textDark,
-  },
-  rowActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-  },
-  smsOtpLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-  },
-  smsOtpText: {
-    fontSize: 13,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  forgotBtn: {
-    alignSelf: 'flex-end',
-    paddingVertical: 4,
-  },
-  forgotText: {
-    fontSize: 13,
-    color: COLORS.textLight,
-    fontWeight: '500',
+    color: '#FFFFFF',
   },
   primaryBtn: {
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginTop: 6,
-    ...SHADOWS.glow,
+    marginTop: 8,
+    shadowColor: '#FF4B72',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 8,
   },
   btnGradient: {
     paddingVertical: 15,
@@ -368,55 +303,19 @@ const styles = StyleSheet.create({
   btnText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 14,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 13,
-    color: COLORS.textLight,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FAFAFC',
-  },
-  socialBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textDark,
+    fontWeight: '800',
   },
   footerLink: {
     alignItems: 'center',
-    marginTop: 40,
-    paddingVertical: 8,
+    marginTop: 32,
+    paddingVertical: 10,
   },
   footerText: {
     fontSize: 14,
-    color: COLORS.textMedium,
+    color: '#94A3B8',
   },
-  boldPurple: {
-    color: COLORS.primary,
-    fontWeight: '700',
+  boldPink: {
+    color: '#FF4B72',
+    fontWeight: '800',
   },
 });

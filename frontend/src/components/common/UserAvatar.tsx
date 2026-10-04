@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     overflow: 'hidden',
-    backgroundColor: '#FAF8F5',
+    backgroundColor: COLORS.card,
   },
   fallback: {
     width: '100%',
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: COLORS.background,
   },
   trustBadge: {
     position: 'absolute',
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: COLORS.background,
   },
   trustText: {
     color: '#FFFFFF',

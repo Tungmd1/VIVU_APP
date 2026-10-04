@@ -1,5 +1,3 @@
-import { ENV } from '../../config/env';
-
 export interface IcebreakerContext {
   targetUserName: string;
   sharedInterests: string[];
@@ -16,41 +14,7 @@ export class ViViAIService {
   ): Promise<{ icebreaker: string; explanation: string }> {
     const primaryInterest = ctx.sharedInterests[0] || 'Du lịch';
 
-    // Trường hợp có GEMINI_API_KEY
-    if (ENV.GEMINI_API_KEY) {
-      try {
-        const prompt = `Bạn là ViVi, trợ lý ảo thông minh của ứng dụng du lịch VIVU. 
-Hãy viết 1 câu mở lời bắt chuyện (dưới 35 từ) thật tự nhiên, thân thiện và cuốn hút để người dùng gửi cho ${ctx.targetUserName}.
-Họ đều cùng thích: ${ctx.sharedInterests.join(', ')} tại ${ctx.candidateCity}.
-Không dùng từ sáo rỗng hoặc quá trang trọng. Trả về đúng 1 câu văn duy nhất tiếng Việt kèm emoji vui tươi.`;
-
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${ENV.GEMINI_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = (await response.json()) as any;
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text) {
-            return {
-              icebreaker: text,
-              explanation: `Dựa trên điểm chung ${primaryInterest} giữa 2 bạn`,
-            };
-          }
-        }
-      } catch (err) {
-        // Fallback to built-in rule engine
-      }
-    }
-
-    // Fallback: Hệ thống sinh câu thông minh theo tâm lý học giao tiếp (Rule-based heuristics)
+    // Hệ thống sinh câu thông minh theo tâm lý học giao tiếp (Rule-based heuristics)
     const templates: Record<string, string[]> = {
       food: [
         `Chào ${ctx.targetUserName}, mình thấy bạn cũng mê ẩm thực ${ctx.candidateCity}! Bạn đã thử quán bánh tráng thịt heo Đại Lộc ở Hải Châu chưa, chuẩn vị lắm nè! 🍲`,
@@ -118,35 +82,7 @@ Không dùng từ sáo rỗng hoặc quá trang trọng. Trả về đúng 1 câ
   public static async askViVi(question: string, city = 'Đà Nẵng'): Promise<string> {
     const qLower = question.toLowerCase();
 
-    // 1. Nếu có cấu hình Gemini API Key
-    if (ENV.GEMINI_API_KEY) {
-      try {
-        const prompt = `Bạn là ViVi, trợ lý du lịch và ghép cạ trải nghiệm thông minh của ứng dụng VIVU tại Việt Nam (thành phố ${city}).
-Người dùng hỏi: "${question}"
-Hãy trả lời thật súc tích, duyên dáng, nhiệt tình, có đề xuất cụ thể (địa điểm, món ngon hoặc lời khuyên kết bạn) dưới 80 từ kèm emoji sinh động.`;
-
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${ENV.GEMINI_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-            }),
-          }
-        );
-
-        if (response.ok) {
-          const data = (await response.json()) as any;
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text) return text;
-        }
-      } catch (e) {
-        // Fallback to domain heuristics below
-      }
-    }
-
-    // 2. Fallback tri thức chuyên gia du lịch & kết nối VIVU
+    // Tri thức chuyên gia du lịch & kết nối VIVU
     if (qLower.includes('cafe') || qLower.includes('cà phê') || qLower.includes('nước')) {
       return `☕ Gợi ý cafe cực chill ở ${city}: Quán Nối Cafe (phong cách vintage hoài cổ), Sơn Trà Marina (view vịnh biển như Santorini thu nhỏ), hoặc Pavilion bãi biển Mỹ Khê. Bạn có thể bấm tạo hẹn để rủ bạn đi cùng nhé! 🌊`;
     }
@@ -163,4 +99,3 @@ Hãy trả lời thật súc tích, duyên dáng, nhiệt tình, có đề xuấ
     return `ViVi sẵn sàng hỗ trợ bạn khám phá ${city}! Bạn có thể hỏi mình địa điểm ăn uống, quán cafe view biển, lịch trình săn ảnh hoàng hôn hoặc cách bắt chuyện tự nhiên với các bạn cùng sở thích nhé! ✨`;
   }
 }
-

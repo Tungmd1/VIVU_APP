@@ -10,7 +10,6 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   JWT_SECRET: z.string().default('vivu_secret_jwt_key_2026_default_development_key'),
   JWT_EXPIRES_IN: z.string().default('7d'),
-  GEMINI_API_KEY: z.string().optional().default(''),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

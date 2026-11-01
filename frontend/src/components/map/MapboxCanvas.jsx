@@ -69,6 +69,7 @@ export default function MapboxCanvas({
   viewMode = 'social',
   stories = [],
   friends = [],
+  myActiveStory: propMyActiveStory = null,
   radarDistance = 3,
   isAdjustingRadius = false,
   isRadarScanning = false,
@@ -104,8 +105,9 @@ export default function MapboxCanvas({
 
   // Nhận diện Story đang hoạt động của chính Bạn (myActiveStory)
   const myActiveStory = useMemo(() => {
+    if (propMyActiveStory) return propMyActiveStory;
     return stories.find(s => isOwnerItem(s)) || null;
-  }, [stories, currentUserId, currentUserName]);
+  }, [propMyActiveStory, stories, currentUserId, currentUserName]);
 
   const myActiveStoryRef = useRef(myActiveStory);
   myActiveStoryRef.current = myActiveStory;

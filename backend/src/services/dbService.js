@@ -36,10 +36,10 @@ export const dbService = {
     const now = new Date();
     const prevCount = inMemoryStore.stories.length;
     inMemoryStore.stories = inMemoryStore.stories.filter(s => {
-      // Tính toán expires_at nếu bị khuyết: mặc định created_at + 3 giờ
+      // Tính toán expires_at nếu bị khuyết: mặc định created_at + 24 giờ
       const expiresAt = s.expires_at 
         ? new Date(s.expires_at) 
-        : new Date(new Date(s.created_at || Date.now()).getTime() + (s.expiry_hours || 3) * 3600000);
+        : new Date(new Date(s.created_at || Date.now()).getTime() + (s.expiry_hours || 24) * 3600000);
       return expiresAt > now;
     });
     if (inMemoryStore.stories.length < prevCount) {
@@ -55,9 +55,9 @@ export const dbService = {
 
   async createStory(story) {
     const creatorId = story.host_id || story.hostId || story.user_id;
-    if (creatorId && (creatorId.startsWith('client-') || !inMemoryStore.users.some(u => u.id === creatorId))) {
-      throw new Error('Chỉ tài khoản đã đăng nhập mới có thể đăng bài trên VIVU');
-    }
+    const expiryHours = Number(story.expiry_hours || story.expiryHours) || 24;
+    const createdAt = new Date().toISOString();
+    const expiresAt = story.expires_at || new Date(Date.now() + expiryHours * 3600000).toISOString();
 
     const newStory = {
       id: story.id || `story-${Date.now()}`,
@@ -74,8 +74,8 @@ export const dbService = {
       lng: story.lng || 106.7009,
       lat_offset: story.lat_offset || 0,
       lng_offset: story.lng_offset || 0,
-      expiry_hours: story.expiry_hours || 24,
-      expires_at: story.expires_at || new Date(Date.now() + (story.expiry_hours || 24) * 3600000).toISOString(),
+      expiry_hours: expiryHours,
+      expires_at: expiresAt,
       image: story.image || null,
       dual_image: story.dual_image || story.dualImage || null,
       is_dual_cam: Boolean(story.is_dual_cam || story.isDualCam),
@@ -88,7 +88,7 @@ export const dbService = {
       tagged_friends: Array.isArray(story.tagged_friends) ? story.tagged_friends : [],
       reactions: [],
       privacy: story.privacy || 'public',
-      created_at: new Date().toISOString()
+      created_at: createdAt
     };
 
     if (isCloudEnabled && supabase) {

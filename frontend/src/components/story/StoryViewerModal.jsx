@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import StoryFloatingReactions from './viewer/StoryFloatingReactions';
 import StoryInteractiveLayer from './viewer/StoryInteractiveLayer';
 import StoryMiniMapRadar from './viewer/StoryMiniMapRadar';
 import DualCameraOverlay from './camera/DualCameraOverlay';
+import StoryFullscreenLightbox from './viewer/StoryFullscreenLightbox';
 import { storyAudioPlayer } from '../../data/trendingSongs';
 import { playTactileClickSound } from './storyAudioEffects';
 
@@ -31,22 +32,10 @@ export default function StoryViewerModal({
   userLng,
   currentUserId
 }) {
-  const [progress, setProgress] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [showPauseBadge, setShowPauseBadge] = useState(false);
+  const [isFullscreenLightbox, setIsFullscreenLightbox] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [dualSwapped, setDualSwapped] = useState(false);
-
-  const durationMs = 7000; // 7s auto progress
-
-  // Luôn reset tiến trình về 0s khi mở hoặc đổi story mới
-  useEffect(() => {
-    if (story) {
-      setProgress(0);
-      setIsPaused(false);
-    }
-  }, [story?.id]);
 
   // Quản lý phát nhạc của Story
   useEffect(() => {
@@ -64,40 +53,36 @@ export default function StoryViewerModal({
     };
   }, [story]);
 
-  // Quản lý Progress Bar tự chạy (chỉ chạy khi KHÔNG tạm dừng)
-  useEffect(() => {
-    if (!story || isPaused) return;
-
-    const intervalTime = 50;
-    const step = (intervalTime / durationMs) * 100;
-
-    const timer = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(timer);
-          onClose();
-          return 100;
-        }
-        return Math.min(100, prev + step);
-      });
-    }, intervalTime);
-
-    return () => clearInterval(timer);
-  }, [story?.id, isPaused]);
-
   if (!story) return null;
 
-  // Chạm vào ảnh/màn hình để Bật/Tắt Tạm Dừng
+  const actualStory = story.activeStory || story;
+  const remainingTime = formatRemainingTime(actualStory.expires_at || actualStory.expiresAt);
+
+  // Xử lý ảnh chính / ảnh phụ nếu là Dual Camera
+  const mainImageSrc = dualSwapped
+    ? (actualStory.dual_image || actualStory.dualImage)
+    : (actualStory.image || actualStory.memeImage || actualStory.dual_image);
+  const secondaryImageSrc = dualSwapped
+    ? (actualStory.image || actualStory.memeImage)
+    : (actualStory.dual_image || actualStory.dualImage);
+
+  // Chạm vào ảnh để mở Chế Độ Full Màn Hình (Lightbox tràn viền)
   const handleTapStory = (e) => {
-    // Bỏ qua nếu chạm vào controls, buttons, form inputs
-    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('form') || e.target.closest('.interactive-clickable')) {
+    // Bỏ qua nếu chạm vào controls, buttons, form inputs, interactive stickers
+    if (
+      e.target.closest('button') ||
+      e.target.closest('input') ||
+      e.target.closest('form') ||
+      e.target.closest('.interactive-clickable') ||
+      e.target.closest('.interactive-layer-root')
+    ) {
       return;
     }
     e.stopPropagation();
     playTactileClickSound();
-    setIsPaused(prev => !prev);
-    setShowPauseBadge(true);
-    setTimeout(() => setShowPauseBadge(false), 900);
+    if (mainImageSrc) {
+      setIsFullscreenLightbox(true);
+    }
   };
 
   const handleSendReply = (e) => {
@@ -123,32 +108,14 @@ export default function StoryViewerModal({
     }
   };
 
-  const actualStory = story.activeStory || story;
-  const remainingTime = formatRemainingTime(actualStory.expires_at || actualStory.expiresAt);
-
-  // Xử lý ảnh chính / ảnh phụ nếu là Dual Camera
-  const mainImageSrc = dualSwapped
-    ? (actualStory.dual_image || actualStory.dualImage)
-    : (actualStory.image || actualStory.memeImage || actualStory.dual_image);
-  const secondaryImageSrc = dualSwapped
-    ? (actualStory.image || actualStory.memeImage)
-    : (actualStory.dual_image || actualStory.dualImage);
-
   return (
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden animate-fadeIn">
       {/* Vùng nền ảnh full màn hình / immersion */}
       <div
         onClick={handleTapStory}
         className="relative w-full h-full max-w-lg md:max-w-2xl bg-[#0A0A0C] flex items-center justify-center overflow-hidden shadow-2xl cursor-pointer"
+        title="Chạm vào ảnh để xem Toàn Màn Hình"
       >
-        {/* Chỉ báo Tạm dừng / Tiếp tục khi chạm vào ảnh */}
-        {(isPaused || showPauseBadge) && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/25 text-white text-xs font-bold flex items-center gap-2 shadow-2xl pointer-events-none transition-all">
-            <i className={`bi ${isPaused ? 'bi-pause-circle-fill text-amber-400' : 'bi-play-circle-fill text-teal-400'} text-base`}></i>
-            <span>{isPaused ? 'ĐÃ TẠM DỪNG (Chạm để tiếp tục)' : 'TIẾP TỤC CHẠY'}</span>
-          </div>
-        )}
-
         {mainImageSrc ? (
           <div className="relative w-full h-full flex items-center justify-center">
             <img
@@ -160,9 +127,15 @@ export default function StoryViewerModal({
             <img
               src={mainImageSrc}
               alt="Story Content"
-              className="relative w-full h-full object-contain md:object-cover"
+              className="relative w-full h-full object-contain md:object-cover transition-transform hover:scale-[1.01]"
               style={{ filter: actualStory.filter_css || 'none' }}
             />
+
+            {/* Gợi ý chạm mở toàn màn hình */}
+            <div className="absolute top-20 right-4 z-20 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white/90 text-[11px] font-mono flex items-center gap-1.5 shadow-lg pointer-events-none opacity-80 hover:opacity-100">
+              <i className="bi bi-arrows-fullscreen text-[#10FFA0]"></i>
+              <span>Xem Full Màn Hình</span>
+            </div>
           </div>
         ) : (
           <div
@@ -210,16 +183,13 @@ export default function StoryViewerModal({
           onReplyQA={onReplyQA}
         />
 
-        {/* Dải tiến trình thời gian (Progress Bar) */}
+        {/* Thanh Header: Avatar, Tên, Cự ly, Nhạc, Nút Phóng to & Nút Đóng */}
         <div className="absolute top-0 left-0 right-0 z-40 p-3 pt-safe bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-          <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden mb-3">
-            <div
-              className="h-full bg-white transition-all duration-75 ease-linear rounded-full"
-              style={{ width: `${progress}%` }}
-            />
+          {/* Dải chỉ báo thanh lịch */}
+          <div className="w-full h-1 bg-[#10FFA0]/30 rounded-full overflow-hidden mb-3">
+            <div className="h-full bg-gradient-to-r from-[#10FFA0] to-[#00E5FF] rounded-full w-full" />
           </div>
 
-          {/* Header: Avatar, Tên, Cự ly, Nhạc, Nút Đóng */}
           <div className="flex items-center justify-between pointer-events-auto">
             <div className="flex items-center gap-2.5">
               <img
@@ -255,23 +225,21 @@ export default function StoryViewerModal({
                 </button>
               )}
 
-              {/* Nút Tạm Dừng / Tiếp Tục */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playTactileClickSound();
-                  setIsPaused(prev => !prev);
-                  setShowPauseBadge(true);
-                  setTimeout(() => setShowPauseBadge(false), 900);
-                }}
-                className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center transition-all cursor-pointer ${
-                  isPaused ? 'bg-amber-400 text-black shadow-lg scale-105' : 'bg-black/50 text-white hover:bg-black/70'
-                }`}
-                title={isPaused ? "Tiếp tục chạy" : "Tạm dừng xem"}
-              >
-                <i className={`bi ${isPaused ? 'bi-play-fill text-base' : 'bi-pause-fill text-sm'}`}></i>
-              </button>
+              {/* Nút Xem Toàn Màn Hình */}
+              {mainImageSrc && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playTactileClickSound();
+                    setIsFullscreenLightbox(true);
+                  }}
+                  className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white hover:text-[#10FFA0] hover:bg-black/70 flex items-center justify-center transition-all cursor-pointer shadow-md"
+                  title="Mở toàn màn hình"
+                >
+                  <i className="bi bi-arrows-fullscreen text-xs"></i>
+                </button>
+              )}
 
               {/* Nút đóng */}
               <button
@@ -331,6 +299,16 @@ export default function StoryViewerModal({
           </form>
         </div>
       </div>
+
+      {/* Chế độ xem toàn màn hình (Lightbox Fullscreen) */}
+      {isFullscreenLightbox && mainImageSrc && (
+        <StoryFullscreenLightbox
+          imageSrc={mainImageSrc}
+          title={actualStory.title}
+          filterCss={actualStory.filter_css}
+          onClose={() => setIsFullscreenLightbox(false)}
+        />
+      )}
     </div>
   );
 }

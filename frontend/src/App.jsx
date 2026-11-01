@@ -1178,6 +1178,15 @@ export default function App() {
                 if (peerIdx >= 0) {
                   // ĐÃ TỒN TẠI GIỌT NƯỚC CỦA NGƯỜI NÀY -> HỢP NHẤT VÀO 1 GIỌT NƯỚC DUY NHẤT (Rule 30)
                   const cur = updated[peerIdx];
+                  const isCurOwner = cur.isOwnerStory || (currentUserId && cur.hostId === currentUserId);
+                  const curCreated = new Date(cur.created_at || cur.createdAt || 0).getTime();
+                  const rsCreated = new Date(rs.created_at || rs.createdAt || 0).getTime();
+
+                  // Nếu là bài của chính mình và bài cục bộ mới hơn hoặc bài remote thiếu ảnh -> Giữ nguyên bài cục bộ
+                  if (isCurOwner && curCreated > rsCreated && cur.image) {
+                    return;
+                  }
+
                   if (!cur.activeStory || cur.activeStory.id !== rs.id) {
                     hasNew = true;
                     updated[peerIdx] = {
@@ -1189,7 +1198,8 @@ export default function App() {
                       image: rs.image || cur.image || null,
                       music: rs.music || cur.music || null,
                       video: rs.video || cur.video || null,
-                      title: rs.title || cur.title
+                      title: rs.title || cur.title,
+                      isOwnerStory: Boolean(isCurOwner || rs.host_id === currentUserId)
                     };
                   }
                 } else {
@@ -1745,10 +1755,12 @@ export default function App() {
       lngOffset: 0,
       expiry_hours: storyData.expiry_hours || 24,
       expires_at: new Date(Date.now() + (storyData.expiry_hours || 24) * 3600000).toISOString(),
+      created_at: new Date().toISOString(),
       privacy: isFriendsOnly ? 'friends' : (storyData.privacy || 'public')
     };
+    newStory.activeStory = newStory;
 
-    setStories(prev => [newStory, ...prev]);
+    setStories(prev => [newStory, ...prev.filter(s => s.id !== newStory.id)]);
     try {
       localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
     } catch {}
@@ -1758,6 +1770,7 @@ export default function App() {
 
     // Đồng bộ story mới lên backend server để các thiết bị khác nhận được
     await apiClient.createStory({
+      id: newStory.id,
       host_id: currentUserId,
       user_code: currentUserCode,
       host_name: currentUserName,
@@ -1779,6 +1792,8 @@ export default function App() {
       music: newStory.music,
       tagged_friends: newStory.tagged_friends,
       expiry_hours: newStory.expiry_hours,
+      expires_at: newStory.expires_at,
+      created_at: newStory.created_at,
       privacy: newStory.privacy
     });
   };
@@ -1804,15 +1819,23 @@ export default function App() {
       realLng: userLng,
       latOffset: 0,
       lngOffset: 0,
+      expiry_hours: 24,
+      expires_at: new Date(Date.now() + 24 * 3600000).toISOString(),
+      created_at: new Date().toISOString(),
       privacy: 'public'
     };
+    newStory.activeStory = newStory;
 
-    setStories(prev => [newStory, ...prev]);
+    setStories(prev => [newStory, ...prev.filter(s => s.id !== newStory.id)]);
+    try {
+      localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
+    } catch {}
     setIsQuickSnapOpen(false);
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.5 } });
     setActiveTab('social');
 
     apiClient.createStory({
+      id: newStory.id,
       host_id: currentUserId,
       user_code: currentUserCode,
       host_name: currentUserName,
@@ -1824,6 +1847,9 @@ export default function App() {
       lat: userLat,
       lng: userLng,
       image: snapData.image,
+      expiry_hours: newStory.expiry_hours,
+      expires_at: newStory.expires_at,
+      created_at: newStory.created_at,
       privacy: 'public'
     });
   };

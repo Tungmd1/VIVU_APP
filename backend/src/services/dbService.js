@@ -105,6 +105,29 @@ export const dbService = {
     return newStory;
   },
 
+  async deleteStory(storyId, userId) {
+    const idx = inMemoryStore.stories.findIndex(s => s.id === storyId);
+    if (idx === -1) {
+      throw new Error('Không tìm thấy Story cần xóa');
+    }
+    const story = inMemoryStore.stories[idx];
+    if (userId && story.host_id && story.host_id !== userId) {
+      throw new Error('Bạn không có quyền xóa Story này');
+    }
+
+    if (isCloudEnabled && supabase) {
+      try {
+        await supabase.from('hangout_stories').delete().eq('id', storyId);
+      } catch (err) {
+        console.warn('[DB Service] Cloud story delete error:', err.message);
+      }
+    }
+
+    inMemoryStore.stories.splice(idx, 1);
+    dbStore.persist();
+    return { success: true, storyId };
+  },
+
   async voteStoryPoll(storyId, pollId, optionIndex, userId) {
     const story = inMemoryStore.stories.find(s => s.id === storyId);
     if (!story) throw new Error('Không tìm thấy Story');

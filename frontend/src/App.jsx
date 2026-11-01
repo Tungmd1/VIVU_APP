@@ -297,6 +297,8 @@ export default function App() {
 
   // Story tương tác 3D & Hồ sơ khách
   const [selectedInteractiveStory, setSelectedInteractiveStory] = useState(null);
+  const [selectedInteractiveStoryList, setSelectedInteractiveStoryList] = useState([]);
+  const [selectedStoryInitialIndex, setSelectedStoryInitialIndex] = useState(0);
   const [selectedGuestProfile, setSelectedGuestProfile] = useState(null);
   const [selectedFriend, setSelectedFriend] = useState(null);
   const [myStoryReactions, setMyStoryReactions] = useState({});
@@ -1640,6 +1642,63 @@ export default function App() {
     }
   };
 
+  // Mở trình xem Story từng cái một (Multi-Story Carousel Navigation)
+  const handleOpenStoryViewer = (targetStory) => {
+    if (!targetStory) return;
+    const actual = targetStory.activeStory || targetStory;
+    const hostId = actual.hostId || actual.host_id || actual.id;
+    const userCode = actual.userCode || actual.user_code;
+    const isOwner = Boolean(
+      (currentUserId && (hostId === currentUserId || targetStory.id === currentUserId)) ||
+      (currentUserCode && (userCode === currentUserCode)) ||
+      actual.isOwnerStory ||
+      targetStory.isOwnerStory
+    );
+
+    // Gom toàn bộ story của người này
+    const matchedStories = liveStories.filter(s => {
+      if (!s) return false;
+      const curActual = s.activeStory || s;
+      if (isOwner) {
+        return Boolean(
+          (currentUserId && (curActual.host_id === currentUserId || curActual.hostId === currentUserId || s.hostId === currentUserId || s.id === currentUserId)) ||
+          (currentUserCode && (curActual.user_code === currentUserCode || curActual.userCode === currentUserCode || s.userCode === currentUserCode)) ||
+          s.isOwnerStory ||
+          curActual.isOwnerStory
+        );
+      }
+      if (hostId && (curActual.host_id === hostId || curActual.hostId === hostId || s.hostId === hostId || s.id === hostId)) return true;
+      if (userCode && (curActual.user_code === userCode || curActual.userCode === userCode || s.userCode === userCode)) return true;
+      return false;
+    });
+
+    const finalStoryList = matchedStories.length > 0 ? matchedStories : [targetStory];
+    const foundIndex = finalStoryList.findIndex(s => {
+      const sId = s.id || s.activeStory?.id;
+      const targetId = targetStory.id || actual.id;
+      return sId === targetId;
+    });
+
+    setSelectedInteractiveStory(targetStory);
+    setSelectedInteractiveStoryList(finalStoryList);
+    setSelectedStoryInitialIndex(foundIndex >= 0 ? foundIndex : 0);
+  };
+
+  // Xóa Story khỏi ứng dụng và cơ sở dữ liệu
+  const handleDeleteStory = async (storyId) => {
+    setStories(prev => prev.filter(s => s.id !== storyId && s.activeStory?.id !== storyId));
+    try {
+      const cached = localStorage.getItem('vivu_user_active_story');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.id === storyId || parsed.activeStory?.id === storyId) {
+          localStorage.removeItem('vivu_user_active_story');
+        }
+      }
+    } catch {}
+    await apiClient.deleteStory(storyId, currentUserId);
+  };
+
   // Nhắn tin trực tiếp từ Story hoặc Hồ sơ khách
   const handleStoryDirectChat = (story, replyText = null) => {
     setSelectedInteractiveStory(null);
@@ -2181,7 +2240,7 @@ export default function App() {
         badgeColor: '#10FFA0',
         onClick: () => {
           if (radarPingNotification.item) {
-            setSelectedInteractiveStory(radarPingNotification.item);
+            handleOpenStoryViewer(radarPingNotification.item);
           }
           setRadarPingNotification(null);
         },
@@ -2280,7 +2339,7 @@ export default function App() {
         navTarget={navTarget}
         activeCircleFilter={activeCircleFilter}
         onClearCircleFilter={() => setActiveCircleFilter(null)}
-        onOpenStoryDetail={(story) => setSelectedInteractiveStory(story)}
+        onOpenStoryDetail={handleOpenStoryViewer}
         onOpenStoryChat={handleStoryDirectChat}
         onOpenFriendDetail={setSelectedFriend}
         onOpenGuestProfile={(profile) => setSelectedGuestProfile(profile)}
@@ -2426,18 +2485,25 @@ export default function App() {
         className={activeTab === 'chat' && activeConversationId ? 'hidden' : ''}
       />
 
-      {/* 6. TRÌNH XEM STORY TOÀN MÀN HÌNH TƯƠNG TÁC CAO CẤP */}
+      {/* 6. TRÌNH XEM STORY TOÀN MÀN HÌNH TƯƠNG TÁC CAO CẤP (MULTI-STORY & DELETE) */}
       {selectedInteractiveStory && (
         <StoryViewerModal
           story={selectedInteractiveStory}
-          onClose={() => setSelectedInteractiveStory(null)}
+          storyList={selectedInteractiveStoryList}
+          initialIndex={selectedStoryInitialIndex}
+          onClose={() => {
+            setSelectedInteractiveStory(null);
+            setSelectedInteractiveStoryList([]);
+          }}
           onOpenStoryChat={handleStoryDirectChat}
           onVotePoll={handleVoteStoryPoll}
           onReplyQA={handleReplyStoryQA}
           onReact={handleStoryReaction}
+          onDeleteStory={handleDeleteStory}
           userLat={userLat}
           userLng={userLng}
           currentUserId={currentUserId}
+          currentUserCode={currentUserCode}
         />
       )}
 
@@ -2658,7 +2724,7 @@ export default function App() {
           stories={liveStories}
           myActiveStory={myActiveStory}
           onOpenCreateStory={() => setIsCreateModalOpen(true)}
-          onOpenStoryDetail={(story) => setSelectedInteractiveStory(story)}
+          onOpenStoryDetail={handleOpenStoryViewer}
           onToggleRightFriendshipPanel={() => setIsRightFriendshipPanelOpen(prev => !prev)}
           pendingFriendRequestsCount={pendingFriendRequests.length}
           userLat={userLat}
@@ -2757,6 +2823,20 @@ export default function App() {
             setNavTarget(target);
             setIsNavigationActive(true);
             setActiveTab('social');
+          }}
+          onOpenStoryHighlight={(highlight) => {
+            if (highlight && Array.isArray(highlight.stories) && highlight.stories.length > 0) {
+              const hlStories = highlight.stories.map(s => ({
+                ...s,
+                host_name: currentUserName,
+                host_avatar: currentUserAvatar,
+                user_code: currentUserCode,
+                isOwnerStory: true
+              }));
+              setSelectedInteractiveStory(hlStories[0]);
+              setSelectedInteractiveStoryList(hlStories);
+              setSelectedStoryInitialIndex(0);
+            }
           }}
         />
       )}
@@ -2860,7 +2940,7 @@ export default function App() {
         notifications={radarNotificationsHistory}
         onSelectStory={(story) => {
           setIsNotificationDrawerOpen(false);
-          setSelectedInteractiveStory(story);
+          handleOpenStoryViewer(story);
         }}
         onClearAll={() => setRadarNotificationsHistory([])}
       />

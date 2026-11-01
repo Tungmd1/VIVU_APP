@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import EditProfileModal from './EditProfileModal';
+import ProfileStoryHighlights from './ProfileStoryHighlights';
 import { playProfileChime, triggerProfileHaptic } from './profileAudioEffects';
 
 /**
@@ -19,7 +20,8 @@ export default function ProfilePageView({
   onUpdateAvatar,
   userCustomStatus = 'Đang vi vu dạo phố quanh đây',
   userCode,
-  onBackToMap
+  onBackToMap,
+  onOpenStoryHighlight
 }) {
   const userId = user?.id || 'guest';
   const meta = user?.user_metadata || {};
@@ -204,6 +206,9 @@ export default function ProfilePageView({
             )}
           </div>
         </div>
+
+        {/* 2.5 Section Tin Nổi Bật (Highlights) */}
+        <ProfileStoryHighlights userId={userId} onOpenHighlight={onOpenStoryHighlight} />
 
         {/* 3. Section Thư Viện Ảnh Thật Của Người Dùng */}
         <div className="p-4 rounded-3xl bg-[#121520] border border-white/10 space-y-3">

@@ -24,6 +24,17 @@ export const storyController = {
     }
   },
 
+  async deleteStory(req, res, next) {
+    try {
+      const { storyId } = req.params;
+      const userId = req.query.userId || req.body?.userId;
+      const result = await dbService.deleteStory(storyId, userId);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async votePoll(req, res, next) {
     try {
       const { storyId } = req.params;

@@ -175,6 +175,20 @@ export const apiClient = {
     return null;
   },
 
+  async deleteStory(storyId, userId = null) {
+    try {
+      const url = userId ? `${API_BASE_URL}/stories/${storyId}?userId=${encodeURIComponent(userId)}` : `${API_BASE_URL}/stories/${storyId}`;
+      const res = await fetch(url, {
+        method: 'DELETE'
+      });
+      const json = await res.json();
+      if (json.success) return true;
+    } catch (err) {
+      console.warn('[API Client] deleteStory fallback:', err.message);
+    }
+    return false;
+  },
+
   async voteStoryPoll(storyId, pollId, optionIndex, userId) {
     try {
       const res = await fetch(`${API_BASE_URL}/stories/${storyId}/poll-vote`, {

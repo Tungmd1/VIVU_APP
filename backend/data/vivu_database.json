@@ -14,15 +14,15 @@
   "profiles": [
     {
       "id": "user-1793540407056-i5wn6",
-      "lat": 15.975247952066567,
-      "lng": 108.23135746257685,
+      "lat": 16.03894754665403,
+      "lng": 108.21935096066682,
       "user_code": "VU-5963",
       "full_name": "Mai Đức Tùng",
       "name": "Mai Đức Tùng",
       "avatar_url": null,
       "avatar": null,
-      "is_online": true,
-      "last_seen_at": "2026-11-01T14:30:06.573Z",
+      "is_online": false,
+      "last_seen_at": "2026-11-01T14:30:51.685Z",
       "battery": "95%",
       "custom_status": "Đang hoạt động"
     }
@@ -355,6 +355,51 @@
           "user_id": "user-1793540407056-i5wn6",
           "type": "heart",
           "timestamp": "2026-11-01T14:28:19.394Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "fire",
+          "timestamp": "2026-11-01T14:40:18.515Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "heart",
+          "timestamp": "2026-11-01T14:40:19.337Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "fire",
+          "timestamp": "2026-11-01T14:40:20.040Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "thumbs",
+          "timestamp": "2026-11-01T14:40:20.520Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "thumbs",
+          "timestamp": "2026-11-01T14:40:20.806Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "thumbs",
+          "timestamp": "2026-11-01T14:40:21.403Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "thumbs",
+          "timestamp": "2026-11-01T14:40:21.470Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "thumbs",
+          "timestamp": "2026-11-01T14:40:21.592Z"
+        },
+        {
+          "user_id": "user-1793540407056-i5wn6",
+          "type": "thumbs",
+          "timestamp": "2026-11-01T14:40:21.769Z"
         }
       ]
     }

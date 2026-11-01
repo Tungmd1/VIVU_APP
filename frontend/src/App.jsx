@@ -1040,6 +1040,10 @@ export default function App() {
           let hasChange = false;
           // Loại bỏ toàn bộ ghim live-peer- hoặc story của tài khoản đã offline khỏi Tab Xã Hội
           let updated = prevStories.filter(s => {
+            // BẢO VỆ STORY CỦA CHÍNH MÌNH (Không bao giờ bị xóa khỏi radar của mình)
+            if (s.hostId === currentUserId || s.isOwnerStory || (s.userCode && s.userCode === currentUserCode)) {
+              return true;
+            }
             if (s.id?.startsWith('live-peer-')) {
               if (!s.hostId || !s.hostId.startsWith('user-') || !activePeerIds.has(s.hostId)) {
                 hasChange = true;
@@ -1178,10 +1182,9 @@ export default function App() {
                     };
                   }
                 } else {
-                  // Nếu là bài story của người khác chưa có mặt trong danh sách peer
-                  // CHÚ Ý TAB XÃ HỘI: Chỉ hiện khi người dùng ĐANG ONLINE!
-                  // "ở xã hội khi nào người dùng onl mới hiện giọt nước và nếu có bài đăng story còn hạn vẩn ẩn khi onl còn hạn thì vẩn hiển lên lại tới hết thời gian"
-                  const isHostOnline = rs.host_id && activePeerIds.has(rs.host_id);
+                  // Nếu là bài story của chính mình HOẶC của người khác đang online
+                  const isOwnerStory = rs.host_id === currentUserId || (currentUserCode && rs.user_code === currentUserCode);
+                  const isHostOnline = isOwnerStory || (rs.host_id && activePeerIds.has(rs.host_id));
                   if (isHostOnline) {
                     const sId = rs.id || `remote-${rs.created_at}`;
                     if (!updated.some(s => s.id === sId)) {
@@ -1193,6 +1196,7 @@ export default function App() {
                         hostName: rs.host_name,
                         hostAvatar: rs.host_avatar,
                         activeStory: rs,
+                        isOwnerStory: isOwnerStory,
                         category: rs.category || 'moment',
                         title: rs.title,
                         description: rs.description,
@@ -1200,6 +1204,9 @@ export default function App() {
                         realLat: rs.lat,
                         realLng: rs.lng,
                         image: rs.image || null,
+                        dual_image: rs.dual_image || null,
+                        texts: rs.texts || [],
+                        stickers: rs.stickers || [],
                         music: rs.music || null,
                         video: rs.video || null,
                         privacy: rs.privacy || 'public',

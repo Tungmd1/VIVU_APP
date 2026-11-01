@@ -39,12 +39,21 @@ export default function StoryViewerModal({
 
   const durationMs = 7000; // 7s auto progress
 
+  // Luôn reset tiến trình về 0s khi mở hoặc đổi story mới
+  useEffect(() => {
+    if (story) {
+      setProgress(0);
+      setIsPaused(false);
+    }
+  }, [story?.id]);
+
   // Quản lý phát nhạc của Story
   useEffect(() => {
     if (!story) return;
+    const actual = story.activeStory || story;
 
-    if (story.music && story.music.audio_url) {
-      storyAudioPlayer.playSong(story.music);
+    if (actual.music && actual.music.audio_url) {
+      storyAudioPlayer.playSong(actual.music);
       setIsPlayingMusic(true);
     }
 
@@ -54,7 +63,7 @@ export default function StoryViewerModal({
     };
   }, [story]);
 
-  // Quản lý Progress Bar tự chạy
+  // Quản lý Progress Bar tự chạy (chỉ đóng khi thực sự chạy hết 7s)
   useEffect(() => {
     if (!story || isPaused) return;
 
@@ -68,12 +77,12 @@ export default function StoryViewerModal({
           onClose();
           return 100;
         }
-        return prev + step;
+        return Math.min(100, prev + step);
       });
     }, intervalTime);
 
     return () => clearInterval(timer);
-  }, [story, isPaused]);
+  }, [story?.id, isPaused]);
 
   if (!story) return null;
 
@@ -100,11 +109,16 @@ export default function StoryViewerModal({
     }
   };
 
-  const remainingTime = formatRemainingTime(story.expires_at || story.expiresAt);
+  const actualStory = story.activeStory || story;
+  const remainingTime = formatRemainingTime(actualStory.expires_at || actualStory.expiresAt);
 
   // Xử lý ảnh chính / ảnh phụ nếu là Dual Camera
-  const mainImageSrc = dualSwapped ? story.dual_image || story.dualImage : story.image;
-  const secondaryImageSrc = dualSwapped ? story.image : story.dual_image || story.dualImage;
+  const mainImageSrc = dualSwapped
+    ? (actualStory.dual_image || actualStory.dualImage)
+    : (actualStory.image || actualStory.memeImage || actualStory.dual_image);
+  const secondaryImageSrc = dualSwapped
+    ? (actualStory.image || actualStory.memeImage)
+    : (actualStory.dual_image || actualStory.dualImage);
 
   return (
     <div
@@ -128,15 +142,15 @@ export default function StoryViewerModal({
               src={mainImageSrc}
               alt="Story Content"
               className="relative w-full h-full object-cover"
-              style={{ filter: story.filter_css || 'none' }}
+              style={{ filter: actualStory.filter_css || 'none' }}
             />
           </div>
         ) : (
           <div
-            className={`w-full h-full bg-gradient-to-br ${story.bg_gradient || 'from-[#0A0A0C] via-[#1A1A24] to-[#251A30]'} flex items-center justify-center p-8 text-center`}
+            className={`w-full h-full bg-gradient-to-br ${actualStory.bg_gradient || 'from-[#0A0A0C] via-[#1A1A24] to-[#251A30]'} flex items-center justify-center p-8 text-center`}
           >
             <h2 className="text-2xl font-bold text-white leading-relaxed">
-              {story.title}
+              {actualStory.title}
             </h2>
           </div>
         )}
@@ -151,9 +165,9 @@ export default function StoryViewerModal({
         )}
 
         {/* Lớp hiển thị Text chèn */}
-        {story.texts && story.texts.length > 0 && (
+        {actualStory.texts && actualStory.texts.length > 0 && (
           <div className="absolute inset-0 pointer-events-none p-6 flex flex-col items-center justify-center space-y-3 z-20">
-            {story.texts.map((t, idx) => (
+            {actualStory.texts.map((t, idx) => (
               <span
                 key={idx}
                 className="px-3 py-1.5 rounded-2xl text-xl font-bold tracking-wide shadow-lg"
@@ -170,8 +184,8 @@ export default function StoryViewerModal({
 
         {/* Lớp Tương Tác Sống Động: Poll, Q&A, Location */}
         <StoryInteractiveLayer
-          storyId={story.id}
-          stickers={story.stickers}
+          storyId={actualStory.id}
+          stickers={actualStory.stickers}
           currentUserId={currentUserId}
           onVotePoll={onVotePoll}
           onReplyQA={onReplyQA}
@@ -190,15 +204,15 @@ export default function StoryViewerModal({
           <div className="flex items-center justify-between pointer-events-auto">
             <div className="flex items-center gap-2.5">
               <img
-                src={story.host_avatar || story.hostAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                src={actualStory.host_avatar || actualStory.hostAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
                 alt=""
                 className="w-10 h-10 rounded-full object-cover ring-2 ring-white/80 shadow-md"
               />
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-sm text-white">{story.host_name || story.hostName}</h3>
+                  <h3 className="font-bold text-sm text-white">{actualStory.host_name || actualStory.hostName}</h3>
                   <span className="px-1.5 py-0.5 rounded-full bg-white/15 text-[10px] text-white/80 font-mono">
-                    {story.user_code || story.userCode || 'VU'}
+                    {actualStory.user_code || actualStory.userCode || 'VU'}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-[11px] text-white/70">
@@ -210,7 +224,7 @@ export default function StoryViewerModal({
 
             <div className="flex items-center gap-2">
               {/* Nút đĩa nhạc quay nếu có */}
-              {story.music && (
+              {actualStory.music && (
                 <button
                   type="button"
                   onClick={handleToggleMusic}
@@ -218,7 +232,7 @@ export default function StoryViewerModal({
                   title="Nhạc nền"
                 >
                   <i className={`bi bi-disc text-teal-400 ${isPlayingMusic ? 'animate-spin' : ''}`}></i>
-                  <span className="truncate max-w-[80px]">{story.music.title}</span>
+                  <span className="truncate max-w-[80px]">{actualStory.music.title}</span>
                 </button>
               )}
 
@@ -230,7 +244,7 @@ export default function StoryViewerModal({
                   playTactileClickSound();
                   onClose();
                 }}
-                className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/70"
+                className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/70 cursor-pointer"
               >
                 <i className="bi bi-x-lg text-sm"></i>
               </button>
@@ -243,17 +257,17 @@ export default function StoryViewerModal({
           {/* Mini Map Radar widget */}
           <div className="flex items-center justify-between">
             <StoryMiniMapRadar
-              storyLat={story.lat || story.latitude}
-              storyLng={story.lng || story.longitude}
+              storyLat={actualStory.lat || actualStory.latitude}
+              storyLng={actualStory.lng || actualStory.longitude}
               userLat={userLat}
               userLng={userLng}
-              address={story.address}
+              address={actualStory.address}
             />
 
             {/* Dải nút cảm xúc nổi */}
             <StoryFloatingReactions
               onReact={(rxId) => {
-                if (onReact) onReact(story.id, rxId);
+                if (onReact) onReact(actualStory.id, rxId);
               }}
             />
           </div>
@@ -265,7 +279,7 @@ export default function StoryViewerModal({
                 type="text"
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
-                placeholder={`Nhắn tin cho ${story.host_name || story.hostName}...`}
+                placeholder={`Nhắn tin cho ${actualStory.host_name || actualStory.hostName}...`}
                 className="w-full bg-white/15 backdrop-blur-md border border-white/20 rounded-full px-4 py-2.5 text-xs text-white placeholder-white/60 focus:border-white/50 outline-none pr-10"
               />
               <button

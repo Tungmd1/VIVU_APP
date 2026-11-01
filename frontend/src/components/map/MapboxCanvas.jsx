@@ -336,7 +336,7 @@ export default function MapboxCanvas({
       // 1. Trường hợp có cả Meme và Trạng thái (Text)
       if (memeImg && statusText) {
         return `
-          <div class="mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-default">
+          <div class="btn-view-owner-story mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-pointer hover:scale-105 transition-transform" title="Bấm để xem Story của Bạn">
             <div class="mb-1.5 px-3.5 py-2 bg-[#0A8395] text-white rounded-2xl rounded-br-xs shadow-[0_4px_16px_rgba(10,131,149,0.3)] max-w-[200px] flex items-center gap-2">
               <span class="text-xs font-medium leading-snug break-words text-left">${statusText}</span>
               ${song ? `
@@ -346,7 +346,7 @@ export default function MapboxCanvas({
               ` : ''}
             </div>
             <div class="relative bg-white p-1 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.18)] border-2 border-[#0A8395] overflow-hidden group">
-              <img src="${memeImg}" alt="Meme" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl bg-[#F3F7F8]" />
+              <img src="${memeImg}" alt="Story" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl bg-[#F3F7F8]" />
               ${song && !statusText ? `
                 <button id="btn-play-marker-music" class="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-[#0A8395] hover:bg-[#086a78] text-white flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer" title="Phát/Dừng nhạc">
                   <i class="bi ${isSongPlaying ? 'bi-pause-fill' : 'bi-play-fill'} text-xs"></i>
@@ -359,12 +359,12 @@ export default function MapboxCanvas({
         `;
       }
 
-      // 2. Trường hợp chỉ có Meme: Hiện thẳng ảnh Meme lên phía trên đầu giọt nước mà không cần ấn vào xem
+      // 2. Trường hợp chỉ có Meme / Ảnh: Hiện thẳng ảnh lên phía trên đầu giọt nước
       if (memeImg) {
         return `
-          <div class="mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-default">
+          <div class="btn-view-owner-story mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-pointer hover:scale-105 transition-transform" title="Bấm để xem Story của Bạn">
             <div class="relative bg-white p-1 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.18)] border-2 border-[#0A8395] overflow-hidden group">
-              <img src="${memeImg}" alt="Meme" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl bg-[#F3F7F8]" />
+              <img src="${memeImg}" alt="Story" class="w-16 h-16 sm:w-20 sm:h-20 object-contain rounded-xl bg-[#F3F7F8]" />
               ${song ? `
                 <button id="btn-play-marker-music" class="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-[#0A8395] hover:bg-[#086a78] text-white flex items-center justify-center shadow-md active:scale-95 transition-transform cursor-pointer" title="Phát/Dừng nhạc">
                   <i class="bi ${isSongPlaying ? 'bi-pause-fill' : 'bi-play-fill'} text-xs"></i>
@@ -377,10 +377,10 @@ export default function MapboxCanvas({
         `;
       }
 
-      // 3. Trường hợp có Trạng thái / Chữ: Hiện ra 1 ô chứa trạng thái hình dáng như ô gửi tin nhắn Messenger
+      // 3. Trường hợp có Trạng thái / Chữ: Hiện ra 1 ô chứa trạng thái
       if (statusText) {
         return `
-          <div class="mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-default">
+          <div class="btn-view-owner-story mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-pointer hover:scale-105 transition-transform" title="Bấm để xem Story của Bạn">
             <div class="px-3.5 py-2 bg-[#0A8395] text-white rounded-2xl rounded-br-xs shadow-[0_4px_16px_rgba(10,131,149,0.3)] max-w-[200px] flex items-center gap-2">
               <span class="text-xs font-medium leading-snug break-words text-left">${statusText}</span>
               ${song ? `
@@ -460,7 +460,7 @@ export default function MapboxCanvas({
 
       el.innerHTML = renderUserMarkerHtml();
 
-      // Quyết định người dùng: Chỉ ấn vào nút nhạc mới nghe nhạc, không mở popup/modal khi bấm giọt nước
+      // Event Delegation: Ấn nút nhạc nghe nhạc, bấm vào bong bóng xem Story của Bạn, bấm thân giọt nước mở Menu
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         if (e.target.closest('#btn-play-marker-music')) {
@@ -473,6 +473,19 @@ export default function MapboxCanvas({
             }
           }
           return;
+        }
+
+        // BẤM VÀO BONG BÓNG STORY CỦA BẠN -> MỞ XEM STORY TOÀN MÀN HÌNH
+        if (e.target.closest('.owner-bubble-wrapper') || e.target.closest('.btn-view-owner-story')) {
+          if (myActiveStoryRef.current && onOpenStoryDetailRef.current) {
+            onOpenStoryDetailRef.current(myActiveStoryRef.current);
+            return;
+          }
+        }
+
+        // Bấm vào thân giọt nước "BẠN"
+        if (onOpenUserMenuRef.current) {
+          onOpenUserMenuRef.current();
         }
       });
 
@@ -862,12 +875,19 @@ export default function MapboxCanvas({
             setTimeout(() => heartBtn.classList.remove('scale-125'), 300);
             return;
           }
-          if (e.target.closest('.avatar-click-zone') || e.target.closest('#btn-view-story-bubble')) {
+          if (e.target.closest('#btn-view-story-bubble') || (hasActiveStory && e.target.closest('.avatar-click-zone'))) {
+            if (hasActiveStory && onOpenStoryDetailRef.current) {
+              onOpenStoryDetailRef.current(activeStoryObj || item);
+              return;
+            }
+          }
+          if (e.target.closest('.avatar-click-zone')) {
             if (isFriendsMode || item.isFriend) {
               onOpenFriendDetailRef.current(item);
             } else {
               onOpenGuestProfileRef.current(item);
             }
+            return;
           }
           mapRef.current?.flyTo({ center: coords, zoom: 16.5, pitch: 32, duration: 900 });
         });

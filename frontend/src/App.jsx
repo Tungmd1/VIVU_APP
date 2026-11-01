@@ -354,8 +354,19 @@ export default function App() {
     { id: 'moment', label: 'Khoảnh khắc', iconClass: 'bi-camera-reels-fill' }
   ];
 
-  // Danh sách Stories thật từ người dùng (Không còn mock)
-  const [stories, setStories] = useState([]);
+  // Danh sách Stories thật từ người dùng (Khởi tạo từ cache an toàn nếu có)
+  const [stories, setStories] = useState(() => {
+    try {
+      const cached = localStorage.getItem('vivu_user_active_story');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && (!parsed.expires_at || new Date(parsed.expires_at).getTime() > Date.now())) {
+          return [parsed];
+        }
+      }
+    } catch {}
+    return [];
+  });
 
   // Danh sách Bạn bè thật (Không còn mock)
   const [friends, setFriends] = useState([]);
@@ -1738,6 +1749,9 @@ export default function App() {
     };
 
     setStories(prev => [newStory, ...prev]);
+    try {
+      localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
+    } catch {}
     setIsCreateModalOpen(false);
     confetti({ particleCount: 70, spread: 65, origin: { y: 0.6 } });
     setActiveTab(isFriendsOnly ? 'friends' : 'social');

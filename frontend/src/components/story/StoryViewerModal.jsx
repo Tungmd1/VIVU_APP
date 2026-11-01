@@ -33,6 +33,7 @@ export default function StoryViewerModal({
 }) {
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [showPauseBadge, setShowPauseBadge] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [dualSwapped, setDualSwapped] = useState(false);
@@ -63,7 +64,7 @@ export default function StoryViewerModal({
     };
   }, [story]);
 
-  // Quản lý Progress Bar tự chạy (chỉ đóng khi thực sự chạy hết 7s)
+  // Quản lý Progress Bar tự chạy (chỉ chạy khi KHÔNG tạm dừng)
   useEffect(() => {
     if (!story || isPaused) return;
 
@@ -85,6 +86,19 @@ export default function StoryViewerModal({
   }, [story?.id, isPaused]);
 
   if (!story) return null;
+
+  // Chạm vào ảnh/màn hình để Bật/Tắt Tạm Dừng
+  const handleTapStory = (e) => {
+    // Bỏ qua nếu chạm vào controls, buttons, form inputs
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('form') || e.target.closest('.interactive-clickable')) {
+      return;
+    }
+    e.stopPropagation();
+    playTactileClickSound();
+    setIsPaused(prev => !prev);
+    setShowPauseBadge(true);
+    setTimeout(() => setShowPauseBadge(false), 900);
+  };
 
   const handleSendReply = (e) => {
     e.preventDefault();
@@ -121,17 +135,22 @@ export default function StoryViewerModal({
     : (actualStory.dual_image || actualStory.dualImage);
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden animate-fadeIn"
-      onMouseDown={() => setIsPaused(true)}
-      onMouseUp={() => setIsPaused(false)}
-      onTouchStart={() => setIsPaused(true)}
-      onTouchEnd={() => setIsPaused(false)}
-    >
-      {/* Vùng nền ảnh / gradient */}
-      <div className="relative w-full h-full max-w-md bg-[#0A0A0C] flex items-center justify-center overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden animate-fadeIn">
+      {/* Vùng nền ảnh full màn hình / immersion */}
+      <div
+        onClick={handleTapStory}
+        className="relative w-full h-full max-w-lg md:max-w-2xl bg-[#0A0A0C] flex items-center justify-center overflow-hidden shadow-2xl cursor-pointer"
+      >
+        {/* Chỉ báo Tạm dừng / Tiếp tục khi chạm vào ảnh */}
+        {(isPaused || showPauseBadge) && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/25 text-white text-xs font-bold flex items-center gap-2 shadow-2xl pointer-events-none transition-all">
+            <i className={`bi ${isPaused ? 'bi-pause-circle-fill text-amber-400' : 'bi-play-circle-fill text-teal-400'} text-base`}></i>
+            <span>{isPaused ? 'ĐÃ TẠM DỪNG (Chạm để tiếp tục)' : 'TIẾP TỤC CHẠY'}</span>
+          </div>
+        )}
+
         {mainImageSrc ? (
-          <div className="relative w-full h-full">
+          <div className="relative w-full h-full flex items-center justify-center">
             <img
               src={mainImageSrc}
               alt=""
@@ -141,7 +160,7 @@ export default function StoryViewerModal({
             <img
               src={mainImageSrc}
               alt="Story Content"
-              className="relative w-full h-full object-cover"
+              className="relative w-full h-full object-contain md:object-cover"
               style={{ filter: actualStory.filter_css || 'none' }}
             />
           </div>
@@ -236,6 +255,24 @@ export default function StoryViewerModal({
                 </button>
               )}
 
+              {/* Nút Tạm Dừng / Tiếp Tục */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  playTactileClickSound();
+                  setIsPaused(prev => !prev);
+                  setShowPauseBadge(true);
+                  setTimeout(() => setShowPauseBadge(false), 900);
+                }}
+                className={`w-8 h-8 rounded-full backdrop-blur-md flex items-center justify-center transition-all cursor-pointer ${
+                  isPaused ? 'bg-amber-400 text-black shadow-lg scale-105' : 'bg-black/50 text-white hover:bg-black/70'
+                }`}
+                title={isPaused ? "Tiếp tục chạy" : "Tạm dừng xem"}
+              >
+                <i className={`bi ${isPaused ? 'bi-play-fill text-base' : 'bi-pause-fill text-sm'}`}></i>
+              </button>
+
               {/* Nút đóng */}
               <button
                 type="button"
@@ -245,6 +282,7 @@ export default function StoryViewerModal({
                   onClose();
                 }}
                 className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/70 cursor-pointer"
+                title="Đóng Story"
               >
                 <i className="bi bi-x-lg text-sm"></i>
               </button>

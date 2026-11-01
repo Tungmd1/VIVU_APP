@@ -432,13 +432,13 @@ export default function MapboxCanvas({
           </div>
 
           <!-- Avatar Pin với viền nhịp thở Hyper Lime #10FFA0 -->
-          <div class="relative w-11 h-11 rounded-full p-[2.5px] bg-white border-2 border-[#10FFA0] shadow-[0_0_12px_rgba(16,255,160,0.6)] flex items-center justify-center hover:scale-110 transition-transform">
+          <div class="relative w-11 h-11 rounded-full p-[2.5px] bg-white border-2 border-[#10FFA0] shadow-[0_0_12px_rgba(16,255,160,0.6)] flex items-center justify-center hover:scale-110 transition-transform user-avatar-pin-container">
             <div class="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
               ${safeAvatar ? `
                 <img 
                   src="${safeAvatar}" 
                   alt="BẠN" 
-                  class="w-full h-full object-cover" 
+                  class="user-pin-avatar w-full h-full object-cover" 
                 />
               ` : `
                 <div class="w-full h-full bg-white flex items-center justify-center text-neutral-400">
@@ -476,9 +476,10 @@ export default function MapboxCanvas({
         }
 
         // BẤM VÀO BONG BÓNG STORY CỦA BẠN -> MỞ XEM STORY TOÀN MÀN HÌNH
-        if (e.target.closest('.owner-bubble-wrapper') || e.target.closest('.btn-view-owner-story')) {
-          if (myActiveStoryRef.current && onOpenStoryDetailRef.current) {
-            onOpenStoryDetailRef.current(myActiveStoryRef.current);
+        if (e.target.closest('.owner-bubble-wrapper') || e.target.closest('.btn-view-owner-story') || e.target.closest('img')) {
+          const storyToOpen = myActiveStoryRef.current || stories.find(s => isOwnerItem(s));
+          if (storyToOpen && onOpenStoryDetailRef.current) {
+            onOpenStoryDetailRef.current(storyToOpen);
             return;
           }
         }
@@ -505,8 +506,8 @@ export default function MapboxCanvas({
         bubbleWrapper.innerHTML = getOwnerBubbleHtml(myActiveStory);
       }
 
-      // ĐỒNG BỘ ẢNH GIỌT NƯỚC TỨC THÌ KHI USER AVATAR ĐỔI
-      const avatarImg = el.querySelector('img');
+      // ĐỒNG BỘ ẢNH GIỌT NƯỚC TỨC THÌ KHI USER AVATAR ĐỔI (Chỉ trỏ đúng class user-pin-avatar, không chạm vào ảnh story)
+      const avatarImg = el.querySelector('.user-pin-avatar');
       if (avatarImg && safeAvatar && avatarImg.src !== safeAvatar) {
         avatarImg.src = safeAvatar;
       }

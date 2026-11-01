@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Albert+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * ========================================================
+ * HỆ THỐNG DESIGN TOKENS CHUẨN F1 HERO & VIVU HYBRID
+ *docs/getdesign.md Quy chuẩn Lewis Hamilton / Silverstone F1 Hero
+ * Nền tối #0a0e1c • Thẻ kính mờ rgba(20,20,30,0.85) • Vàng đua #EDB40B • Đỏ F1 #E10600
+ * ========================================================
+ */
+
+:root {
+  --f1-dark: #0a0e1c;
+  --f1-card: rgba(20, 20, 30, 0.85);
+  --f1-yellow: #FF2A85;
+  --f1-gold: #FF2A85;
+  --f1-red: #FF2A85;
+  --f1-red-dark: #8B0044;
+  --f1-glass: rgba(255, 255, 255, 0.12);
+  --font-sans: 'Albert Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  background-color: #0a0e1c;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ========================================================
+   HỆ THỐNG NÚT BẤM & GIAO DIỆN HỒNG - XANH DƯƠNG (CYBERPINK & BLUE)
+   - Nền chủ đạo: Xanh đen không gian #0a0e1c & Kính xanh #0d1b2a / #00E5FF
+   - Nút bấm: Màu Hồng Neon #FF2A85 bứt phá, bo tròn hoàn hảo
+   - Hiệu ứng click: Giả lập tia hạt & sóng xung kích Hồng - Xanh tóe ra
+   ======================================================== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  text-decoration: none;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
+  padding: 0.45rem 1.15rem;
+  font-size: 0.875rem;
+  border-radius: 9999px; /* Tất cả nút bấm đều được bo tròn cạnh */
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  will-change: transform, box-shadow;
+}
+.btn:hover {
+  transform: translateY(-1.5px);
+}
+.btn:active {
+  transform: translateY(0) scale(0.96);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* KÍCH THƯỚC BOOTSTRAP */
+.btn-sm {
+  padding: 0.28rem 0.8rem;
+  font-size: 0.75rem;
+  border-radius: 9999px;
+}
+.btn-lg {
+  padding: 0.65rem 1.5rem;
+  font-size: 1rem;
+  border-radius: 9999px;
+}
+.rounded-pill {
+  border-radius: 9999px !important;
+}
+
+/* BIẾN THỂ MÀU SẮC HỒNG - XANH DƯƠNG */
+.btn-primary {
+  background: linear-gradient(135deg, #FF2A85 0%, #FF539A 100%);
+  border: 1px solid rgba(255, 120, 180, 0.6);
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(255, 42, 133, 0.45), 0 0 10px rgba(0, 229, 255, 0.2);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #FF4092 0%, #FF68A6 100%);
+  border-color: rgba(255, 180, 220, 0.8);
+  color: #ffffff !important;
+  box-shadow: 0 6px 24px rgba(255, 42, 133, 0.65), 0 0 16px rgba(0, 229, 255, 0.4);
+}
+
+.btn-secondary {
+  background-color: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  color: #00E5FF !important;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+}
+.btn-secondary:hover {
+  background-color: rgba(0, 229, 255, 0.22);
+  border-color: rgba(0, 229, 255, 0.65);
+  color: #ffffff !important;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.4);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #E10600 0%, #FF3B30 100%);
+  border: 1px solid rgba(255, 100, 100, 0.5);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(225, 6, 0, 0.4);
+}
+.btn-danger:hover {
+  background: linear-gradient(135deg, #FF1A14 0%, #FF5247 100%);
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #00FF88 0%, #10FFA0 100%);
+  border: 1px solid rgba(16, 255, 160, 0.6);
+  color: #0a0e1c !important;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(16, 255, 160, 0.35);
+}
+.btn-success:hover {
+  background: linear-gradient(135deg, #1CFF94 0%, #3BFFAC 100%);
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #00E5FF 0%, #00B4D8 100%);
+  border: 1px solid rgba(0, 229, 255, 0.6);
+  color: #0a0e1c !important;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 229, 255, 0.4);
+}
+.btn-info:hover {
+  background: linear-gradient(135deg, #33EBFF 0%, #20C4E6 100%);
+}
+
+.btn-dark {
+  background-color: rgba(13, 27, 42, 0.85);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  color: #ffffff;
+  backdrop-filter: blur(12px);
+}
+.btn-dark:hover {
+  background-color: rgba(20, 38, 58, 0.95);
+  border-color: rgba(0, 229, 255, 0.45);
+}
+
+/* OUTLINE BIẾN THỂ */
+.btn-outline-primary {
+  background-color: transparent;
+  border: 1.5px solid #FF2A85;
+  color: #FF2A85 !important;
+}
+.btn-outline-primary:hover {
+  background: linear-gradient(135deg, #FF2A85 0%, #FF539A 100%);
+  border-color: #FF2A85;
+  color: #ffffff !important;
+  box-shadow: 0 0 18px rgba(255, 42, 133, 0.5);
+}
+
+.btn-outline-secondary {
+  background-color: transparent;
+  border: 1.5px solid #00E5FF;
+  color: #00E5FF !important;
+}
+.btn-outline-secondary:hover {
+  background-color: rgba(0, 229, 255, 0.2);
+  border-color: #00E5FF;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
+}
+
+.btn-outline-danger {
+  background-color: transparent;
+  border: 1.5px solid #E10600;
+  color: #E10600;
+}
+.btn-outline-danger:hover {
+  background-color: #E10600;
+  color: #ffffff;
+}
+
+.btn-outline-success {
+  background-color: transparent;
+  border: 1.5px solid #10FFA0;
+  color: #10FFA0;
+}
+.btn-outline-success:hover {
+  background-color: #10FFA0;
+  color: #0a0e1c !important;
+}
+
+.btn-glow {
+  box-shadow: 0 0 20px rgba(255, 42, 133, 0.55), 0 0 10px rgba(0, 229, 255, 0.35);
+}
+
+/* 1. LỚP TIỆN ÍCH KÍNH MỜ F1 GLASSMORPHISM */
+.f1-glass {
+  background: rgba(20, 20, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.f1-glass-subtle {
+  background: rgba(20, 20, 30, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.f1-glass-btn {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.f1-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* 2. NÚT HỒNG NEON SIGNATURE */
+.f1-gold-btn {
+  background: linear-gradient(135deg, #FF2A85, #FF539A);
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 0 20px rgba(255, 42, 133, 0.45);
+  border: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.f1-gold-btn:hover {
+  background: linear-gradient(135deg, #FF4598, #FF6EA8);
+  box-shadow: 0 0 28px rgba(255, 42, 133, 0.65);
+  transform: translateY(-1px);
+}
+.f1-gold-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.f1-glow-yellow {
+  box-shadow: 0 0 22px rgba(237, 180, 11, 0.4);
+}
+
+.f1-glow-cyan {
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.4);
+}
+
+/* 3. GRADIENT MENU & BLUR MASK */
+.f1-menu-gradient {
+  background: linear-gradient(160deg, #1a0000 0%, #8B0000 40%, #E10600 100%);
+}
+
+.f1-photo-blur {
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  mask: linear-gradient(to bottom, transparent 0%, black 50%);
+  -webkit-mask: linear-gradient(to bottom, transparent 0%, black 50%);
+}
+
+/* 4. ANIMATION DELAYS (docs/getdesign.md) */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }
+.delay-900 { animation-delay: 900ms; }
+.delay-1000 { animation-delay: 1000ms; }
+.delay-1200 { animation-delay: 1200ms; }
+.delay-1400 { animation-delay: 1400ms; }
+.delay-1600 { animation-delay: 1600ms; }
+
+/* 5. TIỆN ÍCH CUỘN VÀ TƯƠNG TÁC */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* MAPBOX GL CUSTOM POPUP OVERRIDES */
+.mapboxgl-popup-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 20px !important;
+}
+.mapboxgl-popup-tip {
+  display: none !important;
+}

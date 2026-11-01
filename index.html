@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0d1b2a" />
+  <title>Vivu — Kết nối quanh bạn</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="Vivu trang chủ"><span class="brand-mark">v</span><span>vivu<span class="brand-dot">.</span></span></a>
+      <div class="workspace-label">KHÁM PHÁ</div>
+      <nav class="side-nav" aria-label="Điều hướng chính">
+        <button class="nav-item active" data-page="map"><span class="nav-icon">⌖</span><span>Bản đồ</span><span class="nav-count">12</span></button>
+        <button class="nav-item" data-page="chat"><span class="nav-icon">▤</span><span>Tin nhắn</span><span class="nav-count unread-count">3</span></button>
+        <button class="nav-item" data-page="match"><span class="nav-icon">♡</span><span>Khám phá</span><span class="nav-new">MỚI</span></button>
+        <button class="nav-item" data-page="dates"><span class="nav-icon">▦</span><span>Lịch hẹn</span></button>
+      </nav>
+      <div class="workspace-label social-label">CỦA BẠN</div>
+      <div class="friend-preview">
+        <div class="avatar avatar-sm photo-1">L<span class="online-dot"></span></div><div><b>Linh Nguyễn</b><small>Đang ở gần bạn</small></div><span class="friend-distance">120m</span>
+      </div>
+      <div class="friend-preview">
+        <div class="avatar avatar-sm photo-2">M<span class="online-dot"></span></div><div><b>Minh Anh</b><small>Vừa hoạt động</small></div><span class="friend-distance">350m</span>
+      </div>
+      <div class="friend-preview">
+        <div class="avatar avatar-sm photo-3">Q</div><div><b>Quốc Bảo</b><small>Đang ở gần bạn</small></div><span class="friend-distance">680m</span>
+      </div>
+      <button class="add-friends" data-action="find-friends">＋　Tìm bạn bè</button>
+      <div class="sidebar-bottom">
+        <div class="upgrade-card"><div class="upgrade-icon">✦</div><b>Thế giới quanh bạn</b><p>Khám phá thêm những kết nối thú vị.</p><button data-action="find-friends">Khám phá ngay <span>↗</span></button></div>
+        <button class="profile-mini" data-page="profile"><div class="avatar avatar-sm me-avatar">T</div><div><b>Trần Minh Tú</b><small>@minhtu</small></div><span class="more">···</span></button>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="mobile-brand"><span class="brand-mark">v</span> vivu<span class="brand-dot">.</span></div>
+        <div class="breadcrumb"><span id="crumb-parent">Khám phá</span><span class="crumb-slash">/</span><b id="crumb-current">Bản đồ</b></div>
+        <div class="topbar-right">
+          <div class="live-pill"><span class="pulse-dot"></span><span><b>248</b> người quanh đây</span></div>
+          <button class="icon-button theme-toggle" title="Đổi giao diện" aria-label="Đổi giao diện">☼</button>
+          <button class="icon-button notification-button" title="Thông báo">♧<i></i></button>
+          <button class="avatar avatar-sm me-avatar top-avatar" data-page="profile" aria-label="Hồ sơ">T</button>
+        </div>
+      </header>
+
+      <section id="page-map" class="page active-page">
+        <div class="page-heading map-heading">
+          <div><div class="eyebrow"><span class="sparkle">✦</span> THỨ BA, 20 THÁNG 10</div><h1>Thành phố đang <span class="gradient-text">chuyển động.</span></h1><p>Khám phá những người và câu chuyện quanh bạn.</p></div>
+          <button class="button button-primary" data-action="find-friends"><span>＋</span> Mời bạn bè</button>
+        </div>
+        <div class="map-layout">
+          <div class="map-card">
+            <div class="map-canvas" id="map-canvas" aria-label="Bản đồ minh họa khu vực Thành phố Hồ Chí Minh">
+              <div class="map-grid"></div><div class="map-water water-a"></div><div class="map-water water-b"></div>
+              <svg class="road-svg" viewBox="0 0 900 600" preserveAspectRatio="none" aria-hidden="true">
+                <path class="road road-major" d="M-20 380 C100 340 150 400 240 335 S380 260 470 300 570 370 650 285 780 200 940 250"/><path class="road road-major" d="M80 -20 C120 110 80 180 170 260 S280 380 260 620"/><path class="road road-major" d="M570 -20 C530 80 580 155 540 220 S460 360 530 620"/><path class="road" d="M10 120 C170 180 240 150 320 210 S490 160 610 195 740 120 920 140"/><path class="road" d="M0 500 C170 450 300 500 390 440 S620 440 900 510"/><path class="road" d="M340 -10 C310 100 370 130 350 210 S380 360 340 610"/><path class="road" d="M-10 250 C140 230 220 280 320 260 S490 250 620 320 780 320 920 290"/><path class="road" d="M680 -10 C720 110 680 180 740 260 S700 390 800 620"/>
+              </svg>
+              <div class="map-label label-one">QUẬN 1</div><div class="map-label label-two">THẢO ĐIỀN</div><div class="map-label label-three">BẾN THÀNH</div><div class="map-label label-four">THỦ THIÊM</div><div class="map-label label-five">CÔNG VIÊN 30/4</div><div class="map-label label-six">SÔNG SÀI GÒN</div>
+              <button class="map-pin pin-linh friend-pin" data-person="linh" style="--x:38%;--y:42%"><span class="pin-ring"></span><span class="pin-photo photo-1">L</span><span class="pin-name">Linh</span></button>
+              <button class="map-pin pin-minh friend-pin" data-person="minh" style="--x:63%;--y:57%"><span class="pin-photo photo-2">M</span><span class="pin-name">Minh Anh</span></button>
+              <button class="map-pin pin-bao" data-person="bao" style="--x:72%;--y:31%"><span class="pin-photo photo-3">B</span><span class="pin-name">Bảo</span></button>
+              <button class="map-pin pin-ha stranger-pin" data-person="ha" style="--x:27%;--y:69%"><span class="pin-photo photo-4">H</span><span class="pin-name">Hà My</span></button>
+              <button class="map-pin pin-cluster" data-action="cluster" style="--x:51%;--y:28%"><span>+8</span></button>
+              <div class="you-pin" style="--x:50%;--y:51%"><span class="you-pulse"></span><span class="you-avatar">T</span><span class="you-label">Bạn đang ở đây</span></div>
+              <div class="map-top-controls"><div class="map-search"><span>⌕</span><input id="map-search" placeholder="Tìm bạn bè, địa điểm..."/><kbd>⌘ K</kbd></div><button class="map-control" data-action="filter" title="Bộ lọc">☷</button></div>
+              <div class="map-zoom"><button data-action="zoom-in">＋</button><button data-action="zoom-out">−</button><span></span><button data-action="locate" title="Về vị trí của bạn">◎</button></div>
+              <div class="map-legend"><span><i class="legend-dot blue"></i>Bạn bè</span><span><i class="legend-dot grey"></i>Mọi người</span></div>
+              <div class="map-attribution">Bản đồ minh họa · Sài Gòn, Việt Nam</div>
+            </div>
+            <div class="map-footer"><div class="map-footer-left"><span class="live-pulse"></span><b>12 người</b><span>đang chia sẻ vị trí gần bạn</span></div><button class="text-button" data-action="filter">Điều chỉnh bộ lọc <span>↗</span></button></div>
+          </div>
+          <aside class="nearby-panel">
+            <div class="panel-title"><div><h2>Đang quanh đây</h2><p>Những kết nối gần bạn</p></div><button class="dots-button" data-action="filter">···</button></div>
+            <div class="nearby-tabs"><button class="nearby-tab selected" data-filter-tab="all">Tất cả <span>12</span></button><button class="nearby-tab" data-filter-tab="friends">Bạn bè <span>4</span></button></div>
+            <div id="nearby-list">
+              <button class="nearby-person" data-person="linh"><span class="avatar photo-1">L<span class="online-dot"></span></span><span class="person-info"><b>Linh Nguyễn <i>✦</i></b><small>Đang ở quán cà phê</small><em>Chung sở thích · 3</em></span><span class="person-distance">120m <span>↗</span></span></button>
+              <button class="nearby-person" data-person="minh"><span class="avatar photo-2">M<span class="online-dot"></span></span><span class="person-info"><b>Minh Anh</b><small>Đang đi dạo</small><em>Bạn bè</em></span><span class="person-distance">350m <span>↗</span></span></button>
+              <button class="nearby-person" data-person="bao"><span class="avatar photo-3">B<span class="online-dot"></span></span><span class="person-info"><b>Quốc Bảo</b><small>Đang ở Nhà thờ Đức Bà</small><em>Bạn bè</em></span><span class="person-distance">680m <span>↗</span></span></button>
+              <button class="nearby-person stranger-row" data-person="ha"><span class="avatar photo-4">H<span class="online-dot"></span></span><span class="person-info"><b>Hà My</b><small>Đang khám phá</small><em>Thích chụp ảnh · cà phê</em></span><span class="person-distance">900m <span>↗</span></span></button>
+            </div>
+            <button class="see-all" data-action="find-friends">Xem tất cả quanh đây <span>→</span></button>
+            <div class="story-strip"><div class="story-header"><b>Story quanh bạn</b><button data-action="story">Xem tất cả →</button></div><div class="story-avatars"><button class="story-item own-story" data-action="story"><span class="story-ring add-story"><span>＋</span></span><small>Story của bạn</small></button><button class="story-item" data-story-person="linh"><span class="story-ring"><span class="avatar photo-1">L</span></span><small>Linh</small></button><button class="story-item" data-story-person="ha"><span class="story-ring ring-peach"><span class="avatar photo-4">H</span></span><small>Hà My</small></button><button class="story-item" data-story-person="minh"><span class="story-ring ring-yellow"><span class="avatar photo-2">M</span></span><small>Minh Anh</small></button></div></div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="page-chat" class="page"><div class="page-heading"><div><div class="eyebrow">KẾT NỐI CỦA BẠN</div><h1>Tin nhắn</h1><p>Những cuộc trò chuyện đang chờ bạn.</p></div><button class="button button-primary" data-action="new-chat">＋ Tin nhắn mới</button></div><div class="chat-layout card"><aside class="conversation-list"><div class="section-search"><span>⌕</span><input id="chat-search" placeholder="Tìm cuộc trò chuyện..."/></div><div id="conversation-items"><button class="conversation active" data-conversation="linh"><span class="avatar photo-1">L<span class="online-dot"></span></span><span class="conversation-copy"><b>Linh Nguyễn <i class="verified">✓</i></b><small>Haha đúng chỗ đó luôn 😄</small></span><span class="conversation-meta"><small>2 phút</small><i class="unread-badge">2</i></span></button><button class="conversation" data-conversation="minh"><span class="avatar photo-2">M</span><span class="conversation-copy"><b>Minh Anh</b><small>Gửi bạn một story</small></span><span class="conversation-meta"><small>1 giờ</small></span></button><button class="conversation" data-conversation="bao"><span class="avatar photo-3">B</span><span class="conversation-copy"><b>Quốc Bảo</b><small>Bạn: Hẹn gặp nhé!</small></span><span class="conversation-meta"><small>Hôm qua</small></span></button></div></aside><div class="conversation-view"><div class="chat-header"><span class="avatar avatar-sm photo-1">L<span class="online-dot"></span></span><div><b id="chat-name">Linh Nguyễn</b><small><span class="online-text">●</span> Đang hoạt động</small></div><div class="chat-actions"><button title="Gọi thoại" data-action="call">♩</button><button title="Gọi video" data-action="call">▣</button><button title="Tùy chọn">···</button></div></div><div class="chat-date"><span>HÔM NAY</span></div><div class="messages" id="messages"><div class="message-row incoming"><span class="message-avatar photo-1">L</span><div><div class="bubble">Ê Tú, quán cà phê mới mở ở gần đây xinh lắm ☕</div><small>14:20</small></div></div><div class="message-row outgoing"><div><div class="bubble">Quán nào thế? Gửi mình địa chỉ với 👀</div><small>14:21 <span class="seen">✓✓</span></small></div></div><div class="message-row incoming"><span class="message-avatar photo-1">L</span><div><div class="bubble">The Workshop, ngay đường Ngô Đức Kế á!</div><small>14:22</small></div></div><div class="message-row incoming"><span class="message-avatar photo-1">L</span><div><div class="bubble">Haha đúng chỗ đó luôn 😄</div><small>14:23</small></div></div></div><div class="typing-indicator" id="typing-indicator" hidden><span></span><span></span><span></span> Linh đang nhập...</div><form class="message-compose" id="message-form"><button type="button" class="attach-button" data-action="attach">＋</button><input id="message-input" placeholder="Viết tin nhắn..." autocomplete="off"/><button type="button" class="emoji-button" data-action="emoji">☺</button><button class="send-button" aria-label="Gửi">↑</button></form></div></div></section>
+
+      <section id="page-match" class="page"><div class="page-heading"><div><div class="eyebrow"><span class="sparkle">✦</span> ĐƯỢC GỢI Ý RIÊNG CHO BẠN</div><h1>Một kết nối <span class="gradient-text">đẹp đang chờ.</span></h1><p>Khám phá những người có cùng tần số với bạn.</p></div><button class="icon-button match-settings" data-action="match-settings">☷</button></div><div class="matching-layout"><div class="match-main"><div class="match-card-stack" id="match-card-stack"><div class="match-card-shadow"></div><article class="match-card" id="match-card"><div class="match-photo photo-portrait-1"><div class="photo-grain"></div><div class="card-topline"><span class="match-score">✦ <b>92%</b> phù hợp</span><button data-action="match-settings">···</button></div><div class="photo-caption"><span class="online-now"><i></i> ĐANG HOẠT ĐỘNG</span><h2 id="match-person-name">Ngọc Hà, 24</h2><p>⌖ Cách bạn 1.2 km · Quận 1</p><div class="tag-row" id="match-tags"><span>☕ Cà phê</span><span>📷 Nhiếp ảnh</span><span>✈️ Du lịch</span></div></div></div><div class="match-card-details"><p>“Đi tìm những quán cà phê có nắng đẹp và góc chụp xinh ☀️”</p><div class="common-line"><span class="common-avatars"><i class="photo-1">L</i><i class="photo-2">M</i></span> Có <b>3 sở thích chung</b> với bạn</div></div></article></div><div class="match-controls"><button class="match-action pass-action" data-match="pass" aria-label="Bỏ qua">×</button><button class="match-action super-action" data-match="super" aria-label="Siêu thích">★</button><button class="match-action like-action" data-match="like" aria-label="Thích">♥</button></div><p class="swipe-hint">← Bỏ qua <span>•</span> Vuốt để khám phá <span>•</span> Thích →</p></div><aside class="match-aside"><div class="daily-count"><div class="count-icon">✦</div><div><b><span id="remaining-count">8</span> gợi ý hôm nay</b><small>Làm mới sau 04:32:18</small></div><div class="count-progress"><i></i></div></div><div class="match-tip"><div class="tip-icon">✧</div><div><b>Mẹo nhỏ cho bạn</b><p>Thêm sở thích vào hồ sơ để nhận gợi ý phù hợp hơn.</p><button data-page="profile">Cập nhật hồ sơ <span>→</span></button></div></div><div class="match-stat"><div><b>12</b><small>lượt thích mới</small></div><div><b>4</b><small>kết nối chung</small></div><button data-action="likes">♡</button></div><div class="match-info"><span>✦</span><p>Gợi ý dựa trên sở thích, hoạt động và khoảng cách của bạn.</p></div></aside></div></section>
+
+      <section id="page-dates" class="page"><div class="page-heading"><div><div class="eyebrow">LÊN KẾ HOẠCH GẶP GỠ</div><h1>Lịch hẹn của bạn</h1><p>Biến những kết nối thú vị thành khoảnh khắc ngoài đời.</p></div><button class="button button-primary" data-action="create-date">＋ Tạo cuộc hẹn</button></div><div class="date-summary"><div class="summary-card"><span class="summary-icon lavender">▦</span><div><small>Tháng này</small><b>03 cuộc hẹn</b></div><span class="summary-trend">↗ 2</span></div><div class="summary-card"><span class="summary-icon mint">♡</span><div><small>Được mời</small><b>02 lời mời</b></div><span class="summary-trend">Mới</span></div><div class="summary-card safe-summary"><span class="summary-icon peach">♧</span><div><small>An toàn</small><b>Luôn đồng hành</b></div><span class="shield-mini">✓</span></div></div><div class="date-content"><div class="appointments-card card"><div class="appointment-head"><div><h2>Sắp diễn ra</h2><p>Những khoảnh khắc đang được lên kế hoạch</p></div><button class="text-button" data-action="calendar">Lịch tháng <span>↗</span></button></div><div class="appointment-list"><article class="appointment-row"><div class="date-block"><b>24</b><small>TH 10</small></div><div class="appointment-info"><div class="appointment-title"><b>Cà phê cuối tuần</b><span class="status-chip confirmed">Đã xác nhận</span></div><p>◷ Thứ bảy, 10:30 sáng <span>·</span>⌖ The Workshop, Quận 1</p><div class="attendee-row"><span class="avatar avatar-xs photo-1">L</span><span class="avatar avatar-xs photo-2">M</span><small>+1 người tham gia</small></div></div><button class="row-more" data-action="appointment-menu">···</button></article><article class="appointment-row"><div class="date-block date-block-blue"><b>27</b><small>TH 10</small></div><div class="appointment-info"><div class="appointment-title"><b>Triển lãm ảnh đường phố</b><span class="status-chip pending">Chờ phản hồi</span></div><p>◷ Thứ ba, 15:00 chiều <span>·</span>⌖ Dinh Độc Lập</p><div class="attendee-row"><span class="avatar avatar-xs photo-4">H</span><small>Hà My đã mời bạn</small></div></div><button class="row-more" data-action="appointment-menu">···</button></article></div></div><aside class="safety-card"><div class="safety-card-top"><span class="safety-icon">♧</span><span class="safety-status"><i></i> ĐANG BẬT</span></div><h3>An tâm trong mọi cuộc hẹn.</h3><p>Người thân tin cậy sẽ được cập nhật khi bạn cần hỗ trợ.</p><div class="safety-contact"><span class="avatar avatar-xs photo-5">M</span><div><b>Mẹ · Liên hệ khẩn cấp</b><small>•••• •• 789</small></div><span>✓</span></div><button class="safety-manage" data-action="safety-settings">Quản lý Safety Mode <span>→</span></button></aside></div></section>
+
+      <section id="page-profile" class="page"><div class="page-heading"><div><div class="eyebrow">KHÔNG GIAN CỦA BẠN</div><h1>Hồ sơ cá nhân</h1><p>Hãy để mọi người biết thêm về bạn.</p></div><button class="button button-secondary" data-action="edit-profile">✎ Chỉnh sửa hồ sơ</button></div><div class="profile-layout"><div class="profile-card card"><div class="profile-cover"><div class="cover-orb orb-1"></div><div class="cover-orb orb-2"></div><button class="cover-edit" data-action="edit-profile">✎</button></div><div class="profile-details"><div class="profile-main-avatar me-avatar">T<span class="online-dot"></span></div><div class="profile-action-row"><button class="button button-secondary" data-action="share-profile">↗ Chia sẻ</button><button class="icon-button" data-action="settings">⚙</button></div><h2>Trần Minh Tú <span class="verified">✓</span></h2><p class="profile-handle">@minhtu · 24 tuổi · TP. Hồ Chí Minh</p><p class="profile-bio">Thích khám phá những góc nhỏ của thành phố, cà phê ngon và những cuộc trò chuyện thật vui. ☕📷</p><div class="profile-tags"><span>☕ Cà phê</span><span>📷 Nhiếp ảnh</span><span>🎵 Âm nhạc</span><span>✈️ Du lịch</span></div><div class="profile-stats"><div><b>128</b><small>Bạn bè</small></div><div><b>24</b><small>Story</small></div><div><b>08</b><small>Kết nối</small></div></div></div></div><aside class="profile-side"><div class="settings-card card"><div class="settings-heading"><div><h3>Quyền riêng tư</h3><p>Kiểm soát cách bạn xuất hiện</p></div><span>♧</span></div><label class="setting-row"><span><b>Chia sẻ vị trí</b><small>Hiển thị với bạn bè</small></span><input type="checkbox" class="switch" checked id="location-toggle"></label><label class="setting-row"><span><b>Trạng thái hoạt động</b><small>Cho biết bạn đang online</small></span><input type="checkbox" class="switch" checked></label><label class="setting-row"><span><b>Chế độ ẩn danh</b><small>Tạm ẩn khỏi bản đồ</small></span><input type="checkbox" class="switch" id="incognito-toggle"></label></div><div class="profile-safety"><div>🛡️ <b>Vivu luôn đồng hành cùng bạn</b></div><p>Thiết lập liên hệ an toàn cho những cuộc gặp sắp tới.</p><button data-action="safety-settings">Cài đặt an toàn <span>→</span></button></div></aside></div></section>
+      <footer class="app-footer" aria-label="Chân trang Vivu">
+        <div class="footer-container">
+          <div class="footer-grid">
+            <div class="footer-col footer-brand-col">
+              <div class="brand footer-brand">
+                <span class="brand-mark" aria-hidden="true">v</span>
+                <span>vivu<span class="brand-dot">.</span></span>
+              </div>
+              <p class="footer-tagline">Kết nối quanh bạn · Khám phá thành phố cùng VIVU</p>
+              <p class="footer-description">Những cuộc gặp ý nghĩa bắt đầu từ gần đây. VIVU kết nối bạn với những người cùng tần số, chia sẻ câu chuyện và cùng nhau tạo nên những lịch hẹn ngoài đời thực.</p>
+              <div class="footer-live-badge">
+                <span class="pulse-dot" aria-hidden="true"></span>
+                <span><b>248</b> người đang hoạt động gần bạn</span>
+              </div>
+            </div>
+
+            <nav class="footer-col" aria-label="Khám phá nhanh">
+              <h3 class="footer-heading">Khám phá</h3>
+              <ul class="footer-links">
+                <li><button type="button" class="footer-btn active" data-page="map"><span class="footer-icon" aria-hidden="true">⌖</span>Bản đồ xã hội</button></li>
+                <li><button type="button" class="footer-btn" data-page="chat"><span class="footer-icon" aria-hidden="true">▤</span>Tin nhắn</button></li>
+                <li><button type="button" class="footer-btn" data-page="match"><span class="footer-icon" aria-hidden="true">♡</span>Gợi ý kết nối</button></li>
+                <li><button type="button" class="footer-btn" data-page="dates"><span class="footer-icon" aria-hidden="true">▦</span>Lịch hẹn gặp gỡ</button></li>
+                <li><button type="button" class="footer-btn" data-page="profile"><span class="footer-icon" aria-hidden="true">◉</span>Hồ sơ cá nhân</button></li>
+              </ul>
+            </nav>
+
+            <nav class="footer-col" aria-label="Tính năng chính">
+              <h3 class="footer-heading">Tính năng</h3>
+              <ul class="footer-links">
+                <li><button type="button" class="footer-btn" data-action="find-friends"><span class="footer-icon" aria-hidden="true">✦</span>Tìm bạn bè</button></li>
+                <li><button type="button" class="footer-btn" data-action="create-date"><span class="footer-icon" aria-hidden="true">＋</span>Tạo cuộc hẹn</button></li>
+                <li><button type="button" class="footer-btn" data-action="story"><span class="footer-icon" aria-hidden="true">◌</span>Story quanh bạn</button></li>
+                <li><button type="button" class="footer-btn" data-action="filter"><span class="footer-icon" aria-hidden="true">☷</span>Bộ lọc bán kính</button></li>
+              </ul>
+            </nav>
+
+            <nav class="footer-col" aria-label="An tâm và hỗ trợ">
+              <h3 class="footer-heading">An tâm & Hỗ trợ</h3>
+              <ul class="footer-links">
+                <li><button type="button" class="footer-btn" data-action="safety-settings"><span class="footer-icon" aria-hidden="true">♧</span>Safety Mode</button></li>
+                <li><button type="button" class="footer-btn" data-action="privacy"><span class="footer-icon" aria-hidden="true">✓</span>Quyền riêng tư</button></li>
+                <li><button type="button" class="footer-btn" data-action="help"><span class="footer-icon" aria-hidden="true">✧</span>Trung tâm trợ giúp</button></li>
+              </ul>
+              <div class="footer-safety-pill">
+                <span class="footer-safety-dot" aria-hidden="true">●</span>
+                <span>Vị trí chỉ hiển thị khi bạn cho phép</span>
+              </div>
+            </nav>
+          </div>
+
+          <div class="footer-bottom-bar">
+            <div class="footer-copyright">
+              <span>© 2026 Vivu Social</span>
+              <span class="footer-separator" aria-hidden="true">·</span>
+              <span>Made for meaningful connections</span>
+              <span class="sparkle" aria-hidden="true">✦</span>
+            </div>
+            <button type="button" class="footer-top-btn" data-action="scroll-top" aria-label="Cuộn lên đầu trang">
+              <span>Lên đầu trang</span>
+              <span class="footer-top-arrow" aria-hidden="true">↑</span>
+            </button>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+  <nav class="mobile-nav"><button class="active" data-page="map"><span>⌖</span><small>Bản đồ</small></button><button data-page="chat"><span>▤</span><small>Tin nhắn</small></button><button data-page="match"><span>♡</span><small>Khám phá</small></button><button data-page="dates"><span>▦</span><small>Lịch hẹn</small></button><button data-page="profile"><span>◉</span><small>Cá nhân</small></button></nav>
+  <div id="modal-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

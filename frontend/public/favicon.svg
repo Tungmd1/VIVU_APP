@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="favGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="45%" stop-color="#0EA5E9"/>
+      <stop offset="85%" stop-color="#F43F5E"/>
+      <stop offset="100%" stop-color="#FF6B4A"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" rx="24" fill="#0A0A0C"/>
+  <g transform="translate(-2, 0)">
+    <!-- Nét vát trái chữ V -->
+    <path d="M28 36 L37 36 L52 74 C51 77 47 80 44 80 C41 80 38 78 37 74 L28 36 Z" fill="url(#favGrad)"/>
+    <!-- Ghim giọt nước nét phải -->
+    <path d="M44 79 C51 71 60 59 68 50 C75 42 77 33 73 25 C69 17 58 14 49 17 C40 20 35 28 36 37 C37 43 41 51 45 60 L51 74" fill="none" stroke="url(#favGrad)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Tâm ghim -->
+    <circle cx="56" cy="32" r="7" fill="#0A0A0C" stroke="url(#favGrad)" stroke-width="4"/>
+  </g>
+</svg>

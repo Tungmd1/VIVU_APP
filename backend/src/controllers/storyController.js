@@ -22,5 +22,38 @@ export const storyController = {
     } catch (err) {
       next(err);
     }
+  },
+
+  async votePoll(req, res, next) {
+    try {
+      const { storyId } = req.params;
+      const { pollId, optionIndex, userId } = req.body;
+      const updated = await dbService.voteStoryPoll(storyId, pollId, optionIndex, userId);
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async replyQA(req, res, next) {
+    try {
+      const { storyId } = req.params;
+      const { qaId, prompt, text, user } = req.body;
+      const updated = await dbService.replyStoryQA(storyId, qaId, prompt, text, user);
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async reactStory(req, res, next) {
+    try {
+      const { storyId } = req.params;
+      const { reactionType, userId } = req.body;
+      const updated = await dbService.reactStory(storyId, reactionType, userId);
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      next(err);
+    }
   }
 };

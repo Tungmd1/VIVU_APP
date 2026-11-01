@@ -14,7 +14,7 @@ import VivuBottomDock from './components/layout/VivuBottomDock';
 import UserLocationSheet from './components/layout/UserLocationSheet';
 import FriendDetailSheet from './components/layout/FriendDetailSheet';
 import StoryStudioModal from './components/story/StoryStudioModal';
-import StoryInteractiveModal from './components/story/StoryInteractiveModal';
+import StoryViewerModal from './components/story/StoryViewerModal';
 import GuestProfileModal from './components/profile/GuestProfileModal';
 import CreateCircleModal from './components/circle/CreateCircleModal';
 import MessengerChatView from './components/chat/MessengerChatView';
@@ -26,7 +26,6 @@ import SettingsModal from './components/profile/SettingsModal';
 import MemeTrollModal from './components/meme/MemeTrollModal';
 import MemeScreenTakeover from './components/meme/MemeScreenTakeover';
 import AppLockOverlay from './components/profile/AppLockOverlay';
-import QuickSnapModal from './components/story/QuickSnapModal';
 import RadarNotificationDrawer from './components/map/RadarNotificationDrawer';
 import MobileQrModal from './components/common/MobileQrModal';
 import FriendshipManagerModal from './components/friends/FriendshipManagerModal';
@@ -318,6 +317,34 @@ export default function App() {
     if (window.location.hash.includes('type=recovery')) {
       setIsResetPasswordOpen(true);
     }
+  }, []);
+
+  // Cử chỉ vuốt từ mép trái màn hình sang phải để mở Camera Story (như Instagram)
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    const handleTouchStart = (e) => {
+      if (e.touches && e.touches.length === 1) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }
+    };
+    const handleTouchEnd = (e) => {
+      if (e.changedTouches && e.changedTouches.length === 1) {
+        const deltaX = e.changedTouches[0].clientX - startX;
+        const deltaY = Math.abs(e.changedTouches[0].clientY - startY);
+        // Vuốt từ mép trái (< 50px) sang phải (> 85px) với độ lệch dọc nhỏ
+        if (startX < 50 && deltaX > 85 && deltaY < 65) {
+          setIsCreateModalOpen(true);
+        }
+      }
+    };
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
   }, []);
 
   // Danh mục thể loại
@@ -1544,27 +1571,59 @@ export default function App() {
     }, 1200);
   };
 
-  // Thả phản ứng cảm xúc
+  // Thả phản ứng cảm xúc Story
   const handleStoryReaction = (storyId, reactionType) => {
     setMyStoryReactions(prev => ({
       ...prev,
       [storyId]: reactionType
     }));
     confetti({ particleCount: 35, spread: 45 });
+    apiClient.reactStory(storyId, reactionType, currentUserId);
+  };
+
+  // Bình chọn Poll trên Story
+  const handleVoteStoryPoll = (storyId, pollId, optionIndex) => {
+    apiClient.voteStoryPoll(storyId, pollId, optionIndex, currentUserId);
+    setStories(prev => prev.map(s => {
+      if (s.id !== storyId) return s;
+      const updatedStickers = (s.stickers || []).map(st => {
+        if (st.id !== pollId || st.type !== 'poll') return st;
+        const v0 = (st.votes?.[0] || []).filter(u => u !== currentUserId);
+        const v1 = (st.votes?.[1] || []).filter(u => u !== currentUserId);
+        if (optionIndex === 0) v0.push(currentUserId);
+        if (optionIndex === 1) v1.push(currentUserId);
+        return { ...st, votes: { 0: v0, 1: v1 } };
+      });
+      return { ...s, stickers: updatedStickers };
+    }));
+  };
+
+  // Trả lời hộp Q&A trên Story
+  const handleReplyStoryQA = (storyId, qaId, prompt, text) => {
+    const targetStory = stories.find(s => s.id === storyId);
+    apiClient.replyStoryQA(storyId, qaId, prompt, text, {
+      id: currentUserId,
+      name: currentUserName,
+      avatar: currentUserAvatar
+    });
+
+    if (targetStory) {
+      handleStoryDirectChat(targetStory, `[Câu hỏi Q&A: "${prompt}"]: ${text}`);
+    }
   };
 
   // Nhắn tin trực tiếp từ Story hoặc Hồ sơ khách
-  const handleStoryDirectChat = (story) => {
+  const handleStoryDirectChat = (story, replyText = null) => {
     setSelectedInteractiveStory(null);
     setSelectedGuestProfile(null);
-    const hostName = story.hostName || story.name;
-    const hostAvatar = story.hostAvatar || story.avatar;
-    const peerId = story.hostId || story.id;
+    const hostName = story.hostName || story.host_name || story.name;
+    const hostAvatar = story.hostAvatar || story.host_avatar || story.avatar;
+    const peerId = story.hostId || story.host_id || story.id;
     const directConvId = peerId ? apiClient.getDirectConversationId(currentUserId, peerId) : `conv-${Date.now()}`;
 
-    let conv = conversations.find(c => c.id === directConvId || c.name === hostName || (story.hostId && c.friendId === story.hostId));
+    let conv = conversations.find(c => c.id === directConvId || c.name === hostName || (peerId && c.friendId === peerId));
     if (!conv) {
-      const isFriend = friends.some(f => f.name === hostName || (story.hostId && f.id === story.hostId));
+      const isFriend = friends.some(f => f.name === hostName || (peerId && f.id === peerId));
       conv = {
         id: directConvId,
         name: hostName,
@@ -1574,7 +1633,7 @@ export default function App() {
         online: true,
         isStranger: !isFriend,
         hasReplied: false,
-        lastMessage: `Bắt đầu trò chuyện: "${story.title || 'Xin chào'}"`,
+        lastMessage: replyText ? `Phản hồi story: ${replyText}` : `Bắt đầu trò chuyện: "${story.title || 'Xin chào'}"`,
         time: 'Vừa xong',
         messages: [
           {
@@ -1587,14 +1646,22 @@ export default function App() {
       };
       setConversations(prev => [conv, ...prev]);
     }
+
+    if (replyText) {
+      handleSendMessage({
+        conversationId: conv.id,
+        text: `[Phản hồi Story "${story.title || 'Khoảnh khắc'}"]: ${replyText}`
+      });
+    }
+
     setActiveConversationId(conv.id);
     setActiveTab('chat');
   };
 
   // Kết bạn / Hủy kết bạn
   const handleStoryToggleFriend = async (story) => {
-    const hostName = story.hostName || story.name;
-    const targetUserId = story.hostId || story.id;
+    const hostName = story.hostName || story.host_name || story.name;
+    const targetUserId = story.hostId || story.host_id || story.id;
     const isAlreadyFriend = friends.some(f => (targetUserId && f.id === targetUserId) || f.name === hostName);
     
     if (isAlreadyFriend) {
@@ -1617,7 +1684,7 @@ export default function App() {
       const newFriend = {
         id: targetUserId || `friend-${Date.now()}`,
         name: hostName,
-        avatar: story.hostAvatar || story.avatar,
+        avatar: story.hostAvatar || story.host_avatar || story.avatar,
         battery: '98%',
         realLat: story.realLat,
         realLng: story.realLng,
@@ -1629,8 +1696,8 @@ export default function App() {
     }
   };
 
-  // Xử lý tạo Story mới (Hỗ trợ cả Xã hội và Bạn bè)
-  const handleCreateNewStory = (storyData) => {
+  // Xử lý tạo Story mới Pro (Hỗ trợ Camera Pro, Dual Cam, Text Gradient, Nhạc, Poll, Sticker)
+  const handleCreateNewStory = async (storyData) => {
     const isFriendsOnly = activeTab === 'friends' || storyData.privacy === 'friends';
     const newStory = {
       id: `story-${Date.now()}`,
@@ -1640,22 +1707,27 @@ export default function App() {
       hostAvatar: currentUserAvatar,
       isOwnerStory: true,
       category: storyData.category || 'moment',
-      title: storyData.title,
-      caption: storyData.caption || storyData.title,
-      description: storyData.description || storyData.text,
-      music: storyData.music || null,
-      songData: storyData.songData || null,
-      meme: storyData.meme || null,
-      memeImage: storyData.memeImage || storyData.meme?.image || storyData.image || null,
+      title: storyData.title || 'Khoảnh khắc mới',
+      description: storyData.description || '',
       image: storyData.image || null,
-      bgGradient: storyData.bgGradient || null,
-      address: 'Vị trí GPS của Bạn',
+      dual_image: storyData.dual_image || storyData.dualImage || null,
+      is_dual_cam: Boolean(storyData.is_dual_cam || storyData.isDualCam),
+      bg_gradient: storyData.bg_gradient || null,
+      filter_id: storyData.filter_id || 'normal',
+      adjustments: storyData.adjustments || null,
+      texts: storyData.texts || [],
+      stickers: storyData.stickers || [],
+      music: storyData.music || null,
+      tagged_friends: storyData.tagged_friends || [],
+      address: storyData.address || location?.cityName || 'Vị trí GPS của Bạn',
       distanceText: 'Ngay tại vị trí của bạn',
       realLat: userLat,
       realLng: userLng,
       latOffset: 0,
       lngOffset: 0,
-      privacy: isFriendsOnly ? 'friends' : 'public'
+      expiry_hours: storyData.expiry_hours || 24,
+      expires_at: new Date(Date.now() + (storyData.expiry_hours || 24) * 3600000).toISOString(),
+      privacy: isFriendsOnly ? 'friends' : (storyData.privacy || 'public')
     };
 
     setStories(prev => [newStory, ...prev]);
@@ -1664,20 +1736,29 @@ export default function App() {
     setActiveTab(isFriendsOnly ? 'friends' : 'social');
 
     // Đồng bộ story mới lên backend server để các thiết bị khác nhận được
-    apiClient.createStory({
+    await apiClient.createStory({
       host_id: currentUserId,
       user_code: currentUserCode,
       host_name: currentUserName,
       host_avatar: currentUserAvatar,
-      category: storyData.category || 'moment',
-      title: storyData.title,
-      description: storyData.description || storyData.text,
-      address: location?.cityName || 'Vị trí GPS của bạn',
+      category: newStory.category,
+      title: newStory.title,
+      description: newStory.description,
+      address: newStory.address,
       lat: userLat,
       lng: userLng,
-      image: storyData.image || null,
-      music: storyData.music || null,
-      privacy: isFriendsOnly ? 'friends' : 'public'
+      image: newStory.image,
+      dual_image: newStory.dual_image,
+      is_dual_cam: newStory.is_dual_cam,
+      bg_gradient: newStory.bg_gradient,
+      filter_id: newStory.filter_id,
+      adjustments: newStory.adjustments,
+      texts: newStory.texts,
+      stickers: newStory.stickers,
+      music: newStory.music,
+      tagged_friends: newStory.tagged_friends,
+      expiry_hours: newStory.expiry_hours,
+      privacy: newStory.privacy
     });
   };
 
@@ -2298,16 +2379,18 @@ export default function App() {
         className={activeTab === 'chat' && activeConversationId ? 'hidden' : ''}
       />
 
-      {/* 6. THẺ TƯƠNG TÁC STORY 3D (ÁP DỤNG CẢ CHO XÃ HỘI VÀ BẠN BÈ) */}
+      {/* 6. TRÌNH XEM STORY TOÀN MÀN HÌNH TƯƠNG TÁC CAO CẤP */}
       {selectedInteractiveStory && (
-        <StoryInteractiveModal
+        <StoryViewerModal
           story={selectedInteractiveStory}
           onClose={() => setSelectedInteractiveStory(null)}
+          onOpenStoryChat={handleStoryDirectChat}
+          onVotePoll={handleVoteStoryPoll}
+          onReplyQA={handleReplyStoryQA}
           onReact={handleStoryReaction}
-          onDirectChat={handleStoryDirectChat}
-          onToggleFriend={handleStoryToggleFriend}
-          isFriend={friends.some(f => f.name === (selectedInteractiveStory.hostName || selectedInteractiveStory.name))}
-          myReactions={myStoryReactions}
+          userLat={userLat}
+          userLng={userLng}
+          currentUserId={currentUserId}
         />
       )}
 
@@ -2439,13 +2522,18 @@ export default function App() {
         onOpenProfile={() => setActiveTab('profile')}
       />
 
-      {/* 11. MODAL SOẠN THẢO STORY KHOẢNH KHẮC */}
+      {/* 11. MODAL SOẠN THẢO STORY KHOẢNH KHẮC & CAMERA PRO (UNIFIED) */}
       <StoryStudioModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        isOpen={isCreateModalOpen || isQuickSnapOpen}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setIsQuickSnapOpen(false);
+        }}
         onSubmitStory={handleCreateNewStory}
-        userLocationName="Vị trí GPS thật của bạn"
-        categories={categories}
+        userLocationName={cityName || "Vị trí GPS của Bạn"}
+        userLat={userLat}
+        userLng={userLng}
+        friends={friends}
       />
 
       {/* 12. MODAL TẠO NHÓM MỚI */}
@@ -2716,13 +2804,7 @@ export default function App() {
         isSubmitting={isAuthSubmitting}
       />
 
-      {/* 21. MODAL CHỤP ẢNH POST LIỀN (QUICK SNAP CAMERA VỚI BỘ LỌC & CHỈNH MÀU) */}
-      <QuickSnapModal
-        isOpen={isQuickSnapOpen}
-        onClose={() => setIsQuickSnapOpen(false)}
-        onSubmitStory={handleQuickSnapPost}
-        userLocationName="Vị trí GPS của bạn"
-      />
+
 
       {/* 22. DRAWER LỊCH SỬ THÔNG BÁO RADAR PING */}
       <RadarNotificationDrawer

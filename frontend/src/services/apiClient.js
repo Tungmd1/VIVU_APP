@@ -175,6 +175,51 @@ export const apiClient = {
     return null;
   },
 
+  async voteStoryPoll(storyId, pollId, optionIndex, userId) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/stories/${storyId}/poll-vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pollId, optionIndex, userId })
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+    } catch (err) {
+      console.warn('[API Client] voteStoryPoll fallback:', err.message);
+    }
+    return null;
+  },
+
+  async replyStoryQA(storyId, qaId, prompt, text, user) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/stories/${storyId}/qa-reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qaId, prompt, text, user })
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+    } catch (err) {
+      console.warn('[API Client] replyStoryQA fallback:', err.message);
+    }
+    return null;
+  },
+
+  async reactStory(storyId, reactionType, userId) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/stories/${storyId}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactionType, userId })
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+    } catch (err) {
+      console.warn('[API Client] reactStory fallback:', err.message);
+    }
+    return null;
+  },
+
   async getProfiles() {
     try {
       const res = await fetch(`${API_BASE_URL}/gps/profiles`);

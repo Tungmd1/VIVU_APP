@@ -74,9 +74,19 @@ export const dbService = {
       lng: story.lng || 106.7009,
       lat_offset: story.lat_offset || 0,
       lng_offset: story.lng_offset || 0,
-      expiry_hours: story.expiry_hours || 3,
-      expires_at: story.expires_at || new Date(Date.now() + (story.expiry_hours || 3) * 3600000).toISOString(),
+      expiry_hours: story.expiry_hours || 24,
+      expires_at: story.expires_at || new Date(Date.now() + (story.expiry_hours || 24) * 3600000).toISOString(),
       image: story.image || null,
+      dual_image: story.dual_image || story.dualImage || null,
+      is_dual_cam: Boolean(story.is_dual_cam || story.isDualCam),
+      bg_gradient: story.bg_gradient || null,
+      filter_id: story.filter_id || 'normal',
+      adjustments: story.adjustments || null,
+      texts: Array.isArray(story.texts) ? story.texts : [],
+      stickers: Array.isArray(story.stickers) ? story.stickers : [],
+      music: story.music || null,
+      tagged_friends: Array.isArray(story.tagged_friends) ? story.tagged_friends : [],
+      reactions: [],
       privacy: story.privacy || 'public',
       created_at: new Date().toISOString()
     };
@@ -93,6 +103,67 @@ export const dbService = {
     inMemoryStore.stories.unshift(newStory);
     dbStore.persist();
     return newStory;
+  },
+
+  async voteStoryPoll(storyId, pollId, optionIndex, userId) {
+    const story = inMemoryStore.stories.find(s => s.id === storyId);
+    if (!story) throw new Error('Không tìm thấy Story');
+
+    if (Array.isArray(story.stickers)) {
+      const poll = story.stickers.find(st => st.id === pollId && st.type === 'poll');
+      if (poll) {
+        if (!poll.votes) poll.votes = { 0: [], 1: [] };
+        if (!poll.votes[0]) poll.votes[0] = [];
+        if (!poll.votes[1]) poll.votes[1] = [];
+
+        // Xóa vote cũ của user nếu có
+        poll.votes[0] = poll.votes[0].filter(uid => uid !== userId);
+        poll.votes[1] = poll.votes[1].filter(uid => uid !== userId);
+
+        // Ghi nhận vote mới
+        if (optionIndex === 0 || optionIndex === 1) {
+          poll.votes[optionIndex].push(userId);
+        }
+        dbStore.persist();
+      }
+    }
+    return story;
+  },
+
+  async replyStoryQA(storyId, qaId, prompt, text, user) {
+    const story = inMemoryStore.stories.find(s => s.id === storyId);
+    if (!story) throw new Error('Không tìm thấy Story');
+
+    if (Array.isArray(story.stickers)) {
+      const qa = story.stickers.find(st => st.id === qaId && st.type === 'qa');
+      if (qa) {
+        if (!Array.isArray(qa.replies)) qa.replies = [];
+        qa.replies.push({
+          id: `reply-${Date.now()}`,
+          user_id: user?.id || 'guest',
+          user_name: user?.name || 'Ẩn danh',
+          user_avatar: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          text,
+          created_at: new Date().toISOString()
+        });
+        dbStore.persist();
+      }
+    }
+    return story;
+  },
+
+  async reactStory(storyId, reactionType, userId) {
+    const story = inMemoryStore.stories.find(s => s.id === storyId);
+    if (!story) throw new Error('Không tìm thấy Story');
+
+    if (!Array.isArray(story.reactions)) story.reactions = [];
+    story.reactions.push({
+      user_id: userId,
+      type: reactionType,
+      timestamp: new Date().toISOString()
+    });
+    dbStore.persist();
+    return story;
   },
 
   async getProfiles() {

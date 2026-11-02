@@ -2329,35 +2329,6 @@ export default function App() {
       }
     : null;
 
-  const handleSyncFromPhone = useCallback(() => {
-    if (!nearbyOnlinePeers || nearbyOnlinePeers.length === 0) {
-      setIncomingMessageToast({
-        id: 'sync-phone-empty-' + Date.now(),
-        senderName: 'VIVU GPS',
-        senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        text: 'Chưa phát hiện thiết bị điện thoại nào đang online gần bạn để đồng bộ.',
-        isFriendRequest: false
-      });
-      return;
-    }
-    const phonePeer = nearbyOnlinePeers[0];
-    const targetLat = Number(phonePeer.realLat ?? phonePeer.lat);
-    const targetLng = Number(phonePeer.realLng ?? phonePeer.lng);
-    if (isNaN(targetLat) || isNaN(targetLng)) return;
-    setManualCoords(targetLat, targetLng, 'Đồng bộ từ điện thoại (' + (phonePeer.full_name || phonePeer.name) + ')');
-    if (window.__vivu_map) {
-      window.__vivu_map.flyTo([targetLat, targetLng], 16.5, { duration: 0.9 });
-    }
-    confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
-    setIncomingMessageToast({
-      id: 'sync-phone-success-' + Date.now(),
-      senderName: 'VIVU GPS',
-      senderAvatar: phonePeer.avatar_url || phonePeer.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      text: 'Đã đồng bộ vị trí thành công từ ' + (phonePeer.full_name || phonePeer.name) + '!',
-      isFriendRequest: false
-    });
-  }, [nearbyOnlinePeers, setManualCoords]);
-
   // Đã xóa Auth Gate cưỡng chế màn hình đen. 
   // Ứng dụng tự động vào thẳng Bản đồ 3D (Chế độ Khách), không bao giờ bị chớp đen màn hình khi mở trên điện thoại.
 
@@ -2453,7 +2424,6 @@ export default function App() {
         onClearCircleFilter={() => setActiveCircleFilter(null)}
         isPickingLocation={isPickingLocation}
         setIsPickingLocation={setIsPickingLocation}
-        onSyncFromPhone={handleSyncFromPhone}
         onOpenStoryDetail={handleOpenStoryViewer}
         onOpenStoryChat={handleStoryDirectChat}
         onOpenFriendDetail={setSelectedFriend}

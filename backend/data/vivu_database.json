@@ -82,7 +82,7 @@
       "email": "beta@vivu.vn",
       "created_at": "2026-11-02T13:16:17.482Z",
       "message_privacy": "friends_only",
-      "updated_at": "2026-11-02T14:25:20.140Z"
+      "updated_at": "2026-11-02T18:25:43.843Z"
     },
     {
       "id": "test-user-gamma",
@@ -118,15 +118,15 @@
     },
     {
       "id": "user-1793621691299-pqv8h",
-      "lat": 13.77991218950467,
-      "lng": 109.22578560895099,
+      "lat": 13.7765,
+      "lng": 109.2237,
       "user_code": "VU-4473",
       "full_name": "tuanh",
       "name": "tuanh",
       "avatar_url": null,
       "avatar": null,
       "is_online": false,
-      "last_seen_at": "2026-11-02T17:58:34.194Z",
+      "last_seen_at": "2026-11-02T18:13:00.885Z",
       "battery": "95%",
       "custom_status": "",
       "custom_song": {
@@ -169,15 +169,15 @@
     },
     {
       "id": "user-1793621817194-drnwj",
-      "lat": 13.77956218950467,
-      "lng": 109.22543560895099,
+      "lat": 13.7764809,
+      "lng": 109.2236662,
       "user_code": "VU-6079",
       "full_name": "anh nhớ em",
       "name": "anh nhớ em",
       "avatar_url": null,
       "avatar": null,
       "is_online": false,
-      "last_seen_at": "2026-11-02T18:01:12.539Z",
+      "last_seen_at": "2026-11-02T18:11:17.573Z",
       "battery": "95%",
       "custom_status": "",
       "custom_song": {
@@ -212,6 +212,39 @@
         "cover": "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/8e/bb/ff/8ebbff69-0b36-118d-6dab-d2b3a9c3d677/602448945051_Cover.jpg/300x300bb.jpg",
         "audioUrl": "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview221/v4/0d/2d/29/0d2d2908-709d-c6cc-1f49-1a2567c20a03/mzaf_8401445915932098462.plus.aac.p.m4a"
       }
+    },
+    {
+      "id": "test-user-alpha",
+      "full_name": "Alpha Tester",
+      "email": "alpha@vivu.vn",
+      "is_online": true,
+      "last_seen_at": "2026-11-02T18:25:40.466Z",
+      "lat": 21.028511,
+      "lng": 105.854167,
+      "user_code": "VU-1111",
+      "name": "Alpha Tester",
+      "custom_status": "Đang ở Hồ Gươm"
+    },
+    {
+      "id": "test-user-beta",
+      "full_name": "Beta Tester",
+      "email": "beta@vivu.vn",
+      "is_online": true,
+      "last_seen_at": "2026-11-02T18:25:40.968Z",
+      "lat": 10.776889,
+      "lng": 106.700806,
+      "user_code": "VU-2222",
+      "name": "Beta Tester",
+      "custom_status": "Đang ở Phố đi bộ",
+      "message_privacy": "friends_only"
+    },
+    {
+      "id": "test-user-gamma",
+      "full_name": "Gamma Tester",
+      "email": "gamma@vivu.vn",
+      "avatar_url": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+      "is_online": true,
+      "last_seen_at": "2026-11-02T18:25:40.115Z"
     }
   ],
   "stories": [],
@@ -1286,9 +1319,54 @@
       "status": "read",
       "read_at": "2026-11-02T17:14:13.588Z",
       "created_at": "2026-11-02T17:08:37.909Z"
+    },
+    {
+      "id": "msg-1793643943868",
+      "client_msg_id": "cmsg-1793643943868",
+      "conversation_id": "conv-direct-test-user-alpha--test-user-beta",
+      "sender": "test-user-alpha",
+      "sender_name": "Alpha Tester",
+      "text": "Mai đi cafe không B?",
+      "image": null,
+      "video": null,
+      "is_location": false,
+      "is_heart": false,
+      "lat": null,
+      "lng": null,
+      "status": "sent",
+      "read_at": null,
+      "created_at": "2026-11-02T18:25:43.868Z"
     }
   ],
   "circles": [
+    {
+      "id": "circle-test-weekend",
+      "name": "Kèo Cafe Cuối Tuần",
+      "description": "",
+      "image": null,
+      "privacy": "private",
+      "owner_id": "test-user-alpha",
+      "members": [
+        {
+          "user_id": "test-user-alpha",
+          "role": "owner",
+          "status": "accepted",
+          "joined_at": "2026-11-02T18:25:43.474Z"
+        },
+        {
+          "user_id": "test-user-beta",
+          "role": "member",
+          "status": "accepted",
+          "joined_at": "2026-11-02T18:25:43.474Z"
+        }
+      ],
+      "member_ids": [
+        "test-user-alpha",
+        "test-user-beta"
+      ],
+      "created_at": "2026-11-02T18:25:43.474Z",
+      "updated_at": "2026-11-02T18:25:43.474Z"
+    },
     {
       "id": "circle-1793622612768-odt1",
       "name": "Bbbb",
@@ -1347,6 +1425,18 @@
     }
   ],
   "friendRequests": [
+    {
+      "id": "freq-1793643943800-8stwv",
+      "sender_id": "test-user-alpha",
+      "sender_name": "Alpha Tester",
+      "sender_avatar": "",
+      "receiver_id": "test-user-beta",
+      "receiver_name": "Beta Tester",
+      "receiver_avatar": "",
+      "status": "accepted",
+      "created_at": "2026-11-02T18:25:43.800Z",
+      "updated_at": "2026-11-02T18:25:43.821Z"
+    },
     {
       "id": "freq-1793639611359-rxpgs",
       "sender_id": "user-1793636904212-xffjq",
@@ -1442,6 +1532,13 @@
       "user_a_id": "user-1793621691299-pqv8h",
       "user_b_id": "user-1793621817194-drnwj",
       "created_at": "2026-11-02T17:14:02.570Z",
+      "status": "active"
+    },
+    {
+      "id": "fs-test-user-alpha--test-user-beta",
+      "user_a_id": "test-user-alpha",
+      "user_b_id": "test-user-beta",
+      "created_at": "2026-11-02T18:25:43.821Z",
       "status": "active"
     }
   ],

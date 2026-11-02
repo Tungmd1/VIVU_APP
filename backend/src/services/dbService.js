@@ -614,19 +614,8 @@ export const dbService = {
     const code = userCode || registeredUser.user_code || this.generateUserCode(userId);
     const resolvedName = name || registeredUser.full_name;
     const resolvedAvatar = avatar || registeredUser.avatar_url;
-
-    let finalLat = Number(lat);
-    let finalLng = Number(lng);
-    if ((Math.abs(finalLat - 16.038) < 0.05 && Math.abs(finalLng - 108.219) < 0.05) || (Math.abs(finalLat - 16.054) < 0.05 && Math.abs(finalLng - 108.202) < 0.05)) {
-      const otherLive = inMemoryStore.profiles.find(p => p.id !== userId && p.is_online && p.lat != null && Math.abs(p.lat - 16.038) >= 0.05);
-      if (otherLive) {
-        finalLat = Number(otherLive.lat) + 0.00035;
-        finalLng = Number(otherLive.lng) + 0.00035;
-      } else {
-        finalLat = 13.77665;
-        finalLng = 109.22385;
-      }
-    }
+    const finalLat = Number(lat);
+    const finalLng = Number(lng);
     const updatePayload = {
       id: userId,
       lat: finalLat,

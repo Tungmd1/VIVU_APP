@@ -44,7 +44,6 @@ export default function GoogleMapView({
   activeCircleFilter = null,
   isPickingLocation = false,
   setIsPickingLocation,
-  onSyncFromPhone,
   onOpenStoryDetail,
   onOpenFriendDetail,
   onOpenGuestProfile,
@@ -425,7 +424,6 @@ export default function GoogleMapView({
         onQuickSnap={onOpenQuickSnap}
         onRecenterGps={handleRecenterGps}
         onToggleMapStyle={handleToggleMapStyle}
-        onSyncFromPhone={onSyncFromPhone}
         isPickingLocation={isPickingLocation}
         onTogglePickLocation={() => setIsPickingLocation && setIsPickingLocation(!isPickingLocation)}
         mapStyleType={mapStyleType}

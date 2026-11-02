@@ -89,7 +89,7 @@ export default function PostTypeActionSheet({
                 <i className="bi bi-chevron-right text-[#8E8E93] group-hover:text-white group-hover:translate-x-1 transition-all"></i>
               </motion.button>
 
-              {/* LỰA CHỌN 2: ĐĂNG TÂM TRẠNG (MESSENGER NOTES) */}
+              {/* LỰA CHỌN 2: ĐĂNG TÂM TRẠNG SUY NGHĨ */}
               <motion.button
                 type="button"
                 whileHover={{ scale: 1.01 }}

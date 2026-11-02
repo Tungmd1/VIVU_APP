@@ -69,8 +69,9 @@ export default function StoryViewerModal({
   useEffect(() => {
     if (!actualStory) return;
 
-    if (actualStory.music && actualStory.music.audio_url) {
-      storyAudioPlayer.playSong(actualStory.music);
+    const musicUrl = actualStory.music?.audio_url || actualStory.music?.audioUrl;
+    if (actualStory.music && musicUrl) {
+      storyAudioPlayer.playSong(actualStory.music, { loop: true });
       setIsPlayingMusic(true);
     } else {
       storyAudioPlayer.stop();
@@ -185,7 +186,7 @@ export default function StoryViewerModal({
       storyAudioPlayer.stop();
       setIsPlayingMusic(false);
     } else {
-      storyAudioPlayer.playSong(actualStory.music);
+      storyAudioPlayer.playSong(actualStory.music, { loop: true });
       setIsPlayingMusic(true);
     }
   };

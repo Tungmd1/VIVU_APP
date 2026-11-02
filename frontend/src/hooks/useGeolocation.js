@@ -3,12 +3,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 const STORAGE_KEY = 'vivu_user_real_location';
 
 /**
- * Hook định vị không gian Thiết Bị Thật (Hardware GPS Location Engine)
+ * Hook định vị không gian Thiết Bị Thật (Multi-Tier Location Engine - Rule 13)
  * - Tầng 1: HTML5 High-Accuracy GPS (navigator.geolocation) từ chip GPS của thiết bị
- * - Tầng 2: Quản lý vòng đời quyền GPS (granted, denied, revoked) theo thời gian thực
- * - Tầng 3: Bộ nhớ cục bộ localStorage (chỉ lưu tọa độ GPS thật đã được xác minh)
+ * - Tầng 2: IP Geolocation dự phòng khi thiết bị PC không có chip GPS hoặc timeout
+ * - Tầng 3: Bộ nhớ cục bộ localStorage (lưu và tải lại toạ độ gần nhất)
  * - Tầng 4: Hỗ trợ chọn tọa độ thủ công (setManualCoords) khi người dùng chủ động chọn
- * - TRIỆT TIÊU HOÀN TOÀN TỌA ĐỘ ĐÀ NẴNG MẶC ĐỊNH HOẶC FALLBACK ẢO
  */
 export function useGeolocation() {
   // Đọc tọa độ thật đã lưu gần nhất (nếu có, và loại bỏ triệt để tọa độ ảo Đà Nẵng 16.0544 cũ)
@@ -18,8 +17,8 @@ export function useGeolocation() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
-          // Nếu dữ liệu cũ trong cache là Đà Nẵng hardcode (16.0544, 108.2022) -> Xóa sạch ngay!
-          if (Math.abs(parsed.lat - 16.0544) < 0.0001 && Math.abs(parsed.lng - 108.2022) < 0.0001) {
+          if ((Math.abs(parsed.lat - 16.0544) < 0.0001 && Math.abs(parsed.lng - 108.2022) < 0.0001) ||
+              (Math.abs(parsed.lat - 16.038) < 0.05 && Math.abs(parsed.lng - 108.219) < 0.05)) {
             localStorage.removeItem(STORAGE_KEY);
             return null;
           }
@@ -60,7 +59,6 @@ export function useGeolocation() {
   // Lưu tọa độ thật hợp lệ vào localStorage
   const saveLocationToStorage = useCallback((coords) => {
     if (!coords || typeof coords.lat !== 'number' || typeof coords.lng !== 'number') return;
-    // Tuyệt đối không lưu toạ độ ảo Đà Nẵng mặc định
     if (Math.abs(coords.lat - 16.0544) < 0.0001 && Math.abs(coords.lng - 108.2022) < 0.0001) {
       return;
     }
@@ -83,15 +81,68 @@ export function useGeolocation() {
     }
   }, []);
 
+  // Tầng 2: Dự phòng định vị qua IP Geolocation khi GPS phần cứng không khả dụng (Rule 13)
+  const fetchIpLocation = useCallback(async () => {
+    if (locationRef.current && locationRef.current.source === 'gps') return;
+
+    try {
+      const res = await fetch('https://ipwho.is/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+          const coords = {
+            lat: data.latitude,
+            lng: data.longitude,
+            accuracy: 1000,
+            timestamp: Date.now(),
+            source: 'ip',
+            cityName: data.city || data.region || 'Vị trí mạng IP',
+            isFallback: false
+          };
+          setLocation(coords);
+          saveLocationToStorage(coords);
+          setLoading(false);
+          setPermissionGranted(true);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+          setLocation({ ...parsed, source: parsed.source || 'storage' });
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    const fallbackCoords = {
+      lat: 13.77665,
+      lng: 109.22385,
+      accuracy: 50,
+      timestamp: Date.now(),
+      source: 'fallback',
+      cityName: 'Quy Nhơn',
+      isFallback: true
+    };
+    setLocation(fallbackCoords);
+    setLoading(false);
+  }, [saveLocationToStorage]);
+
   // Tầng 1: Đọc tọa độ GPS thật của thiết bị qua HTML5 Geolocation API
   const requestLocation = useCallback(() => {
     if (typeof window === 'undefined') return;
 
     if (!navigator.geolocation) {
-      setError('Trình duyệt của bạn không hỗ trợ Geolocation.');
+      setError('Trình duyệt không hỗ trợ chip Geolocation, chuyển sang định vị IP.');
       setLoading(false);
       setPermissionDenied(true);
       setPermissionGranted(false);
+      fetchIpLocation();
       return;
     }
 
@@ -117,21 +168,21 @@ export function useGeolocation() {
         setError(null);
       },
       (err) => {
-        console.warn('HTML5 GPS error:', err.code, err.message);
+        console.warn('HTML5 GPS error, fallback sang IP:', err.code, err.message);
         setLoading(false);
         setPermissionGranted(false);
 
         if (err.code === 1) { // PERMISSION_DENIED
           setPermissionDenied(true);
-          setError('Quyền truy cập vị trí đã bị từ chối.');
-          clearLocation();
+          setError('Quyền GPS bị từ chối, sử dụng định vị IP.');
         } else if (err.code === 2) { // POSITION_UNAVAILABLE
-          setError('Không thể xác định vị trí của thiết bị.');
+          setError('Không thể kết nối phần cứng GPS, sử dụng định vị IP.');
         } else if (err.code === 3) { // TIMEOUT
-          setError('Quá thời gian xác định vị trí GPS.');
+          setError('Quá thời gian lấy GPS, sử dụng định vị IP.');
         } else {
           setError(err.message || 'Lỗi định vị vị trí.');
         }
+        fetchIpLocation();
       },
       {
         enableHighAccuracy: true,
@@ -139,7 +190,7 @@ export function useGeolocation() {
         maximumAge: 10000,
       }
     );
-  }, [clearLocation, saveLocationToStorage]);
+  }, [fetchIpLocation, saveLocationToStorage]);
 
   // Tầng 4: Đặt tọa độ thủ công khi người dùng chủ động chọn trên map
   const setManualCoords = useCallback((lat, lng, cityName = 'Vị trí đã chọn') => {
@@ -161,25 +212,23 @@ export function useGeolocation() {
 
   // Vòng đời cảm biến và theo dõi trạng thái quyền trình duyệt
   useEffect(() => {
-    // 1. Kiểm tra trạng thái quyền qua Permissions API (nếu có hỗ trợ)
     if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
       navigator.permissions.query({ name: 'geolocation' }).then((status) => {
         if (status.state === 'denied') {
           setPermissionDenied(true);
           setPermissionGranted(false);
-          clearLocation();
+          fetchIpLocation();
         } else if (status.state === 'granted') {
           setPermissionGranted(true);
           setPermissionDenied(false);
           requestLocation();
         }
 
-        // Lắng nghe khi người dùng bấm thu hồi hoặc cấp quyền trực tiếp trên thanh URL
         status.onchange = () => {
           if (status.state === 'denied') {
             setPermissionDenied(true);
             setPermissionGranted(false);
-            clearLocation();
+            fetchIpLocation();
           } else if (status.state === 'granted') {
             setPermissionDenied(false);
             setPermissionGranted(true);
@@ -191,20 +240,16 @@ export function useGeolocation() {
       });
     }
 
-    // 2. Yêu cầu lấy vị trí ban đầu
     requestLocation();
 
-    // 3. Lắng nghe cập nhật GPS liên tục khi di chuyển (watchPosition)
     let watchId = null;
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
-          // Bỏ qua nếu độ chính xác quá tệ (> 350m) khi đã có vị trí tốt
           if (pos.coords.accuracy > 350 && locationRef.current && (locationRef.current.accuracy || 0) < 100) {
             return;
           }
 
-          // Lọc micro-drift: chỉ cập nhật nếu di chuyển > 8m
           if (locationRef.current) {
             const dist = getDistanceMeters(
               locationRef.current.lat,
@@ -233,7 +278,7 @@ export function useGeolocation() {
           if (err.code === 1) {
             setPermissionDenied(true);
             setPermissionGranted(false);
-            clearLocation();
+            fetchIpLocation();
           }
         },
         { enableHighAccuracy: true, maximumAge: 5000 }
@@ -245,7 +290,7 @@ export function useGeolocation() {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [clearLocation, requestLocation, saveLocationToStorage]);
+  }, [fetchIpLocation, requestLocation, saveLocationToStorage]);
 
   return {
     location,

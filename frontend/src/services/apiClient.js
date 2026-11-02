@@ -249,12 +249,12 @@ export const apiClient = {
     return null;
   },
 
-  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone) {
+  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong) {
     try {
       const res = await fetch(`${API_BASE_URL}/gps/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, lat, lng, customStatus, name, avatar, userCode, phone })
+        body: JSON.stringify({ userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong })
       });
       const json = await res.json();
       if (json.success && json.data) return json.data;

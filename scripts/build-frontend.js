@@ -40,14 +40,18 @@ async function build() {
     // 1. Compile Tailwind CSS
     console.log('[Build] Compiling Tailwind CSS utilities...');
     const tailwindOut = path.join(assetsDir, 'tailwind.css');
-    try {
-      execSync('npx.cmd -y tailwindcss@3.4.17 -i src/index.css --config tailwind.config.cjs -o dist/assets/tailwind.css --minify', {
+    if (!fs.existsSync(tailwindOut)) {
+      try {
+        execSync('node_modules\\.bin\\tailwindcss.cmd -i src/index.css --config tailwind.config.cjs -o dist/assets/tailwind.css --minify', {
         cwd: frontendDir,
         stdio: 'pipe'
       });
       console.log('[Build] Tailwind CSS compiled successfully!');
-    } catch (e) {
-      console.warn('[Build] Warning during Tailwind compilation:', e.message);
+      } catch (e) {
+        console.warn('[Build] Warning during Tailwind compilation:', e.message);
+      }
+    } else {
+      console.log('[Build] Reusing cached Tailwind CSS');
     }
 
     // 2. Assemble complete CSS bundle

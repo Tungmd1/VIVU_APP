@@ -1,4 +1,12 @@
 {
+  "name": "vivu-app",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build"
+  },
   "devDependencies": {
     "esbuild-wasm": "^0.28.2"
   }

@@ -6,7 +6,8 @@ import { triggerCyberSplash } from '../../utils/cyberSplash';
  * - Bo tròn hoàn hảo rounded-full
  * - Thân kính mờ Cyber Glass rgba(20,20,30,0.85) với viền ánh Cyan #00E5FF
  * - Nút Recenter GPS Hồng Neon #FF2A85 phát quang
- * - Khi bấm: Kích hoạt hiệu ứng GSAP tia hạt Cyber Splash
+ * - Nút Đồng bộ theo điện thoại (1-click Phone Sync)
+ * - Nút Cắm ghim chọn vị trí trên bản đồ (Pin-Drop Mode)
  * - 100% Bootstrap Icons, Rule 7 (< 450 dòng)
  */
 export default function RightActionStack({
@@ -14,13 +15,70 @@ export default function RightActionStack({
   onFitPeers,
   onQuickSnap,
   onRecenterGps,
+  onToggleMapStyle,
+  onSyncFromPhone,
+  isPickingLocation = false,
+  onTogglePickLocation,
+  mapStyleType = 'streets',
   hasPeers = false,
   isGpsLoading = false
 }) {
   return (
     <div className="fixed right-3.5 bottom-24 z-30 flex flex-col items-end gap-2.5 pointer-events-auto select-none font-sans">
       
-      {/* 1. NÚT LA BÀN (COMPASS / ĐẶT LẠI HƯỚNG BẮC) */}
+      {/* 0. NÚT CHUYỂN ĐỔI GOOGLE ĐƯỜNG PHỐ <-> VỆ TINH */}
+      {onToggleMapStyle && (
+        <button
+          type="button"
+          onClick={(e) => {
+            triggerCyberSplash(e);
+            onToggleMapStyle();
+          }}
+          className="w-11 h-11 rounded-full bg-[rgba(20,20,30,0.85)] hover:bg-[rgba(25,25,38,0.95)] border border-[#00E5FF]/40 hover:border-[#00E5FF] text-[#00E5FF] shadow-[0_4px_16px_rgba(0,0,0,0.5)] backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer group"
+          title={mapStyleType === 'streets' ? "Chuyển sang Google Vệ Tinh" : "Chuyển sang Google Đường Phố"}
+          aria-label="Chuyển lớp bản đồ"
+        >
+          <i className={`bi ${mapStyleType === 'streets' ? 'bi-globe-asia-australia' : 'bi-map-fill'} text-lg group-hover:scale-110 transition-transform`}></i>
+        </button>
+      )}
+
+      {/* 1. NÚT ĐỒNG BỘ VỊ TRÍ THEO ĐIỆN THOẠI (1-CLICK SYNC) */}
+      {onSyncFromPhone && hasPeers && (
+        <button
+          type="button"
+          onClick={(e) => {
+            triggerCyberSplash(e);
+            onSyncFromPhone();
+          }}
+          className="w-11 h-11 rounded-full bg-[rgba(20,20,30,0.85)] hover:bg-[rgba(25,25,38,0.95)] border border-[#10FFA0]/60 hover:border-[#10FFA0] text-[#10FFA0] shadow-[0_0_14px_rgba(16,255,160,0.4)] backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer group animate-in zoom-in-90 duration-200"
+          title="Đồng bộ vị trí GPS theo điện thoại của bạn đang online"
+          aria-label="Đồng bộ theo điện thoại"
+        >
+          <i className="bi bi-phone-fill text-lg group-hover:scale-110 transition-transform animate-pulse"></i>
+        </button>
+      )}
+
+      {/* 2. NÚT CHỌN VỊ TRÍ TRÊN BẢN ĐỒ (PIN DROP MODE CHO MÁY TÍNH) */}
+      {onTogglePickLocation && (
+        <button
+          type="button"
+          onClick={(e) => {
+            triggerCyberSplash(e);
+            onTogglePickLocation();
+          }}
+          className={`w-11 h-11 rounded-full ${
+            isPickingLocation
+              ? 'bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_20px_#FF2A85]'
+              : 'bg-[rgba(20,20,30,0.85)] hover:bg-[rgba(25,25,38,0.95)] border border-[#00E5FF]/40 hover:border-[#00E5FF] text-[#00E5FF] shadow-[0_4px_16px_rgba(0,0,0,0.5)]'
+          } backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer group`}
+          title={isPickingLocation ? "Đang chọn vị trí... Nhấp để hủy" : "Chọn vị trí trên bản đồ cho máy tính"}
+          aria-label="Cắm ghim vị trí"
+        >
+          <i className={`bi ${isPickingLocation ? 'bi-geo-alt-fill animate-bounce' : 'bi-pin-map-fill'} text-lg group-hover:scale-110 transition-transform`}></i>
+        </button>
+      )}
+
+      {/* 3. NÚT LA BÀN (COMPASS / ĐẶT LẠI HƯỚNG BẮC) */}
       {onResetCompass && (
         <button
           type="button"
@@ -29,14 +87,14 @@ export default function RightActionStack({
             onResetCompass();
           }}
           className="w-11 h-11 rounded-full bg-[rgba(20,20,30,0.85)] hover:bg-[rgba(25,25,38,0.95)] border border-[#00E5FF]/30 hover:border-[#00E5FF] text-[#00E5FF] shadow-[0_4px_16px_rgba(0,0,0,0.5)] backdrop-blur-xl flex items-center justify-center active:scale-95 transition-all cursor-pointer group"
-          title="Đặt lại hướng Bắc và góc nhìn 2D"
+          title="Đặt lại góc nhìn trung tâm"
           aria-label="Đặt lại la bàn"
         >
           <i className="bi bi-compass text-lg text-[#00E5FF] group-hover:rotate-45 transition-transform duration-250"></i>
         </button>
       )}
 
-      {/* 2. NÚT FIT PEERS (BAO QUÁT BẠN BÈ) */}
+      {/* 4. NÚT FIT PEERS (BAO QUÁT BẠN BÈ) */}
       {hasPeers && (
         <button
           type="button"
@@ -52,7 +110,7 @@ export default function RightActionStack({
         </button>
       )}
 
-      {/* 3. NÚT CHỤP HÌNH NHANH (QUICKSNAP STORY) */}
+      {/* 5. NÚT CHỤP HÌNH NHANH (QUICKSNAP STORY) */}
       {onQuickSnap && (
         <button
           type="button"
@@ -68,7 +126,7 @@ export default function RightActionStack({
         </button>
       )}
 
-      {/* 4. NÚT RECENTER GPS (ĐỊNH VỊ BAY VỀ VỊ TRÍ CỦA BẠN - HỒNG NEON PHÁT QUANG) */}
+      {/* 6. NÚT RECENTER GPS (ĐỊNH VỊ BAY VỀ VỊ TRÍ CỦA BẠN - HỒNG NEON PHÁT QUANG) */}
       {onRecenterGps && (
         <button
           type="button"

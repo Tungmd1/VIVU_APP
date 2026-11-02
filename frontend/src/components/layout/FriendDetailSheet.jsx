@@ -13,7 +13,8 @@ export default function FriendDetailSheet({
   onClose, 
   onOpenDirectChat, 
   onStartNavigation,
-  onOpenMemeTroll 
+  onOpenMemeTroll,
+  onOpenStoryDetail
 }) {
   if (!friend) return null;
 
@@ -90,6 +91,21 @@ export default function FriendDetailSheet({
             <span>Tọa độ GPS: {Number(safeFriendLat).toFixed(5)}° N, {Number(safeFriendLng).toFixed(5)}° E</span>
           </div>
         </div>
+
+                {/* Nút xem Story của bạn bè nếu có activeStory */}
+        {friend.activeStory && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              if (onOpenStoryDetail) onOpenStoryDetail(friend.activeStory);
+            }}
+            className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-[#FF2A85] via-purple-600 to-[#7928CA] text-white font-bold text-xs shadow-[0_4px_16px_rgba(255,42,133,0.4)] flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer"
+          >
+            <i className="bi bi-play-circle-fill text-base"></i>
+            <span>Xem Story Của {friend.name}</span>
+          </button>
+        )}
 
         {/* Cặp nút hành động: Chỉ đường & Nhắn tin (Bootstrap VivuButtons) */}
         <div className="pt-1 flex gap-2">

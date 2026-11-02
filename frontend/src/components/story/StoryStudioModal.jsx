@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import CameraViewfinder from './camera/CameraViewfinder';
 import StoryCanvasPreview from './editor/StoryCanvasPreview';
@@ -56,6 +56,7 @@ export default function StoryStudioModal({
   const [isFilterAdjusterOpen, setIsFilterAdjusterOpen] = useState(false);
   const [isMusicPickerOpen, setIsMusicPickerOpen] = useState(false);
   const [isTagFriendsOpen, setIsTagFriendsOpen] = useState(false);
+  const galleryInputRef = useRef(null);
 
   // Reset khi đóng mở
   useEffect(() => {
@@ -81,6 +82,23 @@ export default function StoryStudioModal({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // Chọn ảnh trực tiếp từ bộ nhớ máy / Thư viện
+  const handleGalleryFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    playTactileClickSound();
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImage(reader.result);
+      setDualImage(null);
+      setIsDualCam(false);
+      setMode('PHOTO');
+      setPhase('EDIT');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   // Khi chụp xong ảnh từ Camera
   const handlePhotoCaptured = (captureData) => {
@@ -196,6 +214,63 @@ export default function StoryStudioModal({
   return (
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden animate-fadeIn">
       <div className="relative w-full h-full max-w-md bg-black flex flex-col justify-between overflow-hidden shadow-2xl">
+        {/* THANH CHỌN CHẾ ĐỘ STORY */}
+        <div className="absolute top-3 left-3 right-3 z-40 flex items-center justify-center gap-1.5 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => galleryInputRef.current?.click()}
+            className="px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border border-pink-400 bg-gradient-to-r from-pink-500/80 to-purple-600/80 hover:from-pink-500 hover:to-purple-600 text-white shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+            title="Chọn ảnh từ thiết bị"
+          >
+            <i className="bi bi-images text-xs"></i>
+            <span>Chọn Ảnh</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMode('PHOTO');
+              setPhase('CAMERA');
+            }}
+            className={`px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border transition-all flex items-center gap-1.5 cursor-pointer ${
+              mode === 'PHOTO' && phase === 'CAMERA'
+                ? 'bg-white text-black border-white shadow-lg'
+                : 'bg-black/50 text-white/80 border-white/20 hover:bg-black/70'
+            }`}
+          >
+            <i className="bi bi-camera-fill text-xs"></i>
+            <span>Camera</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSwitchToTextMode}
+            className={`px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border transition-all flex items-center gap-1.5 cursor-pointer ${
+              mode === 'TEXT'
+                ? 'bg-white text-black border-white shadow-lg'
+                : 'bg-black/50 text-white/80 border-white/20 hover:bg-black/70'
+            }`}
+          >
+            <i className="bi bi-fonts text-xs"></i>
+            <span>Văn Bản</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsMusicPickerOpen(true);
+            }}
+            className={`px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border transition-all flex items-center gap-1.5 cursor-pointer ${
+              selectedSong
+                ? 'bg-[#FF2A85] text-white border-[#FF2A85] shadow-lg'
+                : 'bg-black/50 text-white/80 border-white/20 hover:bg-black/70'
+            }`}
+          >
+            <i className="bi bi-music-note-beamed text-xs"></i>
+            <span>{selectedSong ? 'Đã Gắn Nhạc' : 'Nhạc'}</span>
+          </button>
+        </div>
+
         {phase === 'CAMERA' ? (
           <CameraViewfinder
             onPhotoCaptured={handlePhotoCaptured}
@@ -346,6 +421,8 @@ export default function StoryStudioModal({
             </div>
           </div>
         )}
+        {/* Thẻ input chọn ảnh từ thiết bị */}
+        <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleGalleryFileSelect} />
       </div>
     </div>
   );

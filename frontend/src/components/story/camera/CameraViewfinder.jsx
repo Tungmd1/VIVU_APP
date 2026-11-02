@@ -246,14 +246,24 @@ export default function CameraViewfinder({
               <i className="bi bi-camera-video-off"></i>
             </div>
             <p className="text-sm font-medium">Không thể mở luồng Camera trực tiếp (do chính sách HTTP mạng LAN hoặc thiết bị chưa cấp quyền).</p>
-            <button
-              type="button"
-              onClick={() => nativeCameraInputRef.current?.click()}
-              className="px-6 py-3 rounded-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform inline-flex items-center gap-2"
-            >
-              <i className="bi bi-camera-fill"></i>
-              <span>Mở Camera Gốc Của Máy</span>
-            </button>
+            <div className="flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold text-sm shadow-[0_4px_16px_rgba(236,72,153,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <i className="bi bi-images text-lg"></i>
+                <span>Chọn Ảnh Từ Thư Viện / Máy</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => nativeCameraInputRef.current?.click()}
+                className="w-full px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <i className="bi bi-camera-fill text-sm"></i>
+                <span>Mở Camera Gốc Của Máy</span>
+              </button>
+            </div>
           </div>
         ) : (
           <video
@@ -309,10 +319,13 @@ export default function CameraViewfinder({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform hover:bg-white/25"
+          className="flex flex-col items-center gap-1 group cursor-pointer"
           title="Chọn ảnh từ thiết bị"
         >
-          <i className="bi bi-images text-xl"></i>
+          <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform group-hover:bg-white/25">
+            <i className="bi bi-images text-xl"></i>
+          </div>
+          <span className="text-[10px] text-white/80 font-medium font-sans">Thư viện</span>
         </button>
 
         {/* Nút chụp Shutter tròn phong cách Pro Camera */}

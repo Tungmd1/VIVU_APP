@@ -5,13 +5,14 @@ import { vivuBackendService } from './services/vivuBackendService';
 import { apiClient } from './services/apiClient';
 
 // Import các Module Components
-import MapboxCanvas from './components/map/MapboxCanvas';
+import GoogleMapView from './components/map/GoogleMapView';
 import UnifiedDynamicIsland from './components/layout/UnifiedDynamicIsland';
 import RadarDistanceSelector from './components/map/RadarDistanceSelector';
 import NavigationBanner from './components/map/NavigationBanner';
 import GpsStatusBanner from './components/map/GpsStatusBanner';
 import VivuBottomDock from './components/layout/VivuBottomDock';
-import UserLocationSheet from './components/layout/UserLocationSheet';
+import CreateActionSheet from './components/story/CreateActionSheet';
+import QuickStatusSheet from './components/story/QuickStatusSheet';
 import FriendDetailSheet from './components/layout/FriendDetailSheet';
 import StoryStudioModal from './components/story/StoryStudioModal';
 import StoryViewerModal from './components/story/StoryViewerModal';
@@ -306,8 +307,17 @@ export default function App() {
   // Quản lý Modal Đăng Story khoảnh khắc
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [userCustomStatus, setUserCustomStatus] = useState('');
+  const [userCustomSong, setUserCustomSong] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vivu_user_custom_song');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isCreateActionSheetOpen, setIsCreateActionSheetOpen] = useState(false);
+  const [isQuickStatusSheetOpen, setIsQuickStatusSheetOpen] = useState(false);
+  const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [isCreateCircleModalOpen, setIsCreateCircleModalOpen] = useState(false);
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] = useState(false);
   const [isNavigationActive, setIsNavigationActive] = useState(false);
@@ -343,7 +353,8 @@ export default function App() {
     };
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
-    return () => {
+
+  return () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
     };
@@ -821,9 +832,9 @@ export default function App() {
   };
 
 
-  // Rule 11: Đọc an toàn GPS thiết bị thực tế (Không dùng Đà Nẵng mặc định)
-  const userLng = location?.lng ?? location?.longitude ?? null;
-  const userLat = location?.lat ?? location?.latitude ?? null;
+  // Rule 11: Đọc an toàn GPS thiết bị thực tế, fallback toạ độ Quy Nhơn nếu chưa có GPS
+  const userLng = location?.lng ?? location?.longitude ?? 109.2237;
+  const userLat = location?.lat ?? location?.latitude ?? 13.7765;
 
   // Tính tọa độ cho story & bạn bè (Tự động loại bỏ story đã hết hạn - Feature 3)
   const liveStories = useMemo(() => {
@@ -978,7 +989,9 @@ export default function App() {
             userCustomStatus,
             currentUserName,
             currentUserAvatar,
-            currentUserCode
+            currentUserCode,
+            user?.phone,
+            userCustomSong
           );
         }
 
@@ -1004,17 +1017,27 @@ export default function App() {
               id: `peer-toast-${p.id}`,
               senderName: pName,
               senderAvatar: p.avatar_url || p.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-              text: `Đang trực tuyến gần bạn (${p.user_code || ''})! Nhấn để xem vị trí.`,
+              text: `Đang trực tuyến gần bạn (${p.user_code || ''})! Nhấn để xem vị trí & kết bạn.`,
               isFriendRequest: false,
               action: () => {
-                if (window.__vivu_map) {
-                  window.__vivu_map.flyTo({
-                    center: [Number(p.lng), Number(p.lat)],
-                    zoom: 16.5,
-                    pitch: 35,
-                    duration: 900
-                  });
+                const targetLat = Number(p.realLat || p.lat);
+                const targetLng = Number(p.realLng || p.lng);
+                if (window.__vivu_map && !isNaN(targetLat) && !isNaN(targetLng)) {
+                  window.__vivu_map.flyTo([targetLat, targetLng], 16.5, { duration: 0.9 });
                 }
+                setSelectedGuestProfile({
+                  ...p,
+                  id: p.id,
+                  hostId: p.id,
+                  hostName: pName,
+                  name: pName,
+                  hostAvatar: p.avatar_url || p.avatar,
+                  avatar: p.avatar_url || p.avatar,
+                  userCode: p.user_code || '',
+                  realLat: targetLat,
+                  realLng: targetLng,
+                  distanceText: 'Cách bạn vài mét'
+                });
               }
             });
           }
@@ -1280,13 +1303,9 @@ export default function App() {
     // Vòng lặp định kỳ mỗi 3.5 giây
     const heartbeatTimer = setInterval(syncHeartbeat, 3500);
 
-    // Lắng nghe sự kiện người dùng ẩn tab / khóa màn hình hoặc mở lại tab
+    // Lắng nghe sự kiện người dùng mở lại tab để đồng bộ ngay lập tức (không ngắt offline vội vã khi chỉ ẩn tab)
     const handleVisibilityOrFocus = () => {
-      if (document.hidden) {
-        if (currentUserId) {
-          apiClient.setOffline(currentUserId);
-        }
-      } else {
+      if (!document.hidden) {
         syncHeartbeat();
       }
     };
@@ -2310,6 +2329,35 @@ export default function App() {
       }
     : null;
 
+  const handleSyncFromPhone = useCallback(() => {
+    if (!nearbyOnlinePeers || nearbyOnlinePeers.length === 0) {
+      setIncomingMessageToast({
+        id: 'sync-phone-empty-' + Date.now(),
+        senderName: 'VIVU GPS',
+        senderAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        text: 'Chưa phát hiện thiết bị điện thoại nào đang online gần bạn để đồng bộ.',
+        isFriendRequest: false
+      });
+      return;
+    }
+    const phonePeer = nearbyOnlinePeers[0];
+    const targetLat = Number(phonePeer.realLat ?? phonePeer.lat);
+    const targetLng = Number(phonePeer.realLng ?? phonePeer.lng);
+    if (isNaN(targetLat) || isNaN(targetLng)) return;
+    setManualCoords(targetLat, targetLng, 'Đồng bộ từ điện thoại (' + (phonePeer.full_name || phonePeer.name) + ')');
+    if (window.__vivu_map) {
+      window.__vivu_map.flyTo([targetLat, targetLng], 16.5, { duration: 0.9 });
+    }
+    confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+    setIncomingMessageToast({
+      id: 'sync-phone-success-' + Date.now(),
+      senderName: 'VIVU GPS',
+      senderAvatar: phonePeer.avatar_url || phonePeer.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      text: 'Đã đồng bộ vị trí thành công từ ' + (phonePeer.full_name || phonePeer.name) + '!',
+      isFriendRequest: false
+    });
+  }, [nearbyOnlinePeers, setManualCoords]);
+
   // Đã xóa Auth Gate cưỡng chế màn hình đen. 
   // Ứng dụng tự động vào thẳng Bản đồ 3D (Chế độ Khách), không bao giờ bị chớp đen màn hình khi mở trên điện thoại.
 
@@ -2351,7 +2399,7 @@ export default function App() {
           userName={currentUserName}
           userCode={currentUserCode}
           isOnline={Boolean(currentUserId)}
-          onClick={() => setIsUserMenuOpen(true)}
+          onClick={() => setActiveTab('profile')}
         />
       )}
 
@@ -2380,12 +2428,13 @@ export default function App() {
       />
 
       {/* 1. BẢN ĐỒ MAPBOX STREETS-V12 TRUNG TÂM (SỐNG ĐỘNG ĐẦY MÀU SẮC) */}
-      <MapboxCanvas
+      <GoogleMapView
         currentUserId={currentUserId}
         currentUserName={currentUserName}
         userLat={userLat}
         userLng={userLng}
         userCustomStatus={userCustomStatus}
+        userCustomSong={userCustomSong}
         userAvatar={currentUserAvatar}
         gpsLoading={gpsLoading}
         location={location}
@@ -2394,6 +2443,7 @@ export default function App() {
         viewMode={activeTab}
         stories={liveStories}
         friends={liveFriends}
+        onlinePeers={nearbyOnlinePeers}
         radarDistance={radarDistance}
         isAdjustingRadius={isAdjustingRadius}
         isRadarScanning={isRadarScanning}
@@ -2401,12 +2451,15 @@ export default function App() {
         navTarget={navTarget}
         activeCircleFilter={activeCircleFilter}
         onClearCircleFilter={() => setActiveCircleFilter(null)}
+        isPickingLocation={isPickingLocation}
+        setIsPickingLocation={setIsPickingLocation}
+        onSyncFromPhone={handleSyncFromPhone}
         onOpenStoryDetail={handleOpenStoryViewer}
         onOpenStoryChat={handleStoryDirectChat}
         onOpenFriendDetail={setSelectedFriend}
         onOpenGuestProfile={(profile) => setSelectedGuestProfile(profile)}
-        onOpenUserMenu={() => setIsUserMenuOpen(true)}
-        onOpenCreateStory={() => setIsCreateModalOpen(true)}
+        onOpenUserMenu={() => setIsCreateActionSheetOpen(true)}
+        onOpenCreateStory={() => setIsCreateActionSheetOpen(true)}
         onOpenQuickSnap={() => setIsQuickSnapOpen(true)}
         onOpenMemeTroll={(target) => setTrollTargetUser(target)}
         onSetManualLocation={setManualCoords}
@@ -2542,7 +2595,7 @@ export default function App() {
             setActiveConversationId(null);
           }
         }}
-        onOpenCreateStory={() => setIsCreateModalOpen(true)}
+        onOpenCreateStory={() => setIsCreateActionSheetOpen(true)}
         unreadCount={conversations.filter(c => c.unread).length}
         className={activeTab === 'chat' && activeConversationId ? 'hidden' : ''}
       />
@@ -2670,6 +2723,7 @@ export default function App() {
             setSelectedFriend(null);
             setTrollTargetUser(f);
           }}
+          onOpenStoryDetail={handleOpenStoryViewer}
           onStartNavigation={(f) => {
             setNavTarget(f);
             setSelectedFriend(null);
@@ -2679,22 +2733,33 @@ export default function App() {
         />
       )}
 
-      {/* 9. BOTTOM SHEET VỊ TRÍ CỦA BẠN */}
-      <UserLocationSheet
-        isOpen={isUserMenuOpen}
-        userLat={userLat}
-        userLng={userLng}
-        locationAccuracy={location?.accuracy}
+      {/* 9. ACTION SHEET TẠO MỚI TÍCH HỢP VÀO NÚT (+) TRUNG TÂM */}
+      <CreateActionSheet
+        isOpen={isCreateActionSheetOpen}
+        onClose={() => setIsCreateActionSheetOpen(false)}
+        onSelectStory={() => setIsCreateModalOpen(true)}
+        onSelectStatus={() => setIsQuickStatusSheetOpen(true)}
+      />
+
+      {/* 10. BOTTOM SHEET CẬP NHẬT TRẠNG THÁI SUY NGHĨ (APPLE MUSIC STREAM) */}
+      <QuickStatusSheet
+        isOpen={isQuickStatusSheetOpen}
+        onClose={() => setIsQuickStatusSheetOpen(false)}
         userCustomStatus={userCustomStatus}
+        userCustomSong={userCustomSong}
         userAvatar={currentUserAvatar}
-        onClose={() => setIsUserMenuOpen(false)}
-        onOpenCreateStory={() => setIsCreateModalOpen(true)}
-        onSelectStatus={(status) => {
+        onSelectStatus={(status, song) => {
           setUserCustomStatus(status);
+          setUserCustomSong(song);
+          try {
+            if (song) localStorage.setItem("vivu_user_custom_song", JSON.stringify(song));
+            else localStorage.removeItem("vivu_user_custom_song");
+          } catch {}
+          if (currentUserId && currentUserId.startsWith('user-') && userLat && userLng) {
+            apiClient.updateGps(currentUserId, userLat, userLng, status, currentUserName, currentUserAvatar, currentUserCode, user?.phone, song);
+          }
           confetti({ particleCount: 25, spread: 40 });
         }}
-        onRequestLocation={requestLocation}
-        onOpenProfile={() => setActiveTab('profile')}
       />
 
       {/* 11. MODAL SOẠN THẢO STORY KHOẢNH KHẮC & CAMERA PRO (UNIFIED) */}

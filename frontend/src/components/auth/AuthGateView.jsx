@@ -3,6 +3,7 @@ import LoginForm from './LoginForm.jsx';
 import RegisterForm from './RegisterForm.jsx';
 import ForgotPasswordForm from './ForgotPasswordForm.jsx';
 import VivuLogo from '../common/VivuLogo.jsx';
+import PlanetBackdrop from '../common/PlanetBackdrop.jsx';
 
 /**
  * Component AuthGateView: Màn hình bảo vệ toàn bộ ứng dụng VIVU
@@ -36,7 +37,9 @@ export default function AuthGateView({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md text-[#131315] overflow-y-auto no-scrollbar font-sans select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#04101f] text-[#131315] overflow-y-auto no-scrollbar font-sans select-none">
+      {/* 0. Nền Video Hành Tinh Trái Đất (Earth) Cinematic */}
+      <PlanetBackdrop activePlanet="earth" dimLevel="dark" />
       {/* Vòng hào quang Cyber Cyan phát quang phía sau */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-[rgba(0,229,255,0.18)] blur-[120px] pointer-events-none"></div>
 

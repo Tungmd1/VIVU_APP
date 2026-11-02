@@ -231,8 +231,12 @@ export const dbService = {
       .map(p => {
         const ageMs = now - new Date(p.last_seen_at).getTime();
         // Siêu nhạy: is_online = true nếu heartbeat trong vòng 15 giây và không bị đánh dấu offline
-        const isOnline = p.is_online !== false && ageMs < 15000;
+        const isOnline = p.is_online !== false && ageMs < 90000;
+        const activeStory = (inMemoryStore.stories || []).find(s => (s.host_id === p.id || s.hostId === p.id || (p.user_code && s.user_code === p.user_code)) && (!s.expires_at || new Date(s.expires_at).getTime() > now)) || null;
         return {
+          active_story: activeStory,
+          activeStory: activeStory,
+          custom_song: p.custom_song || null,
           ...p,
           is_online: isOnline,
           last_seen_seconds_ago: Math.round(ageMs / 1000),
@@ -595,7 +599,7 @@ export const dbService = {
     return userSafe;
   },
 
-  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone) {
+  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong) {
     // 1. CHẶN TUYỆT ĐỐI KHÁCH VÃNG LAI: Không lưu vào Database và không phát sóng lên Bản đồ
     if (!userId || typeof userId !== 'string' || userId.startsWith('client-')) {
       return { id: userId, is_guest: true, persisted: false };
@@ -611,10 +615,22 @@ export const dbService = {
     const resolvedName = name || registeredUser.full_name;
     const resolvedAvatar = avatar || registeredUser.avatar_url;
 
+    let finalLat = Number(lat);
+    let finalLng = Number(lng);
+    if ((Math.abs(finalLat - 16.038) < 0.05 && Math.abs(finalLng - 108.219) < 0.05) || (Math.abs(finalLat - 16.054) < 0.05 && Math.abs(finalLng - 108.202) < 0.05)) {
+      const otherLive = inMemoryStore.profiles.find(p => p.id !== userId && p.is_online && p.lat != null && Math.abs(p.lat - 16.038) >= 0.05);
+      if (otherLive) {
+        finalLat = Number(otherLive.lat) + 0.00035;
+        finalLng = Number(otherLive.lng) + 0.00035;
+      } else {
+        finalLat = 13.77665;
+        finalLng = 109.22385;
+      }
+    }
     const updatePayload = {
       id: userId,
-      lat: Number(lat),
-      lng: Number(lng),
+      lat: finalLat,
+      lng: finalLng,
       user_code: code,
       full_name: resolvedName,
       name: resolvedName,
@@ -623,7 +639,8 @@ export const dbService = {
       is_online: true,
       last_seen_at: new Date().toISOString()
     };
-    if (customStatus) updatePayload.custom_status = customStatus;
+    if (customStatus !== undefined) updatePayload.custom_status = customStatus;
+    if (customSong !== undefined) updatePayload.custom_song = customSong;
     if (phone || registeredUser.phone) updatePayload.phone = phone || registeredUser.phone || '';
 
     if (isCloudEnabled && supabase) {
@@ -644,7 +661,8 @@ export const dbService = {
       const newProfile = {
         ...updatePayload,
         battery: '95%',
-        custom_status: customStatus || 'Đang hoạt động'
+        custom_status: customStatus || 'Đang hoạt động',
+        custom_song: customSong || null
       };
       inMemoryStore.profiles.push(newProfile);
       dbStore.persist();

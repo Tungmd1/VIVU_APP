@@ -12,11 +12,11 @@ export const gpsController = {
 
   async updateLocation(req, res, next) {
     try {
-      const { userId, lat, lng, customStatus, name, avatar, userCode, phone } = req.body;
+      const { userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong } = req.body;
       if (!userId || lat == null || lng == null) {
         return res.status(400).json({ success: false, message: 'userId, lat, lng là bắt buộc' });
       }
-      const updated = await dbService.updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone);
+      const updated = await dbService.updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong);
       res.json({ success: true, data: updated });
     } catch (err) {
       next(err);

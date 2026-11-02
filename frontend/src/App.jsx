@@ -1684,9 +1684,56 @@ export default function App() {
     setSelectedStoryInitialIndex(foundIndex >= 0 ? foundIndex : 0);
   };
 
-  // Xóa Story khỏi ứng dụng và cơ sở dữ liệu
-  const handleDeleteStory = async (storyId) => {
+  // Xóa Story khỏi ứng dụng và cơ sở dữ liệu (Hỗ trợ tùy chọn lưu trữ Kho Kỷ Niệm)
+  const handleDeleteStory = async (targetStoryOrId, { preserveInArchive = false } = {}) => {
+    const storyId = typeof targetStoryOrId === 'string' 
+      ? targetStoryOrId 
+      : (targetStoryOrId?.id || targetStoryOrId?.activeStory?.id);
+    if (!storyId) return;
+
+    const archiveKey = `vivu_user_story_archive_${currentUserId || 'guest'}`;
+
+    if (preserveInArchive) {
+      try {
+        const saved = localStorage.getItem(archiveKey);
+        let list = saved ? JSON.parse(saved) : [];
+        const storyObj = typeof targetStoryOrId === 'object' 
+          ? targetStoryOrId 
+          : stories.find(s => s.id === storyId || s.activeStory?.id === storyId);
+        
+        if (storyObj) {
+          const actual = storyObj.activeStory || storyObj;
+          const itemToArchive = {
+            id: actual.id || `archived-${Date.now()}`,
+            image: actual.image || actual.memeImage || actual.dual_image,
+            video: actual.video || null,
+            title: actual.title || 'Khoảnh khắc',
+            description: actual.description || '',
+            created_at: actual.created_at || new Date().toISOString(),
+            archived_at: new Date().toISOString()
+          };
+          list = [itemToArchive, ...list.filter(item => item.id !== itemToArchive.id)];
+          localStorage.setItem(archiveKey, JSON.stringify(list));
+        }
+      } catch (e) {
+        console.warn('[Archive save error]:', e);
+      }
+    } else {
+      // Xóa vĩnh viễn khỏi cả Kho Lưu Trữ
+      try {
+        const saved = localStorage.getItem(archiveKey);
+        if (saved) {
+          let list = JSON.parse(saved);
+          list = list.filter(item => item.id !== storyId);
+          localStorage.setItem(archiveKey, JSON.stringify(list));
+        }
+      } catch (e) {}
+    }
+
+    // Gỡ khỏi danh sách Story hiển thị trên bản đồ 3D
     setStories(prev => prev.filter(s => s.id !== storyId && s.activeStory?.id !== storyId));
+    
+    // Gỡ khỏi bộ nhớ tạm active story
     try {
       const cached = localStorage.getItem('vivu_user_active_story');
       if (cached) {
@@ -1696,7 +1743,9 @@ export default function App() {
         }
       }
     } catch {}
-    await apiClient.deleteStory(storyId, currentUserId);
+
+    // Gửi request DELETE lên backend server
+    await apiClient.deleteStory(storyId, currentUserId, currentUserCode);
   };
 
   // Nhắn tin trực tiếp từ Story hoặc Hồ sơ khách
@@ -1822,6 +1871,19 @@ export default function App() {
     setStories(prev => [newStory, ...prev.filter(s => s.id !== newStory.id)]);
     try {
       localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
+      const archiveKey = `vivu_user_story_archive_${currentUserId || 'guest'}`;
+      const savedArch = localStorage.getItem(archiveKey);
+      let archList = savedArch ? JSON.parse(savedArch) : [];
+      const itemToArchive = {
+        id: newStory.id,
+        image: newStory.image || newStory.dual_image,
+        video: null,
+        title: newStory.title || 'Khoảnh khắc mới',
+        description: newStory.description || '',
+        created_at: newStory.created_at || new Date().toISOString()
+      };
+      archList = [itemToArchive, ...archList.filter(item => item.id !== itemToArchive.id)];
+      localStorage.setItem(archiveKey, JSON.stringify(archList));
     } catch {}
     setIsCreateModalOpen(false);
     confetti({ particleCount: 70, spread: 65, origin: { y: 0.6 } });

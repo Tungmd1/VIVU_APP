@@ -47,6 +47,32 @@ export default function ProfilePageView({
     return [];
   });
 
+  // Tab chuyển đổi: 'photos' (Thư viện ảnh thật) | 'archive' (Kho lưu trữ story đã đăng)
+  const [mediaTab, setMediaTab] = useState('photos');
+  const archiveStorageKey = `vivu_user_story_archive_${userId}`;
+  const [archiveItems, setArchiveItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem(archiveStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  // Xóa khoảnh khắc khỏi Kho Lưu Trữ
+  const handleRemoveArchiveItem = (archiveId, e) => {
+    e?.stopPropagation();
+    if (window.confirm('Xóa vĩnh viễn khoảnh khắc này khỏi Kho Lưu Trữ?')) {
+      const updated = archiveItems.filter(item => item.id !== archiveId);
+      setArchiveItems(updated);
+      try {
+        localStorage.setItem(archiveStorageKey, JSON.stringify(updated));
+      } catch {}
+    }
+  };
+
   useEffect(() => {
     try {
       localStorage.setItem(photoStorageKey, JSON.stringify(photos));
@@ -210,58 +236,126 @@ export default function ProfilePageView({
         {/* 2.5 Section Tin Nổi Bật (Highlights) */}
         <ProfileStoryHighlights userId={userId} onOpenHighlight={onOpenStoryHighlight} />
 
-        {/* 3. Section Thư Viện Ảnh Thật Của Người Dùng */}
+        {/* 3. Section Thư Viện Ảnh Thật & Kho Lưu Trữ Khoảnh Khắc */}
         <div className="p-4 rounded-3xl bg-[#121520] border border-white/10 space-y-3">
-          <div className="flex items-center justify-between">
+          {/* Tab Switcher: Thư Viện Ảnh <---> Kho Lưu Trữ */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
             <div className="flex items-center gap-2">
-              <i className="bi bi-images text-[#FF2A85] text-base" />
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
-                Thư Viện Ảnh Thật ({photos.length})
-              </span>
+              <button
+                type="button"
+                onClick={() => setMediaTab('photos')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  mediaTab === 'photos'
+                    ? 'bg-[#FF2A85]/20 text-[#FF529D] border border-[#FF2A85]/40 shadow-sm'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                <i className="bi bi-images" />
+                <span>Thư Viện Ảnh ({photos.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMediaTab('archive')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  mediaTab === 'archive'
+                    ? 'bg-[#10FFA0]/20 text-[#10FFA0] border border-[#10FFA0]/40 shadow-sm'
+                    : 'text-white/60 hover:text-white'
+                }`}
+              >
+                <i className="bi bi-archive-fill" />
+                <span>Kho Lưu Trữ ({archiveItems.length})</span>
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => multiPhotoInputRef.current?.click()}
-              className="px-3 py-1 rounded-full bg-[#FF2A85]/20 hover:bg-[#FF2A85]/30 text-[#FF529D] border border-[#FF2A85]/40 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
-            >
-              <i className="bi bi-plus-lg" />
-              <span>Thêm ảnh</span>
-            </button>
+            {mediaTab === 'photos' && (
+              <button
+                type="button"
+                onClick={() => multiPhotoInputRef.current?.click()}
+                className="px-3 py-1 rounded-full bg-[#FF2A85]/20 hover:bg-[#FF2A85]/30 text-[#FF529D] border border-[#FF2A85]/40 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <i className="bi bi-plus-lg" />
+                <span>Thêm ảnh</span>
+              </button>
+            )}
             <input type="file" ref={multiPhotoInputRef} onChange={handleAddPhotos} accept="image/*" multiple className="hidden" />
           </div>
 
-          {photos.length === 0 ? (
-            <div
-              onClick={() => multiPhotoInputRef.current?.click()}
-              className="p-8 rounded-2xl border-2 border-dashed border-white/15 bg-white/5 flex flex-col items-center justify-center text-center cursor-pointer hover:border-white/30 transition-colors"
-            >
-              <i className="bi bi-cloud-arrow-up text-3xl text-white/40 mb-2" />
-              <p className="text-xs font-bold text-white/80">Chưa có ảnh nào được tải lên</p>
-              <p className="text-[11px] text-white/40 mt-0.5">Chạm vào đây để chọn ảnh từ máy thiết bị của bạn</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {photos.map((imgSrc, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => setViewingPhoto(imgSrc)}
-                  className="relative aspect-square rounded-2xl overflow-hidden bg-black/40 border border-white/10 group cursor-pointer"
-                >
-                  <img src={imgSrc} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                  
-                  {/* Nút xóa ảnh */}
-                  <button
-                    type="button"
-                    onClick={(e) => handleRemovePhoto(idx, e)}
-                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center text-xs opacity-80 group-hover:opacity-100 transition-all"
-                    title="Xóa ảnh này"
+          {/* Nội dung Tab 1: Thư Viện Ảnh Thật */}
+          {mediaTab === 'photos' && (
+            photos.length === 0 ? (
+              <div
+                onClick={() => multiPhotoInputRef.current?.click()}
+                className="p-8 rounded-2xl border-2 border-dashed border-white/15 bg-white/5 flex flex-col items-center justify-center text-center cursor-pointer hover:border-white/30 transition-colors"
+              >
+                <i className="bi bi-cloud-arrow-up text-3xl text-white/40 mb-2" />
+                <p className="text-xs font-bold text-white/80">Chưa có ảnh nào được tải lên</p>
+                <p className="text-[11px] text-white/40 mt-0.5">Chạm vào đây để chọn ảnh từ máy thiết bị của bạn</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {photos.map((imgSrc, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setViewingPhoto(imgSrc)}
+                    className="relative aspect-square rounded-2xl overflow-hidden bg-black/40 border border-white/10 group cursor-pointer"
                   >
-                    <i className="bi bi-trash" />
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <img src={imgSrc} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    
+                    {/* Nút xóa ảnh */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemovePhoto(idx, e)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center text-xs opacity-80 group-hover:opacity-100 transition-all"
+                      title="Xóa ảnh này"
+                    >
+                      <i className="bi bi-trash" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* Nội dung Tab 2: Kho Lưu Trữ Khoảnh Khắc (Story Media Archive) */}
+          {mediaTab === 'archive' && (
+            archiveItems.length === 0 ? (
+              <div className="p-8 rounded-2xl border border-white/10 bg-white/5 flex flex-col items-center justify-center text-center">
+                <i className="bi bi-archive text-3xl text-white/30 mb-2" />
+                <p className="text-xs font-bold text-white/80">Kho Lưu Trữ Đang Trống</p>
+                <p className="text-[11px] text-white/40 mt-1 max-w-xs">
+                  Khi bạn đăng Story hoặc gỡ Story khỏi Bản đồ, khoảnh khắc sẽ tự động được lưu trữ an toàn tại đây để xem lại hoặc đưa lên Tin Nổi Bật.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {archiveItems.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    onClick={() => setViewingPhoto(item.image)}
+                    className="relative aspect-square rounded-2xl overflow-hidden bg-black/50 border border-white/10 group cursor-pointer shadow-md"
+                  >
+                    <img src={item.image} alt={item.title || 'Archived'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    
+                    {/* Badge thời gian khoảnh khắc */}
+                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[9px] font-mono text-[#10FFA0] flex items-center gap-1 border border-white/10">
+                      <i className="bi bi-clock-history text-[8px]" />
+                      <span>{new Date(item.created_at || Date.now()).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}</span>
+                    </div>
+
+                    {/* Nút xóa vĩnh viễn khỏi kho */}
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveArchiveItem(item.id, e)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center text-xs opacity-80 group-hover:opacity-100 transition-all shadow-md"
+                      title="Xóa vĩnh viễn khỏi Kho Lưu Trữ"
+                    >
+                      <i className="bi bi-trash" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
           )}
         </div>
 

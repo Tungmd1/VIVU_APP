@@ -28,7 +28,8 @@ export const storyController = {
     try {
       const { storyId } = req.params;
       const userId = req.query.userId || req.body?.userId;
-      const result = await dbService.deleteStory(storyId, userId);
+      const userCode = req.query.userCode || req.body?.userCode;
+      const result = await dbService.deleteStory(storyId, userId, userCode);
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);

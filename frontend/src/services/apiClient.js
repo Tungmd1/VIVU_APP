@@ -175,9 +175,13 @@ export const apiClient = {
     return null;
   },
 
-  async deleteStory(storyId, userId = null) {
+  async deleteStory(storyId, userId = null, userCode = null) {
     try {
-      const url = userId ? `${API_BASE_URL}/stories/${storyId}?userId=${encodeURIComponent(userId)}` : `${API_BASE_URL}/stories/${storyId}`;
+      const params = new URLSearchParams();
+      if (userId) params.append('userId', userId);
+      if (userCode) params.append('userCode', userCode);
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const url = `${API_BASE_URL}/stories/${encodeURIComponent(storyId)}${queryString}`;
       const res = await fetch(url, {
         method: 'DELETE'
       });

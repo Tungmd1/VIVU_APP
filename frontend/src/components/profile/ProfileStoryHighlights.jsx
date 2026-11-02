@@ -32,6 +32,19 @@ export default function ProfileStoryHighlights({
   const [newCoverImage, setNewCoverImage] = useState(null);
   const coverInputRef = useRef(null);
 
+  // Đọc danh sách ảnh từ Kho Lưu Trữ Story để chọn nhanh
+  const archiveStorageKey = `vivu_user_story_archive_${userId}`;
+  const archiveList = (() => {
+    try {
+      const saved = localStorage.getItem(archiveStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  })();
+
   const saveHighlights = (updated) => {
     setHighlights(updated);
     try {
@@ -200,6 +213,30 @@ export default function ProfileStoryHighlights({
                   className="hidden"
                 />
                 <span className="text-[11px] text-[#8E8E93]">Chạm vào vòng tròn để chọn ảnh bìa</span>
+
+                {archiveList.length > 0 && (
+                  <div className="w-full pt-1 space-y-1.5">
+                    <span className="text-[10px] text-white/60 font-semibold uppercase tracking-wider block text-left">
+                      Hoặc chọn ảnh từ Kho Lưu Trữ ({archiveList.length}):
+                    </span>
+                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                      {archiveList.map((item, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setNewCoverImage(item.image);
+                            playProfileChime();
+                          }}
+                          className={`w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border-2 transition-all ${
+                            newCoverImage === item.image ? 'border-[#10FFA0] scale-105 shadow-md shadow-[#10FFA0]/30' : 'border-white/15 hover:border-white/40'
+                          }`}
+                        >
+                          <img src={item.image} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Tên nhóm tin nổi bật */}
@@ -242,3 +279,4 @@ export default function ProfileStoryHighlights({
     </div>
   );
 }
+

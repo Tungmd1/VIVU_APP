@@ -1,131 +1,138 @@
-# 🎨 UI/UX Specification — Dự Án VIVU (Luminous Solar-Cyber HUD / White Cyberpunk)
+# 🎨 UI/UX Specification — Dự Án VIVU (Resend Dark Monochrome & Cyber Neon)
 
-> **Phiên bản tài liệu**: 3.0 (Đồng bộ chuẩn hóa theo Luminous Solar-Cyber HUD Design System)  
-> **Ngôn ngữ thiết kế**: Luminous Solar-Cyber HUD (White Cyberpunk: High-Albedo Frosted Glass `#FFFFFF`, `#FAFAFF`, `#F2F3FF`, Cyber Cyan `#00E5FF`, Deep Slate `#131315`)  
-> **Quy chuẩn biểu tượng**: 100% Vector Bootstrap Icons (`bi bi-...`) — Tuyệt đối cấm Unicode Emoji
+> **Phiên bản tài liệu**: 3.0 (Đồng bộ chuẩn hóa 100% theo giao diện thực tế)  
+> **Ngôn ngữ thiết kế**: Resend Dark Monochrome & Cyber Neon (Dark Graphite `#07090E`, `#0E0E10`, `#121520`, `#151619`, `#1A1A1E`, Hyper Lime `#10FFA0`, Cyber Cyan `#00E5FF`, Sunset Pink `#FF2A85`)  
+> **Quy chuẩn biểu tượng**: 100% Vector Bootstrap Icons (`bi bi-...`) — Tuyệt đối cấm Unicode Emoji (Rule 5)
 
 ---
 
 ## 1. TRIẾT LÝ THIẾT KẾ (DESIGN PHILOSOPHY)
 
-VIVU Web App mang phong cách thiết kế **Luminous Solar-Cyber HUD (White Cyberpunk)**, lấy cảm hứng từ tương tác ánh sáng mặt trời năng động, công nghệ HUD viễn tưởng cao cấp và tính kết nối không gian tức thì của thế hệ mạng xã hội mới (Zenly, Jagat, Apple VisionOS).
+VIVU Web App mang phong cách thiết kế **Resend Dark Monochrome & Cyber Neon HUD**, lấy cảm hứng từ các giao diện công nghệ tối giản cao cấp (Linear, Resend, Apple VisionOS, Zenly).
 
 ### 3 Trụ Cột Trải Nghiệm:
-1. **High-Albedo Surface & Frosted Glass (Bề Mặt Trắng Kính Lỏng Sáng)**: 
-   - Sử dụng nền canvas `#FAFAFF`, thẻ card `#FFFFFF` và kính mờ `rgba(255, 255, 255, 0.88)` kèm viền phản quang Cyan mờ `rgba(0, 229, 255, 0.30)`.
-   - Viền ngăn cách tinh tế `#D2D9F4` loại bỏ hoàn toàn sự nặng nề của theme tối truyền thống, mang lại cảm giác thanh thoát, hiện đại.
-2. **Neon Accents Đột Phá & Typography Tương Phản Cực Cao**:
-   - Chữ chính sử dụng màu than chì ánh sâu **Deep Slate (`#131315`)**, chữ phụ `#40484D`, chữ chú thích `#70787E`.
-   - Màu nút Cyber Cyan (`#00E5FF`) kết hợp chữ than chì đậm (`#08202E`) đạt tỷ lệ tương phản WCAG AAA.
-   - Các điểm nhấn tương tác neon: Cyber Cyan (`#00E5FF`), Hyper Lime (`#10FFA0`), Neon Pink (`#FF2A85`), Solar Amber (`#FFAA00`).
+1. **Dark Monochrome Surface & Ultra-Thin Borders (Bề Mặt Than Chì & Viền Siêu Mỏng)**:
+   - Sử dụng nền than chì sâu thẳm `#07090E` và `#0E0E10`, kết hợp các thẻ card `#121520`, `#151619`, `#1A1A1E`.
+   - Đường viền siêu mảnh `border-white/10` và `border-white/15` mang lại cảm giác sắc nét, tinh xảo, chống chói mắt khi sử dụng ban đêm.
+2. **Neon Accents Đột Phá & Độ Tương Phản Form Nhập Liệu Cao (Rule 12)**:
+   - Mọi trường nhập liệu form (`input`, `textarea`, `select`) đều dùng nền tối `#151619` hoặc `#1A1A1E`, chữ trắng `text-white font-medium`, placeholder xám `#8E8E93`, triệt tiêu hoàn toàn lỗi trùng màu chữ.
+   - Các điểm nhấn neon phát sáng: Hyper Lime (`#10FFA0`: Trạng thái Online, Laser Ring), Cyber Cyan (`#00E5FF`: Primary Action, Bản đồ), Sunset Pink (`#FF2A85`: Story & Reactions), Amber Gold (`#F59E0B`: Cảnh báo, VIP).
 3. **Công Thái Học Cảm Ứng Di Động (Mobile-First Touch Ergonomics)**:
-   - Mục tiêu chạm (touch target) tối thiểu 40x40px hoặc 44x44px.
-   - Bố cục đảo nổi Dynamic Island ở đỉnh và thanh đáy Dock ở chân trang với clearance an toàn.
+   - Mục tiêu chạm (touch target) tối thiểu 44x44px.
+   - Đảo nổi Dynamic Island ở đỉnh đầu và thanh điều hướng Bottom Dock 5 tab ở chân trang với safe-area padding cho iPhone và Android.
 
 ---
 
-## 2. HỆ THỐNG MÀU SẮC & TOKENS (DESIGN TOKENS)
+## 2. HỆ THỐNG MÀU SẮC & DESIGN TOKENS
 
-### 2.1 Bảng màu Nền & Bề Mặt (Base Surfaces & Glass)
-| Token Name | Mã Hex / RGBA | Vai trò & Vị trí sử dụng |
+### 2.1 Bảng màu Nền & Bề Mặt (Surfaces)
+| Token Name | Mã Hex / Class Tailwind | Vị trí áp dụng |
 |---|---|---|
-| `--color-canvas-bg` | `#FAFAFF` | Nền canvas toàn bộ ứng dụng |
-| `--color-surface-card` | `#FFFFFF` | Nền card trắng tinh khiết, popup modal, panel danh sách |
-| `--color-surface-soft` | `#F2F3FF` | Nền card phụ, nền nút secondary, nền badge |
-| `--color-surface-dim` | `#ECEDFB` | Nền input khi inactive, nền icon placeholder |
-| `--color-glass-dock` | `rgba(255, 255, 255, 0.88)` | Nền Dynamic Island & Bottom Dock (`backdrop-filter: blur(20px)`) |
-| `--color-glass-border` | `rgba(0, 229, 255, 0.30)` | Viền kính phản quang Neon Cyan |
-| `--color-border-subtle`| `#D2D9F4` | Đường viền mỏng 1px ngăn cách các khối nội dung |
+| `--color-bg-base` | `#07090E` / `bg-[#07090E]` | Nền viewport gốc toàn bộ ứng dụng |
+| `--color-surface-panel` | `#0E0E10` / `bg-[#0E0E10]` | Nền thanh Bottom Dock, Messenger Drawer, Sheet |
+| `--color-surface-card` | `#121520` / `bg-[#121520]` | Nền card nội dung, danh sách bạn bè, bento widget |
+| `--color-surface-input` | `#151619` / `bg-[#151619]` | Nền ô nhập liệu input, textarea, form chat (Rule 12) |
+| `--color-surface-modal` | `#1A1A1E` / `bg-[#1A1A1E]` | Nền các hộp thoại modal, popup xác nhận |
+| `--color-border-subtle` | `rgba(255, 255, 255, 0.10)` | Đường viền siêu mỏng `border-white/10` |
+| `--color-border-focus` | `rgba(16, 255, 160, 0.40)` | Viền khi focus vào ô input (`focus:border-[#10FFA0]`) |
 
-### 2.2 Bảng màu Chữ & Nội Dung (Typography Colors)
-| Token Name | Mã Hex | Ý nghĩa hiển thị |
+### 2.2 Bảng màu Điểm Nhấn (Neon Accents)
+| Tên màu | Mã Hex | Ý nghĩa & Vị trí hiển thị |
 |---|---|---|
-| `--text-primary` | `#131315` | Chữ tiêu đề, tên tài khoản, nội dung chính (Deep Slate) |
-| `--text-secondary` | `#40484D` | Chữ mô tả phụ, tin nhắn xem trước, nhãn trường |
-| `--text-muted` | `#70787E` | Timestamp, placeholder trong ô input, chú thích nhỏ |
-| `--text-on-cyan` | `#08202E` | Màu chữ than chì ánh xanh đậm tương phản cao trên nút Cyber Cyan |
-| `--text-on-dark` | `#FFFFFF` | Chữ trắng trên các nút hoặc badge màu đậm |
+| **Hyper Lime** | `#10FFA0` | Chấm Online, vòng hào quang laser người dùng, thanh tiến trình đang xem, viền radar |
+| **Cyber Cyan** | `#00E5FF` | Nút hành động chính (Primary CTA), ghim vị trí, liên kết chỉ đường |
+| **Sunset Pink** | `#FF2A85` | Nút chụp nhanh Quick Snap, ghim khoảnh khắc Story, hiệu ứng pháo hoa |
+| **Solar Amber** | `#F59E0B` | Bộ đếm thời gian tự hủy story, cảnh báo kề cận < 60m |
+| **Rose Laser** | `#EF4444` | Nút Xóa Story vĩnh viễn, Hủy kết bạn, Đăng xuất |
 
-### 2.3 Bảng màu Điểm Nhấn Cyberpunk (Neon Accents)
-| Tên màu | Mã Hex | Ứng dụng cụ thể trong hệ thống nút & ghim |
-|---|---|---|
-| **Cyber Cyan** | `#00E5FF` | Màu chủ đạo của Primary CTA, ghim vị trí, vạch laser quét |
-| **Deep Cyan** | `#00B4D8` | Màu đuôi gradient của Primary Action Button |
-| **Dark Teal** | `#00838F` | Nút tham gia, chip vị trí GPS, nhãn công nghệ |
-| **Solar Amber** | `#FFAA00` | Nút copy, badge VIP, chip khoảng cách, icon lửa |
-| **Hyper Lime** | `#10FFA0` | Chấm Online, trạng thái hoạt động, viền sonar radar |
-| **Neon Pink** | `#FF2A85` | Nút Cụm ly, badge thông báo chưa đọc, icon thả tim |
-| **Crimson Laser** | `#EF4444` | Nút Hủy, Xóa đoạn chat, Từ chối kết bạn |
-| **Soft Red** | `#FEE2E2` | Nền nút từ chối kết bạn, nền icon thùng rác |
-
-### 2.4 Phông Chữ & Thang Bậc Typography
-- **Font tiêu đề & nút hành động chính**: `"Outfit"`, sans-serif (`font-display`, `font-bold`, `font-semibold`).
-- **Font nội dung & giao diện chính**: `"Be Vietnam Pro"`, sans-serif (`font-sans`, tiếng Việt hoàn hảo).
-- **Font số liệu, ID & telemetry**: `"JetBrains Mono"`, monospace (`font-mono`, mã `VU-XXXX`, tọa độ GPS, cự ly km, thời gian).
+### 2.3 Phông Chữ & Typography
+- **Font tiêu đề & nút nhấn**: `"Outfit"`, sans-serif (`font-bold`, `tracking-wide`).
+- **Font nội dung tiếng Việt**: `"Be Vietnam Pro"`, sans-serif (`font-sans`, hiển thị dấu tiếng Việt sắc nét).
+- **Font mã số & dữ liệu GPS**: `"JetBrains Mono"`, monospace (`font-mono`, hiển thị mã `VU-XXXX`, tọa độ, khoảng cách km, thời gian).
 
 ---
 
-## 3. ĐẶC TẢ CHI TIẾT 4 MÀN HÌNH CHỦ ĐẠO
+## 3. ĐẶC TẢ CHI TIẾT CÁC MÀN HÌNH CHỦ ĐẠO
 
-### 3.1 Màn Hình 1: Bản Đồ Radar Cyberpunk 3D (`Screen 13`)
-- **VIVU Dynamic Island (`UnifiedDynamicIsland.jsx`)**:
-  - Đảo nổi tại `top-3.5 left-1/2 -translate-x-1/2 z-40`, nền kính `rgba(255,255,255,0.88)` bo tròn viên thuốc (`rounded-full`), viền `rgba(0,229,255,0.30)`.
-  - Chip profile góc trái: Avatar tròn với viền nhịp thở Hyper Lime `#10FFA0`.
-  - Dropdown bán kính radar: nền `rgba(0,229,255,0.12)`, text `#00838F font-mono font-bold`.
-  - Chuông thông báo: nền `#F2F3FF`, viền `#D2D9F4`, icon `#131315`, chấm ping Neon Pink `#FF2A85`.
-- **Ghim Bản Đồ & Bong Bóng Trạng Thái (`MapboxCanvas.jsx`)**:
-  - Ghim "BẠN": Bo viền Hyper Lime `#10FFA0`, chấm định vị Cyber Cyan `#00E5FF`, bong bóng trắng kính `bg-white/95 text-[#131315] border-[rgba(0,229,255,0.40)]`, nút "+ Đăng" nền `#00667A text-white`.
-  - Ghim bạn bè & story: Ghim giọt nước teardrop Cyber Cyan `#00E5FF` hoặc Magenta `#FF2A85`, bong bóng trắng kính `bg-white/95 text-[#131315] border-[#D2D9F4]`.
-  - Cơ chế tách cụm không gian (Rule 16): Phân tán hướng tròn $\ge 200$m khi cự ly < 60m.
-- **Cụm Phím Tiện Ích Bản Đồ Nổi Bên Phải (Right Action Stack FAB)**:
-  - 6 nút tròn 40x40px xếp dọc trên nền trắng `#FFFFFF`, viền `#D2D9F4`, bóng đổ tinh tế: Zoom In/Out `#131315`, La bàn `#FF2A85`, Lớp bản đồ `#00B4D8`, Chụp ảnh `#FF2A85`, Bay về tâm Bạn (gradient `#00838F` -> `#006064` icon trắng).
-- **Thẻ Cụm Ly Siêu Gần (`ProximityBumpBanner.jsx`)**:
-  - Nút "Cụm Ly" (Nút 1.6): gradient `#00E5FF` -> `#00B4D8`, viền `#00F0FF`, text `#08202E font-display font-bold`.
-
-### 3.2 Màn Hình 2: Hộp Thư Messenger Cyberpunk Sáng (`Screen 9`)
-- **Nút Quay lại (Nút 2.1)**: `36x36px`, bo `12px`, nền `#F2F3FF`, viền `#D2D9F4`, icon `#131315`.
-- **Nút "+ Tạo Nhóm" (Nút 2.2)**: `height: 38px`, bo `12px`, gradient `#00E5FF` -> `#00C4DF`, viền `rgba(0,229,255,0.6)`, text `#08202E font-bold`.
-- **Bộ Lọc Phân Loại (Nút 2.3)**:
-  - Tab Active ("Tất cả"): gradient `#00E5FF` -> `#00B4D8`, text `#08202E font-bold`.
-  - Tab Inactive ("Nhóm", "Người lạ"): `#FFFFFF`, viền `#D2D9F4`, text `#40484D`.
-- **Xóa Hội Thoại (Nút 2.4)**: `32x32px`, nền `#FEE2E2`, viền `#FCA5A5`, icon `bi-trash3-fill` màu `#EF4444`.
-- **Phím Tắt Khởi Tạo Nhanh (Nút 2.5 & 2.6)**:
-  - Bình chọn nhanh (Poll): nền `#FFFFFF`, viền `rgba(0,229,255,0.35)`, icon `#00B4D8`, text `#131315`.
-  - Thẻ nhóm di chuyển: nền `#FFFFFF`, viền `rgba(255,42,133,0.25)`, icon `#FF2A85`, text `#131315`.
-
-### 3.3 Màn Hình 3: Kết Nối & Quản Lý Bạn Bè (`Screen 11`)
-- **Sao Chép Mã Lưới (Nút 3.1)**: `height: 34px`, bo `9999px`, nền `rgba(0,229,255,0.15)`, viền `rgba(0,229,255,0.50)`, icon `#00838F`, text `#00667A font-mono font-bold`.
-- **Đóng Trang (Nút 3.2)**: `36x36px`, bo `12px`, nền `#F2F3FF`, viền `#D2D9F4`, icon `#131315`.
-- **Chấp Nhận Lời Mời (Nút 3.3)**: `height: 42px`, bo `12px`, gradient `#00E5FF` -> `#00B4D8`, viền `#00F0FF`, text `#08202E Outfit 14px bold`.
-- **Từ Chối Lời Mời (Nút 3.4)**: `height: 42px`, bo `12px`, nền `#F2F3FF`, viền `#D2D9F4`, text `#40484D`, hover nền `#FEE2E2` text `#EF4444`.
-- **Quét Lại Radar (Nút 3.5)**: `height: 38px`, bo `9999px`, nền `rgba(0,229,255,0.12)`, text `#007791 font-mono font-bold`.
-
-### 3.4 Màn Hình 4: Hồ Sơ Cá Nhân (`Screen 7`)
-- **Nút "Sửa" Nickname (Nút 4.1)**: `height: 28px`, nền `#FFFFFF`, viền `#D2D9F4`, text `#131315`.
-- **Nút "Đổi Nick" (Nút 4.2)**: `height: 28px`, nền `#FFE8F0`, viền `#FFB8D2`, text `#FF2A85`.
-- **Nút Cài Đặt (Nút 4.3)**: `32x32px`, nền `#F2F3FF`, viền `#D2D9F4`, icon `#131315`.
-- **Nút Nổi Trên Ảnh Bìa (Nút 4.4, 4.5)**: `rgba(255,255,255,0.85)` blur 12px, viền `rgba(0,229,255,0.40)`.
-- **Gửi Tâm Trạng (Nút 4.6)**: Icon mũi tên `#00B4D8` (hover `#00E5FF`).
-- **Thêm Ảnh Từ Máy (Nút 4.7)**: `height: 32px`, gradient `#00E5FF` -> `#00B4D8`, text `#08202E font-bold`.
-- **Ô Tải Ảnh Lên (Nút 4.8)**: Ô vuông 72x72px, nền `#F2F3FF`, viền dashed `#00E5FF`, text/icon `#00838F`.
-- **Mã QR Radar (Nút 4.10)**: `height: 46px`, bo `14px`, nền `#FFFFFF`, viền `#D2D9F4`, text `#131315 Outfit 14px bold`.
-- **Chia Sẻ Hồ Sơ (Nút 4.11)**: `height: 46px`, bo `14px`, gradient `#00E5FF` -> `#00B4D8`, viền `#00F0FF`, text `#08202E Outfit 14px bold`.
+### 3.1 Màn Hình Bản Đồ Xã Hội 3D (Map Canvas & Dynamic Island)
+1. **Dynamic Island Đỉnh Màn Hình (`UnifiedDynamicIsland.jsx`)**:
+   - Vị trí: `top-3.5 left-1/2 -translate-x-1/2 z-40`, nền kính than chì mờ `bg-black/75 backdrop-blur-xl border border-white/15 rounded-full`.
+   - Avatar góc trái: Bo tròn viền nhịp thở Hyper Lime `#10FFA0` kèm mã định danh `VU-XXXX`.
+   - Dropdown thanh trượt bán kính Radar (0.5km - 15km) kèm các nút chọn nhanh (1km, 3km, 5km, 10km, Tất cả).
+   - Chuông thông báo: Icon chuông `bi bi-bell-fill` kèm badge đếm số lượng chưa đọc.
+   - Nút Bạn bè: Hiển thị tổng số lượng bạn bè trực tuyến và lời mời kết bạn đang chờ.
+2. **Ghim Lăng Kính Wireframe 3D Marker Pin (`MapboxCanvas.jsx`)**:
+   - **Ghim "BẠN"**: Bo viền Hyper Lime `#10FFA0`, vòng tròn Laser Cyan phát xung tiếp đất (Ground Ripple).
+   - **Bong bóng trạng thái**: Hiển thị ảnh Meme sticker, tên bài hát đang phát (kèm nút Play/Pause), caption ngắn. Chạm vào bong bóng mở trực tiếp trình xem Story.
+   - **Tách cụm Radial Dispersion (Rule 16)**: Khi $\ge 2$ tài khoản đứng cùng tọa độ (< 60m), tự động tách vòng tròn bán kính $\ge 200$m kèm nhãn `[GẦN BẠN]`.
+3. **Cụm Nút Công Cụ Nổi Góc Phải (Floating FAB Stack)**:
+   - Nút Phóng to / Thu nhỏ bản đồ.
+   - Nút Định vị GPS (Bay về tâm giọt nước "BẠN" ở góc cận cảnh `zoom: 16.2`, `pitch: 35`).
+   - Nút Mở bảng kết bạn nhanh.
 
 ---
 
-## 4. THANH ĐIỀU HƯỚNG ĐÁY CHUNG (`VivuBottomDock.jsx`)
-- Khung Dock: bo góc `32px`, nền `rgba(255, 255, 255, 0.88)` kèm `backdrop-blur: 24px`, viền `1px solid rgba(0, 229, 255, 0.30)`.
-- 4 Tab điều hướng:
-  - Tab Inactive: Icon Bootstrap 20px màu `#70787E`, text 10px `#70787E`.
-  - Tab Active: Icon Bootstrap 22px màu `#00838F`, text 10px `#00838F font-bold`.
-- Nút Dấu Cộng Trung Tâm (+): `54x54px`, bo `18px`, gradient `linear-gradient(135deg, #00E5FF, #FF2A85)`, viền `2px solid #FFFFFF`, bóng đổ kép Cyan/Pink `box-shadow: 0 4px 20px rgba(0,229,255,0.5), 0 0 12px rgba(255,42,133,0.4)`.
+### 3.2 Phân Hệ Story Studio (Soạn Thảo Khoảnh Khắc)
+1. **Khung Ảnh Camera Pro & Dual Cam PIP (`StoryStudioModal.jsx`)**:
+   - Khung hình 9:16 chuẩn Story điện thoại.
+   - Hỗ trợ **Dual Camera**: Khung ảnh lớn (Camera sau) + Khung ảnh nhỏ PIP tròn/bo góc (Camera trước). Chạm vào khung nhỏ để hoán đổi góc máy.
+   - Nút chụp ảnh vật lý tròn lớn viền neon `#FF2A85`.
+2. **Thanh Công Cụ Chỉnh Sửa Chuyên Nghiệp**:
+   - **Tab Nhạc (`TrendingMusicSelector.jsx`)**: Danh sách bài hát thịnh hành, chạm để nghe thử thật qua Web Audio API.
+   - **Tab Sticker Meme (`MemeStickerPicker.jsx`)**: Kho sticker meme phong cách Messenger.
+   - **Tab Chữ & Màu Nền**: Chọn dải gradient nền phong phú (Midnight, Ocean, Cyber, Sunset, Neon Mint).
+   - **Tab Hẹn Giờ Tự Hủy**: Chọn thời gian tự biến mất: 1h, 3h, 6h, 12h, 24h.
 
 ---
 
-## 5. QUY CHUẨN FORM NHẬP LIỆU & ĐỘ TƯƠNG PHẢN (RULE 12)
-Mọi ô nhập liệu trong ứng dụng:
-- Nền: `bg-[#F2F3FF]`
-- Viền: `border border-[#D2D9F4] focus:border-[#00E5FF] focus:ring-1 focus:ring-[rgba(0,229,255,0.3)]`
-- Màu chữ hiển thị: `text-[#131315] font-medium`
-- Placeholder: `placeholder-[#70787E]`
-- Biểu tượng vector đính kèm: 100% Bootstrap Icons (`bi bi-...`).
+### 3.3 Phân Hệ Trình Xem Multi-Story & Fullscreen Lightbox
+1. **Trình Xem Story Phân Đoạn (`StoryViewerModal.jsx`)**:
+   - **Segmented Bars trên đỉnh**: $N$ vạch ngang đại diện cho $N$ story của cùng tác giả; vạch đang xem phát sáng Hyper Lime `#10FFA0`.
+   - **Điều hướng cảm ứng**: Chạm nửa trái lùi story; chạm nửa phải tiến story tiếp theo. Có 2 nút mũi tên điều hướng nổi bật ở 2 bên mép màn hình.
+   - **Không tự động tắt**: Loại bỏ hoàn toàn bộ đếm 7 giây tự đóng ngoài ý muốn, cho phép người dùng thoải mái thưởng thức.
+2. **Chế Độ Xem Full Màn Hình Lightbox (`StoryFullscreenLightbox.jsx`)**:
+   - Chạm 1 lần vào ảnh hoặc bấm nút phóng to (`bi bi-arrows-fullscreen`): Mở giao diện tràn viền 100% viewport trên nền đen mờ 95%.
+   - Công cụ: Nút Zoom In (`+`), Zoom Out (`-`), Đặt lại tỷ lệ (`1:1`), kéo pan ảnh khi phóng to, và phím `ESC` để đóng nhanh.
+3. **Xóa Story 2 Chế Độ**:
+   - Khi chủ bài đăng bấm biểu tượng Thùng rác (`bi bi-trash3`): Mở popup lựa chọn thông minh:
+     - **Gỡ khỏi Bản đồ (Lưu vào Kho Lưu Trữ)**: Gỡ ngay khỏi bản đồ 3D nhưng bảo lưu trong hồ sơ cá nhân.
+     - **Xóa vĩnh viễn tất cả**: Loại bỏ hoàn toàn cả trên bản đồ, máy chủ và trong kho lưu trữ.
+
+---
+
+### 3.4 Phân Hệ Hồ Sơ Cá Nhân (Profile, Highlights & Archive)
+1. **Giao Diện Hồ Sơ Cá Nhân (`ProfilePageView.jsx`)**:
+   - **Avatar Chuẩn Mực**: Nền trắng sạch sẽ kèm icon người xám (`bi bi-person-fill`) nếu chưa có avatar thật, loại bỏ hoàn toàn avatar giả định.
+   - **Thông Tin Thực Tế**: Họ tên, Mã người dùng `VU-XXXX`, Tuổi, Nghề nghiệp, Số điện thoại, Tiểu sử Bio.
+   - **Nút Đăng Xuất**: Nền `bg-rose-500/10 text-rose-400 border border-rose-500/30` kèm hộp thoại xác nhận an toàn.
+2. **Hàng Tin Nổi Bật (Highlights — `ProfileStoryHighlights.jsx`)**:
+   - Nút `(+) Mới` viền nét đứt: Mở modal tạo nhóm tin nổi bật (nhập tiêu đề, chọn ảnh bìa).
+   - Danh sách vòng tròn Highlights viền gradient năng động (`#10FFA0` -> `#00E5FF` -> `#FF2A85`): Chạm vào mở xem chuỗi story theo từng phân đoạn.
+   - Picker chọn ảnh từ Kho Lưu Trữ: Cho phép chọn ảnh đã lưu trữ làm ảnh bìa chỉ với 1 chạm.
+3. **Tab Switcher Phân Vùng Media**:
+   - **Tab Thư Viện Ảnh** (`bi bi-images`): Quản lý các ảnh đời thường do người dùng tự đăng tải lên hồ sơ.
+   - **Tab Kho Lưu Trữ** (`bi bi-archive-fill`): Tập hợp ảnh/video từ Story đã đăng, hỗ trợ xem phóng to, xóa vĩnh viễn khỏi kho.
+
+---
+
+### 3.5 Phân Hệ Trò Chuyện Messenger & Custom Circles
+1. **Khung Chat Messenger Hiện Đại (`MessengerChatView.jsx`)**:
+   - Danh sách hội thoại trực tiếp 1-1 và hội thoại nhóm.
+   - Bong bóng tin nhắn tương phản cao: Tin của mình nền `#00E5FF text-[#08202E] font-medium`, tin đối phương nền `#1A1A1E text-white border border-white/10`.
+2. **Widget Bình Chọn (Interactive Poll Widget)**:
+   - Thẻ bình chọn trực tiếp trong khung chat, hiển thị số phiếu bầu và tiến độ % thời gian thực.
+3. **Thẻ Chốt Lịch Trình (Confirmed Itinerary Card)**:
+   - Hiển thị địa điểm hẹn, thời gian, kèm nút "Xem trên Map" và "Chỉ đường" liên kết sang Mapbox Directions.
+4. **Quản Lý Nhóm Riêng (`CircleManagementModal.jsx`)**:
+   - Thêm bạn bè trực tiếp vào nhóm ngay khi tạo (Rule 27).
+   - Menu quản trị: Đổi tên nhóm, thêm thành viên, kick thành viên, giải tán nhóm (Trưởng nhóm) / Tự rời nhóm (Thành viên).
+   - Khi chọn xem nhóm: Bản đồ tự động lọc đúng $N$ thành viên nhóm đó kèm `fitBounds` bao trọn (Rule 9).
+
+---
+
+## 4. QUY CHUẨN ĐỒNG BỘ THIẾT KẾ (DESIGN INVARIANTS)
+
+1. **Quy chuẩn Anti-Emoji (Rule 5)**: 100% sử dụng Bootstrap Icons vector (`bi bi-...`), cấm ký tự Unicode Emoji trong toàn bộ ứng dụng.
+2. **Quy chuẩn Form Tương Phản (Rule 12)**: Mọi ô input đều dùng nền tối `#151619` hoặc `#1A1A1E`, chữ trắng `text-white font-medium`, placeholder `#8E8E93`.
+3. **Quy chuẩn Ghim Giọt Nước (Rule 5)**: Chóp nhọn cắm chuẩn xác vào mặt đất (`anchor: 'bottom'`) để tâm GPS cắm chuẩn xác vào tim đường khi xoay/nghiêng 3D.
+4. **Quy chuẩn Âm Thanh Đa Tầng (Rule 19)**: Phân biệt rõ âm thanh Radar phát hiện khoảnh khắc (D5 -> A5) và âm thanh tin nhắn đến Pop-Chime (E6 -> A6).

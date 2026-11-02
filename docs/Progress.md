@@ -1,4 +1,4 @@
-# 📈 Tiến Độ Dự Án — VIVU Web App V2.0
+# Tiến Độ Dự Án — VIVU Web App V3.0
 
 ---
 
@@ -6,13 +6,13 @@
 
 | Thông tin | Chi tiết |
 | :--- | :--- |
-| **Tên dự án** | VIVU — Mạng Xã Hội Bản Đồ Không Gian & Lên Lịch Hẹn Thời Gian Thực |
-| **Nền tảng** | Web App SPA (React 18 + Vite + Tailwind CSS + Mapbox GL JS 3D) |
-| **Backend & Realtime** | Node.js Express REST API + Socket.IO (Port 5000) |
+| **Tên dự án** | VIVU — Mạng Xã Hội Bản Đồ Không Gian Thời Gian Thực (Spatial Social Network) |
+| **Nền tảng** | Web App SPA (React 19 + Vite + Tailwind CSS + Mapbox GL JS 3D) |
+| **Backend & Realtime** | Node.js Express REST API + Socket.IO Engine (Port 5000) |
 | **Cơ sở dữ liệu** | Dual-Mode: Supabase PostGIS Cloud + Local JSON Persistence Engine (`dbStore.js`) |
-| **Phong cách UI/UX** | Resend Dark Monochrome (`#0E0E10`, `#151619`) + Cyber-Solar Hologram 3D |
+| **Phong cách UI/UX** | Resend Dark Monochrome (`#07090E`, `#121520`, `#151619`) + Cyber Neon (`#10FFA0`, `#00E5FF`, `#FF2A85`) |
 | **AI Tooling** | Google Stitch AI MCP Server (`https://stitch.googleapis.com/mcp`) |
-| **Trạng thái hệ thống** | Vận hành ổn định: 15/15 Test Suites Passed, 52/52 Tests, Build 0 Lỗi |
+| **Trạng thái hệ thống** | Vận hành ổn định: Build 0 lỗi, Backend REST + Socket.IO hoạt động liên tục |
 
 ---
 
@@ -24,10 +24,11 @@ Giai đoạn 2: Định vị GPS Đa tầng & Mapbox GL JS 3D Canvas        [█
 Giai đoạn 3: Phân luồng Bài đăng Story Beacons & Tự hết hạn      [██████████] 100% (Hoàn thành)
 Giai đoạn 4: Hộp thư Trò chuyện Realtime & Bong bóng Trạng thái   [██████████] 100% (Hoàn thành)
 Giai đoạn 5: Nhóm Tùy Chỉnh (Custom Circles 2-Tier Permissions)  [██████████] 100% (Hoàn thành)
-Giai đoạn 6: Chạm Điện Thoại Kết Bạn (Spatial Shake-to-Bump 3D)  [██████████] 100% (Hoàn thành)
-Giai đoạn 7: Nâng cấp Giao diện Cyber-Solar & Dynamic Island     [██████████] 100% (Hoàn thành)
+Giai đoạn 6: Chạm Điện Thoại Kết Bạn (Spatial Bump 3D)           [██████████] 100% (Hoàn thành)
+Giai đoạn 7: Nâng cấp Giao diện Resend Dark & Dynamic Island     [██████████] 100% (Hoàn thành)
 Giai đoạn 8: Tích hợp Google Stitch AI MCP & Đồng bộ Đặc tả      [██████████] 100% (Hoàn thành)
-Giai đoạn 9: Tái Lập Giao Diện Luminous Solar-Cyber HUD (White)   [██████████] 100% (Hoàn thành)
+Giai đoạn 9: Module hóa Component & Chống File Đơn Khối          [██████████] 100% (Hoàn thành)
+Giai đoạn 10: Multi-Story, Lightbox, Xóa Bài, Kho Lưu Trữ & Tin Nổi Bật [██████████] 100% (Hoàn thành)
 ```
 
 ---
@@ -46,9 +47,9 @@ Giai đoạn 9: Tái Lập Giao Diện Luminous Solar-Cyber HUD (White)   [█�
 ### Giai đoạn 2: Định Vị GPS Đa Tầng & Bản Đồ 3D (ĐÃ HOÀN THÀNH)
 - [x] **[GPS-01]** Xây dựng kiến trúc định vị 3 tầng (Multi-Tier Location Engine): HTML5 GPS độ chính xác cao -> IP Geolocation -> Bộ nhớ cache `vivu_user_real_location`.
 - [x] **[GPS-02]** Triển khai bộ lọc khử nhiễu **Anti-Jitter Filter (> 8m)** và cơ chế **Khóa vị trí xác thực (Verified Anchor)** chống drift.
-- [x] **[GPS-03]** Tích hợp Mapbox GL JS 3D Canvas với phong cách Navigation Day sáng rõ, dễ đọc tên đường.
+- [x] **[GPS-03]** Tích hợp Mapbox GL JS 3D Canvas với góc nghiêng phối cảnh 32-35 độ và tòa nhà 3D chân thực.
 - [x] **[GPS-04]** Ghim Giọt Nước VIVU cắm chuẩn chóp nhọn vào mặt đường (`anchor: 'bottom'`) kết hợp vòng radar phát hiện lân cận.
-- [x] **[GPS-05]** Triển khai thuật toán **Phân tán hướng tròn (Radial Offset $\ge 200$m)** khi các người dùng ngồi gần nhau (< 60m), chống đè lấp ghim.
+- [x] **[GPS-05]** Triển khai thuật toán **Phân tán hướng tròn (Radial Offset >= 200m)** khi các người dùng ngồi gần nhau (< 60m), chống đè lấp ghim.
 
 ---
 
@@ -76,8 +77,8 @@ Giai đoạn 9: Tái Lập Giao Diện Luminous Solar-Cyber HUD (White)   [█�
 
 ### Giai đoạn 5: Nhóm Tùy Chỉnh (Custom Circles 2-Tier Permissions) (ĐÃ HOÀN THÀNH)
 - [x] **[CIRCLE-01]** Rà soát và tái cấu trúc toàn diện tính năng tạo nhóm:
-  - Loại bỏ hoàn toàn lựa chọn Công khai / Riêng tư phức tạp gây hiểu nhầm (mặc định riêng tư an toàn).
-  - Bổ sung chức năng **Thêm bạn bè trực tiếp** khi tạo nhóm và trong giao diện quản trị nhóm.
+  - Mặc định riêng tư an toàn, loại bỏ các cài đặt rườm rà.
+  - Chức năng **Thêm bạn bè trực tiếp** khi tạo nhóm và trong giao diện quản trị nhóm.
 - [x] **[CIRCLE-02]** Hệ thống phân quyền 2 tầng chặt chẽ (2-Tier Permissions):
   - **Quản trị viên (Owner)**: Quyền sửa thông tin, thêm/đuổi thành viên, giải tán nhóm.
   - **Thành viên (Member)**: Quyền xem thành viên, trò chuyện, định vị và tự rời nhóm.
@@ -85,15 +86,15 @@ Giai đoạn 9: Tái Lập Giao Diện Luminous Solar-Cyber HUD (White)   [█�
 
 ---
 
-### Giai đoạn 6: Chạm Điện Thoại Kết Bạn (Spatial Shake-to-Bump 3D) (ĐÃ HOÀN THÀNH)
+### Giai đoạn 6: Chạm Điện Thoại Kết Bạn (Spatial Bump 3D) (ĐÃ HOÀN THÀNH)
 - [x] **[BUMP-01]** Bắt sự kiện gia tốc kế `devicemotion` với ngưỡng kích hoạt $> 18.0 \text{ m/s}^2$.
 - [x] **[BUMP-02]** Khớp cặp không gian thời gian trên Socket.IO: Cự ly Haversine $< 15$m và thời gian lệch $< 2.5$s.
-- [x] **[BUMP-03]** Giao diện Modal Hologram 3D Cyber-Solar với hiệu ứng Wireframe khối cầu và rung haptic trên thiết bị di động.
+- [x] **[BUMP-03]** Giao diện Modal Hologram 3D Cyber-Solar với hiệu ứng Wireframe cụm ly và tự động tạo Story Đôi (Joint Story).
 
 ---
 
-### Giai đoạn 7: Nâng Cấp Giao Diện Cyber-Solar & Dynamic Island (ĐÃ HOÀN THÀNH)
-- [x] **[UI-01]** Chuyển đổi toàn diện sang phong cách Resend Dark Monochrome (`#0E0E10`, `#151619`, `#1A1A1E`) kết hợp điểm nhấn Cyan điện `#00F5FF` và Tím Neon `#A855F7`.
+### Giai đoạn 7: Nâng Cấp Giao Diện Resend Dark & Dynamic Island (ĐÃ HOÀN THÀNH)
+- [x] **[UI-01]** Chuyển đổi toàn diện sang phong cách Resend Dark Monochrome (`#07090E`, `#121520`, `#151619`) kết hợp điểm nhấn Cyber Neon (`#10FFA0`, `#00E5FF`, `#FF2A85`).
 - [x] **[UI-02]** Xây dựng thanh điều hướng nổi thông minh **Dynamic Island** ở đỉnh màn hình: chứa thanh chỉnh bán kính Radar, chuông thông báo, mã người dùng `VU-XXXX`.
 - [x] **[UI-03]** Chuẩn hóa 100% Bootstrap Icons vector font, tuyệt đối không dùng Unicode Emoji.
 - [x] **[UI-04]** Đảm bảo độ tương phản màu sắc form nhập liệu (`text-white font-medium` trên nền `#151619`), chống tuyệt đối lỗi tàng hình chữ.
@@ -103,25 +104,34 @@ Giai đoạn 9: Tái Lập Giao Diện Luminous Solar-Cyber HUD (White)   [█�
 ### Giai đoạn 8: Tích Hợp Google Stitch AI MCP & Đồng Bộ Đặc Tả (ĐÃ HOÀN THÀNH)
 - [x] **[STITCH-01]** Cấu hình và kết nối thành công Google Stitch AI MCP Server (`https://stitch.googleapis.com/mcp`).
 - [x] **[STITCH-02]** Viết kịch bản `scripts/list_stitch_screens.js` tra cứu và nạp các màn hình thiết kế của dự án VIVU.
-- [x] **[DOCS-SYNC]** Rà soát và cập nhật đồng bộ toàn bộ tài liệu đặc tả:
-  - `docs/SRS.md` -> V2.0
-  - `docs/UI_UX_Spec.md` -> V3.0 (Luminous Solar-Cyber HUD)
-  - `docs/Database_Spec.md` -> V2.0
-  - `docs/API_Spec.md` -> V2.0
-  - `docs/Algorithm_Spec.md` -> V2.0
-  - `docs/Diagrams_Spec.md` -> V2.0
-  - `docs/Project_Structure.md` -> V2.0
-  - `docs/Progress.md` -> V2.0
-  - `docs/README.md` -> V2.0
-  - `docs/DESIGN.md` & `docs/Tokens_Spec.md` -> Bản chuẩn từ `get_design.md`
+- [x] **[DOCS-SYNC]** Rà soát và cập nhật đồng bộ toàn bộ tài liệu đặc tả phiên bản V3.0 bám sát 100% mã nguồn thực tế, thanh lọc toàn diện các đặc tả cũ không tồn tại.
 
 ---
 
-### Giai đoạn 9: Tái Thiết Lập Giao Diện Luminous Solar-Cyber HUD (ĐÃ HOÀN THÀNH)
-- [x] **[HUD-01]** Nạp toàn bộ CSS Design Tokens trong `frontend/src/index.css`: Bảng màu nền `#FAFAFF`, card `#FFFFFF`, kính lỏng `rgba(255,255,255,0.88)` kèm viền Cyan `rgba(0,229,255,0.30)`, chữ Deep Slate `#131315`.
-- [x] **[HUD-02]** Màn hình 1 (Bản đồ Radar 3D): Cập nhật `UnifiedDynamicIsland.jsx`, `VivuBottomDock.jsx`, `RightActionStack.jsx`, `GpsStatusBanner.jsx`, `ProximityBumpBanner.jsx`, `MapboxCanvas.jsx` (Ghim Teardrop, Avatar Hyper Lime halo, Bong bóng trạng thái trắng kính).
-- [x] **[HUD-03]** Màn hình 2 (Hộp thư Messenger): Module hóa thành `MessengerInboxList.jsx`, `MessengerActiveRoom.jsx`, `MessengerChatView.jsx` (Rule 7 < 450 dòng), Nút 2.1 Back, Nút 2.2 "+ Tạo Nhóm", Nút 2.3 Bộ lọc 3 tab, Nút 2.4 Xóa chat, Nút 2.5 Phím tắt Poll, Nút 2.6 Phím tắt Lịch trình.
-- [x] **[HUD-04]** Màn hình 3 (Kết nối Bạn bè): Cập nhật `FriendshipManagerModal.jsx` và `RightFriendshipPanel.jsx`, Nút 3.1 Copy mã lưới, Nút 3.2 Đóng trang, Nút 3.3 Chấp nhận kết bạn, Nút 3.4 Từ chối kết bạn.
-- [x] **[HUD-05]** Màn hình 4 (Hồ sơ Cá nhân): Cập nhật `ProfilePageView.jsx` và `TinderProfileCard.jsx`, Nút 4.1 Sửa nick, Nút 4.2 Đổi nick, Nút 4.3 Bánh răng cài đặt, Nút 4.4 / 4.5 Nút nổi trên cover, Nút 4.6 Gửi tâm trạng, Nút 4.7 Thêm ảnh, Nút 4.8 Ô tải ảnh 72x72, Nút 4.10 Mã QR Radar, Nút 4.11 Chia sẻ hồ sơ.
-- [x] **[HUD-06]** Kiểm thử toàn diện: Frontend build 0 lỗi JSX (1.3s), Backend pass 52/52 tests (15 suites).
+### Giai đoạn 9: Module Hóa Component & Chống File Đơn Khối (ĐÃ HOÀN THÀNH)
+- [x] **[MOD-01]** Tách bạch `frontend/src/components/story/` thành 3 thư mục con chuyên biệt: `camera/`, `editor/`, `viewer/`.
+- [x] **[MOD-02]** Tách `App.jsx` thành Shell điều phối trạng thái cấp cao (< 450 dòng), tuân thủ Rule 7 của dự án.
+- [x] **[MOD-03]** Tách các component bảng điều khiển hồ sơ `ProfilePageView.jsx`, `ProfileHeroCard.jsx`, `ProfileBentoWidgets.jsx`.
 
+---
+
+### Giai đoạn 10: Multi-Story, Lightbox, Xóa Bài, Kho Lưu Trữ & Tin Nổi Bật (ĐÃ HOÀN THÀNH)
+- [x] **[STORY-01]** Chức năng Xóa Story bài đăng 2 cấp độ:
+  - Lựa chọn 1: "Gỡ khỏi Bản đồ" (giữ nguyên trong Kho lưu trữ cá nhân).
+  - Lựa chọn 2: "Xóa vĩnh viễn" (gọi `DELETE /api/stories/:storyId`, xóa khỏi RAM và file JSON lưu trữ đĩa).
+  - Tự động gỡ bong bóng trạng thái trên đầu ghim "BẠN" nếu là Story cuối cùng.
+- [x] **[STORY-02]** Trình phát Multi-Story theo phân đoạn (`StoryViewerModal.jsx`):
+  - Tự động gom toàn bộ các Story đang hoạt động của cùng một tác giả thành danh sách phân đoạn (Segmented progress bars).
+  - Hỗ trợ chạm nửa trái lùi Story trước, chạm nửa phải xem Story tiếp theo, nhấn giữ để tạm dừng tiến trình thanh thời gian.
+- [x] **[STORY-03]** Lightbox xem ảnh toàn màn hình (`StoryFullscreenLightbox.jsx`):
+  - Chạm vào ảnh Story để phóng to toàn màn hình không bị che khuất bởi các widget.
+  - Hỗ trợ công cụ Zoom In / Zoom Out / Reset 1:1, kéo lia ảnh (Pan/Drag) mượt mà và phím tắt ESC.
+- [x] **[STORY-04]** Kho lưu trữ Story cá nhân (`vivu_user_story_archive_{userId}`):
+  - Tự động lưu trữ vĩnh viễn tất cả bài đăng Story của người dùng kể từ lúc tạo tài khoản.
+  - Tích hợp Tab Switcher ngay trên trang cá nhân: chuyển đổi mượt mà giữa "Thư Viện Ảnh Thật" và "Kho Lưu Trữ Story".
+- [x] **[STORY-05]** Bộ sưu tập Tin Nổi Bật (`ProfileStoryHighlights.jsx`):
+  - Cho phép người dùng bấm nút `(+) Mới` để chọn một hoặc nhiều Story từ Kho lưu trữ.
+  - Đặt tiêu đề và tự động trích xuất ảnh bìa để ghim lên đầu trang cá nhân (chuẩn Highlight Reels).
+- [x] **[STORY-06]** Tinh chỉnh thẩm mỹ Avatar cá nhân:
+  - Khung ảnh đại diện tròn khi chưa có avatar hiển thị nền trắng phẳng tinh tế với vector người màu xám `bi bi-person-fill`.
+  - Loại bỏ hoàn toàn các chữ hay icon rườm rà đè lên khung hình đại diện.

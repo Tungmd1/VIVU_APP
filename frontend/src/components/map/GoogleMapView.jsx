@@ -89,7 +89,15 @@ export default function GoogleMapView({
   const isPickingLocationRef = useRef(isPickingLocation); isPickingLocationRef.current = isPickingLocation;
   const setIsPickingLocationRef = useRef(setIsPickingLocation); setIsPickingLocationRef.current = setIsPickingLocation;
 
-  const isOwnerItem = (item) => Boolean(item && (item.id === currentUserId || item.hostId === currentUserId || item.user_id === currentUserId));
+  const isOwnerItem = (item) => Boolean(
+    item && (
+      item.id === currentUserId || 
+      item.hostId === currentUserId || 
+      item.host_id === currentUserId || 
+      item.user_id === currentUserId ||
+      item.isOwnerStory === true
+    )
+  );
   const myActiveStory = useMemo(() => stories.find(s => isOwnerItem(s)) || null, [stories, currentUserId]);
   const myActiveStoryRef = useRef(myActiveStory);
   myActiveStoryRef.current = myActiveStory;

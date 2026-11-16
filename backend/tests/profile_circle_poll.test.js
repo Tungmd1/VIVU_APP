@@ -376,7 +376,7 @@ describe('VIVU Profile, Avatar, Pin Icons, Live Location, Poll & Circle Test Sui
       // 1. Giả lập đăng xuất
       await dbService.setUserOffline(userA.id);
 
-      // 2. Kiểm tra danh sách stories của hệ thống
+      // 2. Kiểm tra danh sách stories của hệ thống khi user offline
       const storiesAfterLogout = await dbService.getStories();
       const foundAfterLogout = storiesAfterLogout.find(s => s.id === createdStoryId);
       assert.ok(foundAfterLogout, 'Story phải được bảo toàn khi user đăng xuất nếu còn thời hạn');
@@ -398,6 +398,83 @@ describe('VIVU Profile, Avatar, Pin Icons, Live Location, Poll & Circle Test Sui
       const foundAfterLogin = storiesAfterLogin.find(s => s.id === createdStoryId);
       assert.ok(foundAfterLogin, 'Story vẫn tồn tại đầy đủ sau khi đăng nhập lại');
       assert.equal(foundAfterLogin.image, 'https://images.unsplash.com/photo-test-cafe-123');
+    });
+
+    it('Đăng Story thường thời hạn 1 tiếng: Đăng xuất, đăng nhập lại trước 1 tiếng -> Story tồn tại 100%', async () => {
+      // Đăng story thời hạn 1 tiếng (3600s)
+      const oneHourExp = new Date(Date.now() + 3600 * 1000).toISOString();
+      const story1h = await dbService.createStory({
+        host_id: userA.id,
+        user_code: userA.user_code,
+        host_name: userA.full_name,
+        title: 'Story 1 tiếng thử nghiệm',
+        expiry_hours: 1,
+        expires_at: oneHourExp,
+        lat: 16.05,
+        lng: 108.21
+      });
+
+      // User đăng xuất
+      await dbService.setUserOffline(userA.id);
+
+      // User đăng nhập lại trước khi hết hạn
+      const loginRes = await dbService.loginUser({
+        email: userA.email,
+        password: userA.password
+      });
+      assert.ok(loginRes.success);
+
+      // Tải lại danh sách stories
+      const stories = await dbService.getStories();
+      const found1h = stories.find(s => s.id === story1h.id);
+      assert.ok(found1h, 'Story 1 tiếng phải tồn tại khi đăng nhập lại trước hạn');
+      assert.equal(found1h.expiry_hours, 1);
+      assert.equal(found1h.title, 'Story 1 tiếng thử nghiệm');
+    });
+
+    it('Đăng Story thường thời hạn 1 tiếng: Đăng nhập lại sau khi hết hạn 1 tiếng -> Story tự động bị lọc bỏ', async () => {
+      // Đăng story đã quá hạn 1 tiếng (hết hạn 5 giây trước)
+      const expired1h = new Date(Date.now() - 5000).toISOString();
+      const storyExpired = await dbService.createStory({
+        host_id: userA.id,
+        title: 'Story 1 tiếng đã hết hạn',
+        expiry_hours: 1,
+        expires_at: expired1h,
+        lat: 16.05,
+        lng: 108.21
+      });
+
+      // Tải lại stories từ nguồn chính
+      const allStories = await dbService.getStories();
+      const found = allStories.find(s => s.id === storyExpired.id);
+      assert.equal(found, undefined, 'Story 1 tiếng hết hạn phải bị loại bỏ khỏi danh sách');
+    });
+
+    it('Người dùng A đăng Story rồi offline, Người dùng B đăng nhập: Story của A vẫn hiển thị bình thường', async () => {
+      const storyA = await dbService.createStory({
+        host_id: userA.id,
+        user_code: userA.user_code,
+        host_name: userA.full_name,
+        title: 'Check-in cầu Rồng Đà Nẵng',
+        expiry_hours: 1,
+        lat: 16.061,
+        lng: 108.221
+      });
+
+      // User A offline
+      await dbService.setUserOffline(userA.id);
+
+      // User B login
+      const loginB = await dbService.loginUser({
+        email: userB.email,
+        password: userB.password
+      });
+      assert.ok(loginB.success);
+
+      // User B tải danh sách story bản đồ
+      const storiesForB = await dbService.getStories();
+      const foundAStory = storiesForB.find(s => s.id === storyA.id);
+      assert.ok(foundAStory, 'Story của User A (đang offline) vẫn phải hiển thị cho User B xem nếu còn hạn');
     });
 
     it('Story quá hạn tự động bị lọc bỏ, không tồn tại vĩnh viễn', async () => {
@@ -463,24 +540,93 @@ describe('VIVU Profile, Avatar, Pin Icons, Live Location, Poll & Circle Test Sui
       assert.equal(refreshed.custom_chibi, 'tease');
     });
 
-    it('Chibi quá hạn tự hủy tự động trả về null khi đăng nhập lại', async () => {
-      const pastExp = Date.now() - 10000; // Đã hết hạn 10s trước
+    it('Đăng Story Chibi với thời hạn 1 tiếng: Đăng xuất, đăng nhập lại trước 1 tiếng -> Chibi tồn tại 100%', async () => {
+      const oneHourExp = Date.now() + 3600 * 1000;
       await dbService.updateGps(
         userA.id,
         16.06,
         108.22,
-        'Hết hạn rồi',
+        'Tâm trạng 1 tiếng',
+        userA.full_name,
+        userA.avatar_url,
+        userA.user_code,
+        userA.phone,
+        { id: 'song-2', title: 'See Tình', artist: 'Hoàng Thùy Linh' },
+        'chibi-cat',
+        'dark_neon',
+        null,
+        null,
+        oneHourExp
+      );
+
+      // User đăng xuất
+      await dbService.setUserOffline(userA.id);
+
+      // User đăng nhập lại
+      const loginRes = await dbService.loginUser({
+        email: userA.email,
+        password: userA.password
+      });
+      assert.ok(loginRes.success);
+      assert.equal(loginRes.user.custom_chibi, 'chibi-cat', 'Story Chibi 1 tiếng phải còn nguyên vẹn khi đăng nhập lại');
+      assert.equal(loginRes.user.custom_status, 'Tâm trạng 1 tiếng');
+      assert.equal(loginRes.user.chibi_expires_at, oneHourExp);
+    });
+
+    it('GPS Heartbeat gửi customChibi: null khi vừa đăng nhập -> Không được ghi đè làm mất Chibi 1 tiếng đang còn hạn', async () => {
+      // Giả lập GPS heartbeat chạy với state ban đầu null
+      const updated = await dbService.updateGps(
+        userA.id,
+        16.06,
+        108.22,
+        '',
         userA.full_name,
         userA.avatar_url,
         userA.user_code,
         userA.phone,
         null,
-        'angry',
-        'auto',
+        null, // customChibi null
+        'dark_neon',
         null,
         null,
-        pastExp
+        null  // chibiExpiresAt null
       );
+
+      // Kiểm tra trong database: Chibi vẫn phải được bảo toàn là 'chibi-cat'
+      const checkUser = await dbService.getUserById(userA.id);
+      assert.equal(checkUser.custom_chibi, 'chibi-cat', 'Chibi không được bị ghi đè null khi còn hạn');
+      assert.ok(checkUser.chibi_expires_at > Date.now());
+    });
+
+    it('Đăng Story Chibi thời hạn 1 tiếng: Đăng nhập lại sau khi hết hạn 1 tiếng -> Chibi tự động thu hồi về null', async () => {
+      const pastExp = Date.now() - 5000; // Đã hết hạn 5s trước
+      // Sử dụng updateUserProfile để đặt thời hạn quá khứ
+      await dbService.updateUserProfile(userA.id, {
+        customChibi: 'sleepy',
+        chibiExpiresAt: pastExp,
+        customStatus: 'Đã buồn ngủ rồi'
+      });
+
+      // Khi đăng nhập lại sau khi hết hạn
+      const loginRes = await dbService.loginUser({
+        email: userA.email,
+        password: userA.password
+      });
+      assert.equal(loginRes.user.custom_chibi, null, 'Story Chibi 1 tiếng hết hạn phải tự động thu hồi về null');
+      assert.equal(loginRes.user.chibi_expires_at, null);
+
+      const userAfterExp = await dbService.getUserById(userA.id);
+      assert.equal(userAfterExp.custom_chibi, null);
+      assert.equal(userAfterExp.chibi_expires_at, null);
+    });
+
+    it('Chibi quá hạn tự hủy tự động trả về null khi đăng nhập lại', async () => {
+      const pastExp = Date.now() - 10000; // Đã hết hạn 10s trước
+      await dbService.updateUserProfile(userA.id, {
+        customChibi: 'angry',
+        chibiExpiresAt: pastExp,
+        customStatus: 'Hết hạn rồi'
+      });
 
       // Khi đăng nhập lại hoặc lấy profile
       const userAfterExp = await dbService.getUserById(userA.id);

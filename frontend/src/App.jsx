@@ -699,7 +699,7 @@ export default function App() {
     });
   }, [currentUserId]);
 
-  // TỰ ĐỘNG PHỤC HỒI (REHYDRATE) STORY CỦA TÀI KHOẢN SAU KHI ĐĂNG NHẬP
+  // TỰ ĐỘNG PHỤC HỒI (REHYDRATE) STORY CỦA TÀI KHOẢN & TOÀN BỘ STORY CÒN HẠN TỪ DATABASE
   useEffect(() => {
     if (!currentUserId || currentUserId.startsWith('client-')) return;
 
@@ -712,7 +712,9 @@ export default function App() {
       const savedRaw = localStorage.getItem(scopedKey) || localStorage.getItem('vivu_user_active_story');
       if (savedRaw) {
         const parsed = JSON.parse(savedRaw);
-        const expTime = parsed.expires_at ? new Date(parsed.expires_at).getTime() : (parsed.created_at ? new Date(parsed.created_at).getTime() + (parsed.expiry_hours || 24) * 3600000 : 0);
+        const expTime = parsed.expires_at 
+          ? (typeof parsed.expires_at === 'number' ? parsed.expires_at : (Number(parsed.expires_at) || new Date(parsed.expires_at).getTime())) 
+          : (parsed.created_at ? new Date(parsed.created_at).getTime() + (parsed.expiry_hours || 24) * 3600000 : 0);
         if (expTime > now && (parsed.hostId === currentUserId || parsed.host_id === currentUserId || parsed.isOwnerStory)) {
           const ownerStory = { ...parsed, isOwnerStory: true, activeStory: parsed };
           setStories(prev => {
@@ -727,38 +729,52 @@ export default function App() {
       }
     } catch (e) {}
 
-    // Tầng 2: Đồng bộ trực tiếp từ Backend Server API
+    // Tầng 2: Đồng bộ trực tiếp toàn bộ Story còn hạn từ Backend Server Database
     apiClient.getStories().then(remoteStories => {
       if (!isMounted || !Array.isArray(remoteStories)) return;
-      const myStory = remoteStories.find(rs => 
-        (rs.host_id === currentUserId || rs.hostId === currentUserId) && 
-        (!rs.expires_at || new Date(rs.expires_at).getTime() > now)
-      );
-      if (myStory) {
-        const fullStory = {
-          ...myStory,
-          id: myStory.id,
-          hostId: currentUserId,
-          host_id: currentUserId,
-          isOwnerStory: true,
-          activeStory: myStory,
-          realLat: myStory.lat,
-          realLng: myStory.lng,
-          image: myStory.image || null,
-          dual_image: myStory.dual_image || null,
-          music: myStory.music || null,
-          expires_at: myStory.expires_at,
-          created_at: myStory.created_at,
-          expiry_hours: myStory.expiry_hours || 24
-        };
-        setStories(prev => {
-          const filtered = prev.filter(s => s.id !== fullStory.id && s.hostId !== currentUserId);
-          return [fullStory, ...filtered];
+      const validStories = remoteStories
+        .filter(rs => {
+          if (!rs) return false;
+          const expMs = rs.expires_at 
+            ? (typeof rs.expires_at === 'number' ? rs.expires_at : (Number(rs.expires_at) || new Date(rs.expires_at).getTime())) 
+            : (rs.created_at ? new Date(rs.created_at).getTime() + (rs.expiry_hours || 24) * 3600000 : 0);
+          return expMs > now;
+        })
+        .map(rs => {
+          const isOwner = (rs.host_id === currentUserId || rs.hostId === currentUserId);
+          const mapped = {
+            ...rs,
+            id: rs.id,
+            hostId: rs.host_id || rs.hostId,
+            host_id: rs.host_id || rs.hostId,
+            isOwnerStory: isOwner,
+            activeStory: rs,
+            realLat: rs.lat,
+            realLng: rs.lng,
+            lat: rs.lat,
+            lng: rs.lng,
+            image: rs.image || null,
+            dual_image: rs.dual_image || null,
+            music: rs.music || null,
+            expires_at: rs.expires_at,
+            created_at: rs.created_at,
+            expiry_hours: rs.expiry_hours || 24
+          };
+          if (isOwner) {
+            try {
+              localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(mapped));
+              localStorage.setItem('vivu_user_active_story', JSON.stringify(mapped));
+            } catch {}
+          }
+          return mapped;
         });
-        try {
-          localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(fullStory));
-          localStorage.setItem('vivu_user_active_story', JSON.stringify(fullStory));
-        } catch {}
+
+      if (validStories.length > 0) {
+        setStories(prev => {
+          const existingIds = new Set(validStories.map(s => s.id));
+          const remainingPrev = prev.filter(s => !existingIds.has(s.id));
+          return [...validStories, ...remainingPrev];
+        });
       }
     }).catch(() => {});
 
@@ -829,7 +845,9 @@ export default function App() {
     // Tầng 2: Đồng bộ từ Database Backend Server
     apiClient.getMe(currentUserId).then(serverUser => {
       if (!isMounted || !serverUser) return;
-      const expMs = serverUser.chibi_expires_at ? (typeof serverUser.chibi_expires_at === 'number' ? serverUser.chibi_expires_at : new Date(serverUser.chibi_expires_at).getTime()) : null;
+      const expMs = serverUser.chibi_expires_at 
+        ? (typeof serverUser.chibi_expires_at === 'number' ? serverUser.chibi_expires_at : (Number(serverUser.chibi_expires_at) || new Date(serverUser.chibi_expires_at).getTime())) 
+        : null;
       const isExp = expMs && expMs <= Date.now();
       const serverChibi = isExp ? null : (serverUser.custom_chibi || null);
 
@@ -1213,15 +1231,31 @@ export default function App() {
     const now = Date.now();
     return stories
       .filter(s => {
+        if (!s) return false;
         if (!s.expires_at) return true;
-        return new Date(s.expires_at).getTime() > now;
+        const expMs = typeof s.expires_at === 'number' ? s.expires_at : (Number(s.expires_at) || new Date(s.expires_at).getTime());
+        return expMs > now;
       })
-      .map(s => ({
-        ...s,
-        realLat: s.realLat != null ? s.realLat : (userLat != null ? Number((userLat + (s.latOffset || 0)).toFixed(6)) : null),
-        realLng: s.realLng != null ? s.realLng : (userLng != null ? Number((userLng + (s.lngOffset || 0)).toFixed(6)) : null)
-      }));
-  }, [stories, userLat, userLng]);
+      .map(s => {
+        const rawLat = s.realLat != null ? Number(s.realLat) : (s.lat != null ? Number(s.lat) : (userLat != null ? Number((userLat + (s.latOffset || 0)).toFixed(6)) : 10.7769));
+        const rawLng = s.realLng != null ? Number(s.realLng) : (s.lng != null ? Number(s.lng) : (userLng != null ? Number((userLng + (s.lngOffset || 0)).toFixed(6)) : 106.7009));
+        const isOwner = Boolean(
+          (currentUserId && (s.hostId === currentUserId || s.host_id === currentUserId || s.id === currentUserId)) ||
+          s.isOwnerStory === true ||
+          (currentUserCode && s.userCode && s.userCode === currentUserCode)
+        );
+        return {
+          ...s,
+          hostId: s.hostId || s.host_id || null,
+          host_id: s.host_id || s.hostId || null,
+          isOwnerStory: isOwner,
+          realLat: rawLat,
+          realLng: rawLng,
+          lat: rawLat,
+          lng: rawLng
+        };
+      });
+  }, [stories, userLat, userLng, currentUserId, currentUserCode]);
 
   const myActiveStory = useMemo(() => {
     const found = liveStories.find(s => {
@@ -1543,6 +1577,14 @@ export default function App() {
                 hasChange = true;
                 return false;
               }
+            } else if (s.expires_at) {
+              // BẢO VỆ STORY THẬT: Chỉ loại bỏ khi thời hạn thực sự đã hết, KHÔNG xóa khi tác giả offline
+              const expMs = typeof s.expires_at === 'number' ? s.expires_at : (Number(s.expires_at) || new Date(s.expires_at).getTime());
+              if (expMs && expMs <= Date.now()) {
+                hasChange = true;
+                return false;
+              }
+              return true;
             } else if (s.hostId && s.hostId.startsWith('user-')) {
               if (!activePeerIds.has(s.hostId)) {
                 hasChange = true;
@@ -3578,9 +3620,16 @@ export default function App() {
               localStorage.removeItem("vivu_user_custom_chibi_expires");
             }
           } catch {}
-          if (currentUserId && userLat && userLng) {
-            apiClient.updateGps(currentUserId, userLat, userLng, status || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, chibiId || null, userPinSkin, userPinMascot, userPinAction, expiresAt || null);
-            updateProfile({ customStatus: status || '', customChibi: chibiId || null, chibi_expires_at: expiresAt || null }).catch(() => {});
+          if (currentUserId) {
+            updateProfile({ 
+              customStatus: status || '', 
+              customChibi: chibiId || null, 
+              chibi_expires_at: expiresAt || null,
+              custom_song: song || null
+            }).catch(() => {});
+            if (userLat && userLng) {
+              apiClient.updateGps(currentUserId, userLat, userLng, status || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, chibiId || null, userPinSkin, userPinMascot, userPinAction, expiresAt || null);
+            }
           }
           confetti({ particleCount: 25, spread: 40 });
         }}

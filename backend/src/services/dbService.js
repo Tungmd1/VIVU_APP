@@ -15,6 +15,18 @@ import { notificationService } from './notificationService.js';
 // Cơ sở dữ liệu bền vững xuống đĩa cứng (Persistent Database Engine)
 const inMemoryStore = dbStore;
 
+export function parseExpiryMs(val, defaultHours = 24, createdAt = null) {
+  if (val != null) {
+    if (typeof val === 'number' && !isNaN(val) && val > 0) return val;
+    const asNum = Number(val);
+    if (!isNaN(asNum) && asNum > 1000000000000) return asNum;
+    const parsedDate = new Date(val).getTime();
+    if (!isNaN(parsedDate) && parsedDate > 0) return parsedDate;
+  }
+  const base = createdAt ? new Date(createdAt).getTime() : Date.now();
+  return (isNaN(base) ? Date.now() : base) + (Number(defaultHours) || 24) * 3600000;
+}
+
 export const dbService = {
   isCloud: isCloudEnabled,
 
@@ -33,14 +45,11 @@ export const dbService = {
     }
 
     // Lọc bỏ story đã hết hạn (auto-expire engine - Bulletproof Expiry Guard)
-    const now = new Date();
+    const nowMs = Date.now();
     const prevCount = inMemoryStore.stories.length;
     inMemoryStore.stories = inMemoryStore.stories.filter(s => {
-      // Tính toán expires_at nếu bị khuyết: mặc định created_at + 24 giờ
-      const expiresAt = s.expires_at 
-        ? new Date(s.expires_at) 
-        : new Date(new Date(s.created_at || Date.now()).getTime() + (s.expiry_hours || 24) * 3600000);
-      return expiresAt > now;
+      const expMs = parseExpiryMs(s.expires_at, s.expiry_hours || 24, s.created_at);
+      return expMs > nowMs;
     });
     if (inMemoryStore.stories.length < prevCount) {
       dbStore.persist();
@@ -255,12 +264,13 @@ export const dbService = {
           const sCode = s.user_code || s.userCode;
           const isUserMatch = (sHost && sHost === p.id) || (sCode && sCode === p.user_code);
           if (!isUserMatch) return false;
-          if (!s.expires_at) return true;
-          return new Date(s.expires_at).getTime() > now;
+          const sExp = parseExpiryMs(s.expires_at, s.expiry_hours || 24, s.created_at);
+          return sExp > now;
         });
 
         // Kiểm tra thời hạn tự hủy của Chibi & trạng thái tâm trạng
-        const isChibiExpired = p.chibi_expires_at && new Date(p.chibi_expires_at).getTime() <= now;
+        const chibiExp = parseExpiryMs(p.chibi_expires_at, 24);
+        const isChibiExpired = p.chibi_expires_at && chibiExp <= now;
         const activeChibi = isChibiExpired ? null : (p.custom_chibi || null);
 
         return {
@@ -412,7 +422,8 @@ export const dbService = {
     }
 
     // Kiểm tra và thu hồi Chibi nếu đã hết hạn
-    const isChibiExpired = user.chibi_expires_at && new Date(user.chibi_expires_at).getTime() <= Date.now();
+    const chibiExp = parseExpiryMs(user.chibi_expires_at, 24);
+    const isChibiExpired = user.chibi_expires_at && chibiExp <= Date.now();
     if (isChibiExpired) {
       user.custom_chibi = null;
       user.chibi_expires_at = null;
@@ -657,7 +668,8 @@ export const dbService = {
       user = inMemoryStore.profiles.find(p => p.id === userId);
     }
     if (!user) return null;
-    const isChibiExpired = user.chibi_expires_at && new Date(user.chibi_expires_at).getTime() <= Date.now();
+    const chibiExp = parseExpiryMs(user.chibi_expires_at, 24);
+    const isChibiExpired = user.chibi_expires_at && chibiExp <= Date.now();
     const activeChibi = isChibiExpired ? null : (user.custom_chibi || null);
     const activeChibiExp = isChibiExpired ? null : (user.chibi_expires_at || null);
     const { password: _, ...userSafe } = user;
@@ -783,21 +795,56 @@ export const dbService = {
       is_online: true,
       last_seen_at: new Date().toISOString()
     };
+    // Bảo vệ Story Chibi & diện mạo không bị ghi đè null khi đang còn hạn trên server
+    const currentChibiExp = parseExpiryMs(registeredUser.chibi_expires_at, 24);
+    const hasActiveServerChibi = Boolean(registeredUser.custom_chibi && currentChibiExp > Date.now());
+
     if (customStatus !== undefined) {
-      updatePayload.custom_status = customStatus;
-      registeredUser.custom_status = customStatus;
+      if (!customStatus && registeredUser.custom_status) {
+        updatePayload.custom_status = registeredUser.custom_status;
+      } else {
+        updatePayload.custom_status = customStatus;
+        registeredUser.custom_status = customStatus;
+      }
+    } else if (registeredUser.custom_status) {
+      updatePayload.custom_status = registeredUser.custom_status;
     }
+
     if (customSong !== undefined) {
-      updatePayload.custom_song = customSong;
-      registeredUser.custom_song = customSong;
+      if (customSong === null && registeredUser.custom_song && hasActiveServerChibi) {
+        updatePayload.custom_song = registeredUser.custom_song;
+      } else {
+        updatePayload.custom_song = customSong;
+        registeredUser.custom_song = customSong;
+      }
+    } else if (registeredUser.custom_song) {
+      updatePayload.custom_song = registeredUser.custom_song;
     }
+
     if (customChibi !== undefined) {
-      updatePayload.custom_chibi = customChibi;
-      registeredUser.custom_chibi = customChibi;
+      if (customChibi === null && hasActiveServerChibi && (chibiExpiresAt === undefined || chibiExpiresAt === null)) {
+        updatePayload.custom_chibi = registeredUser.custom_chibi;
+        updatePayload.chibi_expires_at = registeredUser.chibi_expires_at;
+      } else {
+        updatePayload.custom_chibi = customChibi;
+        registeredUser.custom_chibi = customChibi;
+        if (chibiExpiresAt !== undefined) {
+          updatePayload.chibi_expires_at = chibiExpiresAt;
+          registeredUser.chibi_expires_at = chibiExpiresAt;
+        }
+      }
+    } else if (hasActiveServerChibi) {
+      updatePayload.custom_chibi = registeredUser.custom_chibi;
+      updatePayload.chibi_expires_at = registeredUser.chibi_expires_at;
     }
-    if (chibiExpiresAt !== undefined) {
-      updatePayload.chibi_expires_at = chibiExpiresAt;
-      registeredUser.chibi_expires_at = chibiExpiresAt;
+
+    // Tự động thu hồi nếu Chibi đã thực sự hết hạn
+    const finalChibiExp = parseExpiryMs(registeredUser.chibi_expires_at, 24);
+    if (registeredUser.chibi_expires_at && finalChibiExp <= Date.now()) {
+      registeredUser.custom_chibi = null;
+      registeredUser.chibi_expires_at = null;
+      updatePayload.custom_chibi = null;
+      updatePayload.chibi_expires_at = null;
     }
     if (pinSkin !== undefined) {
       updatePayload.pin_skin = pinSkin;

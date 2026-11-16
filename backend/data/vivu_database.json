@@ -183,6 +183,60 @@
       "created_at": "2026-11-16T06:40:13.414Z",
       "last_seen_at": "2026-11-16T06:40:13.414Z",
       "custom_status": "Busy"
+    },
+    {
+      "id": "user-1794812068575-25d6t",
+      "email": "prof_a_1794812068570@vivu.vn",
+      "password": "Password123!",
+      "full_name": "Nguyễn Văn A Đẹp Trai",
+      "user_code": "VU-3513",
+      "avatar_url": "https://images.unsplash.com/photo-test-avatar-123",
+      "created_at": "2026-11-16T06:54:28.575Z",
+      "last_seen_at": "2026-11-16T06:54:28.713Z",
+      "custom_status": "Hết hạn rồi",
+      "phone": "0901234567",
+      "bio": "Yêu thích lập trình và phượt Đà Nẵng",
+      "age": 24,
+      "job": "Kỹ sư phần mềm",
+      "tags": [
+        "#CafeĐêm",
+        "#DạoPhố"
+      ],
+      "favorite_song": "Không Thể Say - HIEUTHUHAI",
+      "updated_at": "2026-11-16T06:54:28.643Z",
+      "pin_skin": "auto",
+      "custom_chibi": "angry",
+      "pin_mascot": null,
+      "pin_action": null,
+      "custom_song": null,
+      "chibi_expires_at": 1794812058716
+    },
+    {
+      "id": "user-1794812068580-3h89v",
+      "email": "prof_b_1794812068570@vivu.vn",
+      "password": "Password123!",
+      "full_name": "prof_b_1794812068570",
+      "user_code": "VU-9884",
+      "avatar_url": null,
+      "created_at": "2026-11-16T06:54:28.580Z",
+      "last_seen_at": "2026-11-16T06:54:28.580Z",
+      "custom_status": "Online",
+      "pin_skin": "cyan_glow",
+      "custom_chibi": "chibi-astronaut",
+      "pin_mascot": null,
+      "pin_action": null,
+      "updated_at": "2026-11-16T06:54:28.646Z"
+    },
+    {
+      "id": "user-1794812068601-kt8rw",
+      "email": "prof_c_1794812068570@vivu.vn",
+      "password": "Password123!",
+      "full_name": "prof_c_1794812068570",
+      "user_code": "VU-2274",
+      "avatar_url": null,
+      "created_at": "2026-11-16T06:54:28.601Z",
+      "last_seen_at": "2026-11-16T06:54:28.601Z",
+      "custom_status": "Busy"
     }
   ],
   "profiles": [
@@ -418,9 +472,98 @@
       "last_seen_at": "2026-11-16T06:40:13.422Z",
       "lat": 16.08,
       "lng": 108.21
+    },
+    {
+      "id": "user-1794812068575-25d6t",
+      "user_code": "VU-3513",
+      "full_name": "Nguyễn Văn A",
+      "name": "Nguyễn Văn A",
+      "avatar_url": "https://images.unsplash.com/photo-test-avatar-123",
+      "avatar": "https://images.unsplash.com/photo-test-avatar-123",
+      "is_online": true,
+      "custom_status": "Hết hạn rồi",
+      "last_seen_at": "2026-11-16T06:54:28.716Z",
+      "lat": 16.06,
+      "lng": 108.22,
+      "phone": "0901234567",
+      "age": 24,
+      "job": "Kỹ sư phần mềm",
+      "bio": "Yêu thích lập trình và phượt Đà Nẵng",
+      "favorite_song": "Không Thể Say - HIEUTHUHAI",
+      "tags": [
+        "#CafeĐêm",
+        "#DạoPhố"
+      ],
+      "pin_skin": "auto",
+      "custom_chibi": "angry",
+      "pin_mascot": null,
+      "pin_action": null,
+      "custom_song": null,
+      "chibi_expires_at": 1794812058716
+    },
+    {
+      "id": "user-1794812068580-3h89v",
+      "user_code": "VU-1002",
+      "full_name": "Trần Thị B",
+      "name": "Trần Thị B",
+      "avatar_url": null,
+      "avatar": null,
+      "is_online": true,
+      "custom_status": "Online",
+      "last_seen_at": "2026-11-16T06:54:28.607Z",
+      "lat": 16.072,
+      "lng": 108.2,
+      "pin_skin": "cyan_glow",
+      "custom_chibi": "chibi-astronaut",
+      "pin_mascot": null,
+      "pin_action": null
+    },
+    {
+      "id": "user-1794812068601-kt8rw",
+      "user_code": "VU-1003",
+      "full_name": "Lê Văn C",
+      "name": "Lê Văn C",
+      "avatar_url": null,
+      "avatar": null,
+      "is_online": true,
+      "custom_status": "Busy",
+      "last_seen_at": "2026-11-16T06:54:28.609Z",
+      "lat": 16.08,
+      "lng": 108.21
     }
   ],
   "stories": [
+    {
+      "id": "story-1794812068685",
+      "host_id": "user-1794812068575-25d6t",
+      "user_code": null,
+      "host_name": "Nguyễn Văn A",
+      "host_avatar": null,
+      "category": "cafe",
+      "title": "Cà phê sáng Đà Nẵng",
+      "description": "Ngắm cầu Rồng",
+      "address": "Quanh đây",
+      "planned_at": "Ngay bây giờ",
+      "lat": 16.06,
+      "lng": 108.22,
+      "lat_offset": 0,
+      "lng_offset": 0,
+      "expiry_hours": 24,
+      "expires_at": "2026-11-17T06:54:28.685Z",
+      "image": "https://images.unsplash.com/photo-test-cafe-123",
+      "dual_image": null,
+      "is_dual_cam": false,
+      "bg_gradient": null,
+      "filter_id": "normal",
+      "adjustments": null,
+      "texts": [],
+      "stickers": [],
+      "music": null,
+      "tagged_friends": [],
+      "reactions": [],
+      "privacy": "public",
+      "created_at": "2026-11-16T06:54:28.685Z"
+    },
     {
       "id": "story-1794811213490",
       "host_id": "user-1794811213407-828bj",
@@ -782,9 +925,133 @@
       "status": "sent",
       "read_at": null,
       "created_at": "2026-11-16T06:40:13.487Z"
+    },
+    {
+      "id": "msg-1794812068660",
+      "client_msg_id": "cmsg-1794812068660",
+      "conversation_id": "conv-direct-user-1794812068575-25d6t--user-1794812068580-3h89v",
+      "sender": "user-1794812068575-25d6t",
+      "sender_name": "Nguyễn Văn A",
+      "text": "Đang chia sẻ vị trí",
+      "image": null,
+      "video": null,
+      "is_location": false,
+      "is_live_location": true,
+      "live_duration_minutes": 15,
+      "live_expires_at": "2026-11-16T07:09:28.660Z",
+      "live_status": "stopped",
+      "speed": 18.5,
+      "is_poll": false,
+      "poll": null,
+      "is_heart": false,
+      "lat": 16.07116,
+      "lng": 108.19949,
+      "status": "sent",
+      "read_at": null,
+      "created_at": "2026-11-16T06:54:28.660Z",
+      "stopped_at": "2026-11-16T06:54:28.664Z"
+    },
+    {
+      "id": "msg-1794812068666",
+      "client_msg_id": "cmsg-1794812068666",
+      "conversation_id": "conv-direct-user-1794812068575-25d6t--user-1794812068580-3h89v",
+      "sender": "user-1794812068575-25d6t",
+      "sender_name": "Nguyễn Văn A",
+      "text": "[BÌNH CHỌN]: Tối nay ăn gì?",
+      "image": null,
+      "video": null,
+      "is_location": false,
+      "is_live_location": false,
+      "live_duration_minutes": null,
+      "live_expires_at": null,
+      "live_status": null,
+      "speed": null,
+      "is_poll": true,
+      "poll": {
+        "id": "poll-1794812068666",
+        "title": "Tối nay ăn gì?",
+        "options": [
+          {
+            "id": "opt-1",
+            "text": "Bún bò Huế",
+            "votes": []
+          },
+          {
+            "id": "opt-2",
+            "text": "Mì Quảng",
+            "votes": [
+              "user-1794812068580-3h89v",
+              "user-1794812068575-25d6t"
+            ]
+          },
+          {
+            "id": "opt-3",
+            "text": "Cơm tấm",
+            "votes": []
+          }
+        ]
+      },
+      "is_heart": false,
+      "lat": null,
+      "lng": null,
+      "status": "sent",
+      "read_at": null,
+      "created_at": "2026-11-16T06:54:28.666Z"
+    },
+    {
+      "id": "msg-1794812068682",
+      "client_msg_id": "cmsg-1794812068682",
+      "conversation_id": "circle-1794812068677-vxft",
+      "sender": "user-1794812068580-3h89v",
+      "sender_name": "Trần Thị B",
+      "text": "Chào cả nhóm nhé!",
+      "image": null,
+      "video": null,
+      "is_location": false,
+      "is_live_location": false,
+      "live_duration_minutes": null,
+      "live_expires_at": null,
+      "live_status": null,
+      "speed": null,
+      "is_poll": false,
+      "poll": null,
+      "is_heart": false,
+      "lat": null,
+      "lng": null,
+      "status": "sent",
+      "read_at": null,
+      "created_at": "2026-11-16T06:54:28.682Z"
     }
   ],
   "circles": [
+    {
+      "id": "circle-1794812068677-vxft",
+      "name": "Hội Cạ Cứng Đà Nẵng",
+      "description": "",
+      "image": null,
+      "privacy": "private",
+      "owner_id": "user-1794812068575-25d6t",
+      "members": [
+        {
+          "user_id": "user-1794812068575-25d6t",
+          "role": "owner",
+          "status": "accepted",
+          "joined_at": "2026-11-16T06:54:28.677Z"
+        },
+        {
+          "user_id": "user-1794812068580-3h89v",
+          "role": "member",
+          "status": "accepted",
+          "joined_at": "2026-11-16T06:54:28.677Z"
+        }
+      ],
+      "member_ids": [
+        "user-1794812068575-25d6t",
+        "user-1794812068580-3h89v"
+      ],
+      "created_at": "2026-11-16T06:54:28.677Z",
+      "updated_at": "2026-11-16T06:54:28.677Z"
+    },
     {
       "id": "circle-1794811213482-je00",
       "name": "Hội Cạ Cứng Đà Nẵng",
@@ -893,6 +1160,18 @@
   ],
   "friendRequests": [
     {
+      "id": "freq-1794812068612-4txao",
+      "sender_id": "user-1794812068575-25d6t",
+      "sender_name": "Nguyễn Văn A",
+      "sender_avatar": "",
+      "receiver_id": "user-1794812068580-3h89v",
+      "receiver_name": "Trần Thị B",
+      "receiver_avatar": "",
+      "status": "accepted",
+      "created_at": "2026-11-16T06:54:28.612Z",
+      "updated_at": "2026-11-16T06:54:28.615Z"
+    },
+    {
       "id": "freq-1794811213425-4w2a1",
       "sender_id": "user-1794811213407-828bj",
       "sender_name": "Nguyễn Văn A",
@@ -949,6 +1228,13 @@
       "user_a_id": "user-1794811213407-828bj",
       "user_b_id": "user-1794811213411-wn4tu",
       "created_at": "2026-11-16T06:40:13.427Z",
+      "status": "active"
+    },
+    {
+      "id": "fs-user-1794812068575-25d6t--user-1794812068580-3h89v",
+      "user_a_id": "user-1794812068575-25d6t",
+      "user_b_id": "user-1794812068580-3h89v",
+      "created_at": "2026-11-16T06:54:28.615Z",
       "status": "active"
     }
   ],

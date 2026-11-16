@@ -305,17 +305,6 @@ body {
   scrollbar-width: none;
 }
 
-/* MAPBOX GL CUSTOM POPUP OVERRIDES */
-.mapboxgl-popup-content {
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  border-radius: 20px !important;
-}
-.mapboxgl-popup-tip {
-  display: none !important;
-}
-
 /* 6. HIỆU ỨNG STORY Ô NHỎ GIỐNG GIF (GIF-LIKE LIVE ANIMATION) */
 @keyframes vivuGifBreath {
   0% { transform: scale(1); }

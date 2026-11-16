@@ -123,13 +123,14 @@ export const notificationService = {
       return existing; // Idempotent: Không tạo bản ghi trùng
     }
 
+    const safeSenderName = (senderName && senderName !== 'undefined' && senderName !== 'null') ? senderName : 'Người dùng VIVU';
     const notif = {
       id: notifId,
       type: 'friend_request',
       from_user_id: fromUserId,
       to_user_id: toUserId,
       title: 'Lời mời kết bạn',
-      body: `${senderName || 'Người dùng VIVU'} muốn kết bạn với bạn`,
+      body: `${safeSenderName} muốn kết bạn với bạn`,
       avatar: senderAvatar || '',
       read: false,
       status: 'pending',

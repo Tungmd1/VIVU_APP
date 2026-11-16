@@ -22,6 +22,7 @@ backend/.env
 # Temporary database and runtime files
 backend/data/*.tmp
 backend/data/*.bak
+backend/data/vivu_test_database.json*
 *.log
 *.tmp
 *.bak

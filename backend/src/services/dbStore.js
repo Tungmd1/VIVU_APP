@@ -5,8 +5,9 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, '..', '..', 'data');
-const DB_FILE = path.join(DATA_DIR, 'vivu_database.json');
-const DB_BAK_FILE = path.join(DATA_DIR, 'vivu_database.json.bak');
+const isTestEnv = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test'));
+const DB_FILE = process.env.VIVU_DB_FILE || (isTestEnv ? path.join(DATA_DIR, 'vivu_test_database.json') : path.join(DATA_DIR, 'vivu_database.json'));
+const DB_BAK_FILE = process.env.VIVU_DB_BAK_FILE || (isTestEnv ? path.join(DATA_DIR, 'vivu_test_database.json.bak') : path.join(DATA_DIR, 'vivu_database.json.bak'));
 
 const INITIAL_DB = {
   users: [],
@@ -85,50 +86,117 @@ class DatabaseStore {
     }
   }
 
-  // Tự động thanh lọc các bản ghi rác của khách vãng lai (client-xxx), chỉ giữ lại tài khoản đã đăng ký hợp lệ
+  // Tự động thanh lọc các bản ghi rác của khách vãng lai (client-xxx), tài khoản mockup/test rác và lời mời mồ côi
   sanitize() {
     try {
+      const isTestRun = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test'));
+
+      // 0. Tự động loại bỏ các tài khoản mockup/test rác (nếu không phải môi trường test nội bộ)
+      if (!isTestRun && Array.isArray(this.data.users)) {
+        const isMockUser = (u) => {
+          if (!u) return true;
+          const id = String(u.id || '');
+          const email = String(u.email || '').toLowerCase();
+          if (id.startsWith('test-') || id.startsWith('notif-user-') || id.startsWith('user-circ-') || id.startsWith('user-test-')) return true;
+          if (email.endsWith('@vivu.vn') || email.includes('prof_') || email.includes('iso@') || email.includes('example.com')) return true;
+          return false;
+        };
+        const prevUserCount = this.data.users.length;
+        this.data.users = this.data.users.filter(u => !isMockUser(u));
+        if (this.data.users.length < prevUserCount) {
+          console.log(`[DB Sanitizer] Đã thanh lọc ${prevUserCount - this.data.users.length} tài khoản mockup/test rác.`);
+        }
+      }
+
       const validUserIds = new Set(this.data.users.map(u => u.id));
       const prevProfilesCount = this.data.profiles.length;
       const prevMessagesCount = this.data.messages.length;
 
-      // 1. Chỉ giữ hồ sơ của tài khoản đã đăng ký (loại bỏ toàn bộ client-xxx)
+      // 1. Chỉ giữ hồ sơ của tài khoản đã đăng ký (loại bỏ toàn bộ client-xxx và user rác)
       this.data.profiles = this.data.profiles.filter(p => p.id && validUserIds.has(p.id) && !p.id.startsWith('client-'));
 
-      // 2. Chỉ giữ tin nhắn giữa các tài khoản đã đăng ký
+      // 2. Chỉ giữ tin nhắn giữa các tài khoản đã đăng ký hợp lệ
       this.data.messages = this.data.messages.filter(m => {
         if (!m.sender || !validUserIds.has(m.sender)) return false;
         if (m.conversation_id && m.conversation_id.includes('client-')) return false;
         return true;
       });
 
-      // 3. Chỉ giữ lời mời kết bạn giữa các tài khoản đã đăng ký
+      // 3. Chỉ giữ lời mời kết bạn giữa các tài khoản đã đăng ký hợp lệ
       this.data.friendRequests = this.data.friendRequests.filter(r => {
         return r.sender_id && validUserIds.has(r.sender_id) && r.receiver_id && validUserIds.has(r.receiver_id);
       });
 
-      // 4. Chỉ giữ quan hệ bạn bè hợp lệ
+      // 4. Chỉ giữ quan hệ bạn bè hợp lệ giữa các tài khoản đã đăng ký
       this.data.friendships = this.data.friendships.filter(f => {
         if (Array.isArray(f.users) && f.users.every(uid => validUserIds.has(uid))) return true;
         if (f.user_a_id && f.user_b_id && validUserIds.has(f.user_a_id) && validUserIds.has(f.user_b_id)) return true;
         return false;
       });
 
-      // 5. Chỉ giữ stories còn hạn của tài khoản đã đăng ký hoặc khách còn thời hạn
+      // 5. Chỉ giữ nhóm (circles) thuộc về tài khoản đã đăng ký hợp lệ
+      if (Array.isArray(this.data.circles)) {
+        this.data.circles = this.data.circles.filter(c => {
+          if (!c.owner_id || !validUserIds.has(c.owner_id)) return false;
+          if (Array.isArray(c.member_ids)) {
+            c.member_ids = c.member_ids.filter(id => validUserIds.has(id));
+          }
+          if (Array.isArray(c.members)) {
+            c.members = c.members.filter(m => validUserIds.has(m.id || m.userId));
+          }
+          return true;
+        });
+      }
+
+      // 6. Chỉ giữ stories còn hạn của tài khoản đã đăng ký hợp lệ
       const nowMs = Date.now();
       this.data.stories = this.data.stories.filter(s => {
         const creatorId = s.host_id || s.hostId || s.user_id;
         const expMs = s.expires_at ? new Date(s.expires_at).getTime() : 0;
         if (expMs && expMs <= nowMs) return false;
-        return !creatorId || validUserIds.has(creatorId) || creatorId.startsWith('client-');
+        return creatorId && validUserIds.has(creatorId);
       });
+
+      // 7. Thanh lọc thông báo rác, lỗi undefined & lời mời kết bạn mồ côi (orphaned friend requests)
+      if (Array.isArray(this.data.notifications)) {
+        const validFriendReqIds = new Set(
+          (this.data.friendRequests || [])
+            .filter(r => r.status === 'pending')
+            .map(r => r.id)
+        );
+        const validCircleIds = new Set((this.data.circles || []).map(c => c.id));
+
+        const prevNotifCount = this.data.notifications.length;
+        this.data.notifications = this.data.notifications.filter(n => {
+          if (!n || !n.to_user_id || !validUserIds.has(n.to_user_id)) return false;
+          if (n.from_user_id && !validUserIds.has(n.from_user_id)) return false;
+
+          // Loại bỏ thông báo kết bạn bị lỗi hoặc mồ côi (không có requestId, body chứa undefined, hoặc requestId đã kết thúc)
+          if (n.type === 'friend_request') {
+            if (!n.action_data?.requestId) return false;
+            if (n.body && (n.body.includes('undefined') || n.body.includes('null'))) return false;
+            if (!validFriendReqIds.has(n.action_data.requestId)) return false;
+          }
+
+          // Loại bỏ thông báo nhóm nếu nhóm không còn tồn tại
+          if (n.type === 'group_invite') {
+            if (!n.action_data?.circleId || !validCircleIds.has(n.action_data.circleId)) return false;
+          }
+
+          return true;
+        });
+
+        if (this.data.notifications.length < prevNotifCount) {
+          console.log(`[DB Sanitizer] Đã loại bỏ ${prevNotifCount - this.data.notifications.length} thông báo mồ côi/rác.`);
+        }
+      }
 
       const removedProfiles = prevProfilesCount - this.data.profiles.length;
       const removedMessages = prevMessagesCount - this.data.messages.length;
       if (removedProfiles > 0 || removedMessages > 0) {
         console.log(`[DB Sanitizer] Đã thanh lọc: loại bỏ ${removedProfiles} hồ sơ khách vãng lai, ${removedMessages} tin nhắn rác.`);
-        this.saveToDisk();
       }
+      this.saveToDisk();
     } catch (sErr) {
       console.warn('[DB Sanitizer] Lỗi thanh lọc:', sErr.message);
     }

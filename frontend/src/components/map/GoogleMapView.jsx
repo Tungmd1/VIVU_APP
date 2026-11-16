@@ -343,7 +343,7 @@ export default function GoogleMapView({
 
       const isOffline = item.isOnline === false;
       const hostAvatar = item.hostAvatar || item.avatar || DEFAULT_WHITE_PERSON_AVATAR;
-      const displayName = item.hostName || item.name || 'Bạn VIVU';
+      const displayName = item.hostName || item.host_name || item.name || 'Người dùng VIVU';
       const hasStory = Boolean(item.activeStory || item.image || item.bg_gradient);
 
       const peerSkin = resolveMarkerSkin({

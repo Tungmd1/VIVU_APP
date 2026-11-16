@@ -27,11 +27,19 @@ class SharedStoreService {
     } catch {}
   }
 
-  // Lấy tất cả tài khoản
+  // Lấy tất cả tài khoản hợp lệ (tự động loại bỏ tài khoản mockup/test rác)
   getAllAccounts() {
     try {
       const saved = localStorage.getItem(USERS_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_ACCOUNTS;
+      const accounts = saved ? JSON.parse(saved) : DEFAULT_ACCOUNTS;
+      if (!Array.isArray(accounts)) return DEFAULT_ACCOUNTS;
+      const isMock = (a) => {
+        if (!a) return true;
+        const id = String(a.id || '');
+        const email = String(a.email || '').toLowerCase();
+        return id.startsWith('test-') || id.startsWith('notif-user-') || id.startsWith('user-circ-') || email.endsWith('@vivu.vn') || email.includes('prof_') || email.includes('iso@');
+      };
+      return accounts.filter(a => !isMock(a));
     } catch {
       return DEFAULT_ACCOUNTS;
     }

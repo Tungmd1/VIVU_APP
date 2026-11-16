@@ -265,7 +265,7 @@ export function getOwnerBubbleHtml({ myActiveStory, song, statusText, chibiId, a
 // 3. RENDER BONG BÓNG TRẠNG THÁI / BÀI HÁT / CHIBI CHO BẠN BÈ & NGƯỜI LẠ
 export function getPeerBubbleHtml(item, isCoLocated = false) {
   const isOffline = item.isOnline === false;
-  const displayName = item.hostName || item.name || 'Bạn VIVU';
+  const displayName = item.hostName || item.host_name || item.name || 'Người dùng VIVU';
 
   if (isOffline) {
     return `

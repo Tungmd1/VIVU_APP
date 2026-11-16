@@ -45,16 +45,22 @@ export default function NotificationDrawer({
 
   const handleAccept = async (notif) => {
     const requestId = notif.action_data?.requestId;
-    if (!requestId) return;
     setProcessingId(notif.id);
     try {
-      if (onAcceptFriendRequest) {
-        await onAcceptFriendRequest(requestId, notif.from_user_id);
+      if (requestId && onAcceptFriendRequest) {
+        await onAcceptFriendRequest(requestId, notif.from_user_id, notif.id);
+        setAcceptedIds(prev => new Set(prev).add(notif.id));
+      } else {
+        if (onDeleteNotification) {
+          await onDeleteNotification(notif.id);
+        }
       }
-      setAcceptedIds(prev => new Set(prev).add(notif.id));
       if (onMarkRead) onMarkRead(notif.id);
     } catch (err) {
       console.warn('Accept error:', err);
+      if (onDeleteNotification) {
+        await onDeleteNotification(notif.id);
+      }
     } finally {
       setProcessingId(null);
     }
@@ -62,15 +68,19 @@ export default function NotificationDrawer({
 
   const handleReject = async (notif) => {
     const requestId = notif.action_data?.requestId;
-    if (!requestId) return;
     setProcessingId(notif.id);
     try {
-      if (onRejectFriendRequest) {
-        await onRejectFriendRequest(requestId);
+      if (requestId && onRejectFriendRequest) {
+        await onRejectFriendRequest(requestId, notif.id);
+      } else if (onDeleteNotification) {
+        await onDeleteNotification(notif.id);
       }
       if (onMarkRead) onMarkRead(notif.id);
     } catch (err) {
       console.warn('Reject error:', err);
+      if (onDeleteNotification) {
+        await onDeleteNotification(notif.id);
+      }
     } finally {
       setProcessingId(null);
     }
@@ -368,7 +378,7 @@ export default function NotificationDrawer({
                       <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]" />
                     )}
 
-                    {/* Delete button on hover */}
+                    {/* Delete button: Luôn hiển thị trực quan để có thể xóa nhanh thông báo rác bất kỳ lúc nào */}
                     {onDeleteNotification && (
                       <button
                         onClick={(e) => {
@@ -376,7 +386,7 @@ export default function NotificationDrawer({
                           onDeleteNotification(notif.id);
                         }}
                         title="Xóa thông báo"
-                        className="opacity-0 group-hover:opacity-100 absolute bottom-3 right-3 w-6 h-6 rounded-lg bg-white border border-[#D2D9F4] hover:bg-[#FFE8E8] text-[#70787E] hover:text-[#EF4444] flex items-center justify-center transition-all shadow-xs cursor-pointer"
+                        className="opacity-70 hover:opacity-100 absolute bottom-3 right-3 w-6 h-6 rounded-lg bg-white border border-[#D2D9F4] hover:bg-[#FFE8E8] text-[#70787E] hover:text-[#EF4444] flex items-center justify-center transition-all shadow-xs cursor-pointer z-10"
                       >
                         <i className="bi bi-trash text-xs" />
                       </button>

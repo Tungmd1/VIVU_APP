@@ -1206,30 +1206,61 @@ export default function App() {
     }
   };
 
-  const handleAcceptFriendRequestFromNotification = async (requestId, fromUserId) => {
+  const handleAcceptFriendRequestFromNotification = async (requestId, fromUserId, notifId) => {
     if (!currentUserId) return;
-    const res = await apiClient.acceptFriendRequest(requestId, currentUserId);
-    if (res?.success) {
-      confetti({ particleCount: 60, spread: 80 });
-      const [fl, reqs, notifs] = await Promise.all([
-        apiClient.getFriendsList(currentUserId),
-        apiClient.getFriendRequests(currentUserId),
-        apiClient.getNotifications(currentUserId)
-      ]);
-      if (fl) setFriends(fl);
-      if (reqs?.received) setPendingFriendRequests(reqs.received);
-      if (Array.isArray(notifs)) {
-        setNotifications(notifs);
-        setUnreadNotificationsCount(notifs.filter(n => !n.read).length);
+    try {
+      if (requestId) {
+        const res = await apiClient.acceptFriendRequest(requestId, currentUserId);
+        if (res?.success) {
+          confetti({ particleCount: 60, spread: 80 });
+        }
       }
+    } catch (e) {
+      console.warn('Accept friend request error:', e);
+    }
+    if (notifId) {
+      setNotifications(prev => prev.filter(n => n.id !== notifId));
+      try {
+        await apiClient.deleteNotification(notifId);
+      } catch {}
+    }
+    const [fl, reqs, notifs] = await Promise.all([
+      apiClient.getFriendsList(currentUserId),
+      apiClient.getFriendRequests(currentUserId),
+      apiClient.getNotifications(currentUserId)
+    ]);
+    if (fl) setFriends(fl);
+    if (reqs?.received) setPendingFriendRequests(reqs.received);
+    if (Array.isArray(notifs)) {
+      setNotifications(notifs);
+      setUnreadNotificationsCount(notifs.filter(n => !n.read).length);
     }
   };
 
-  const handleRejectFriendRequestFromNotification = async (requestId) => {
+  const handleRejectFriendRequestFromNotification = async (requestId, notifId) => {
     if (!currentUserId) return;
-    await apiClient.rejectFriendRequest(requestId, currentUserId);
-    const reqs = await apiClient.getFriendRequests(currentUserId);
+    try {
+      if (requestId) {
+        await apiClient.rejectFriendRequest(requestId, currentUserId);
+      }
+    } catch (e) {
+      console.warn('Reject friend request error:', e);
+    }
+    if (notifId) {
+      setNotifications(prev => prev.filter(n => n.id !== notifId));
+      try {
+        await apiClient.deleteNotification(notifId);
+      } catch {}
+    }
+    const [reqs, notifs] = await Promise.all([
+      apiClient.getFriendRequests(currentUserId),
+      apiClient.getNotifications(currentUserId)
+    ]);
     if (reqs?.received) setPendingFriendRequests(reqs.received);
+    if (Array.isArray(notifs)) {
+      setNotifications(notifs);
+      setUnreadNotificationsCount(notifs.filter(n => !n.read).length);
+    }
   };
 
   const handleDeleteNotification = async (notifId) => {

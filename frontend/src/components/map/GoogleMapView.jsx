@@ -233,7 +233,7 @@ export default function GoogleMapView({
               if (onOpenCreateStoryRef.current) onOpenCreateStoryRef.current();
               return;
             }
-            if (target.closest('#btn-play-owner-song') || target.closest('.owner-bubble-wrapper') || target.closest('[data-chibi-sound]')) {
+            if (target.closest('#btn-play-owner-song')) {
               return;
             }
           }

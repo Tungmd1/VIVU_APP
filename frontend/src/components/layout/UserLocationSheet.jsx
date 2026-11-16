@@ -201,9 +201,16 @@ export default function UserLocationSheet({
           const famName = MASCOT_FAMILIES.find(f => f.id === userPinMascot)?.name || 'Chibi';
           const actName = MASCOT_ACTIONS.find(a => a.id === userPinAction)?.name || 'Hoạt động';
           return (
-            <div className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-pink-500/10 border border-amber-400/25 flex items-center justify-between animate-in fade-in duration-200">
+            <div 
+              onClick={() => {
+                onClose();
+                if (onOpenPinWardrobe) onOpenPinWardrobe();
+              }}
+              className="p-3 rounded-2xl bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-pink-500/10 border border-amber-400/25 hover:border-amber-400/60 flex items-center justify-between animate-in fade-in duration-200 cursor-pointer group active:scale-98 transition-all"
+              title="Bấm để đổi mascot / hành động"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 p-1 rounded-xl bg-black/50 border border-amber-400/30 flex items-center justify-center shadow-inner">
+                <div className="w-11 h-11 p-1 rounded-xl bg-black/50 border border-amber-400/30 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
                   <img src={mascotDataUrl} alt={famName} className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(255,170,0,0.4)]" />
                 </div>
                 <div>
@@ -217,7 +224,8 @@ export default function UserLocationSheet({
               {onOpenPinWardrobe && (
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     onClose();
                     onOpenPinWardrobe();
                   }}
@@ -236,9 +244,16 @@ export default function UserLocationSheet({
           if (!chibi) return null;
           const chibiDataUrl = getChibiDataUrl(chibi);
           return (
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/15 flex items-center justify-between animate-in fade-in duration-200">
+            <div 
+              onClick={() => {
+                onClose();
+                if (onOpenQuickStatus) onOpenQuickStatus();
+              }}
+              className="p-3 rounded-2xl bg-white/5 border border-white/15 hover:border-[#00E5FF]/60 hover:bg-white/10 flex items-center justify-between animate-in fade-in duration-200 cursor-pointer group active:scale-98 transition-all"
+              title="Bấm để đổi biểu cảm Chibi"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 p-1 rounded-xl bg-black/40 border border-white/20 flex items-center justify-center shadow-inner">
+                <div className="w-10 h-10 p-1 rounded-xl bg-black/40 border border-white/20 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
                   <img src={chibiDataUrl} alt={chibi.name} className="w-full h-full object-contain" />
                 </div>
                 <div>
@@ -252,7 +267,11 @@ export default function UserLocationSheet({
               {onOpenQuickStatus && (
                 <button
                   type="button"
-                  onClick={onOpenQuickStatus}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                    onOpenQuickStatus();
+                  }}
                   className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-[11px] shrink-0 border border-white/20 cursor-pointer active:scale-95 transition-all"
                 >
                   Đổi Chibi

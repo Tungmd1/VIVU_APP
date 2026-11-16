@@ -634,4 +634,125 @@ describe('VIVU Profile, Avatar, Pin Icons, Live Location, Poll & Circle Test Sui
       assert.equal(userAfterExp.chibi_expires_at, null);
     });
   });
+
+  describe('9. Chibi Customization & Cross-Account Isolation (Cô lập Chibi giữa các tài khoản)', () => {
+    let accA, accB;
+
+    before(async () => {
+      const stamp = Date.now() + '_iso';
+      const regA = await dbService.registerUser({
+        email: `acc_a_${stamp}@vivu.vn`,
+        password: 'Password123!',
+        full_name: 'Người dùng A'
+      });
+      accA = regA.user;
+
+      const regB = await dbService.registerUser({
+        email: `acc_b_${stamp}@vivu.vn`,
+        password: 'Password123!',
+        full_name: 'Người dùng B'
+      });
+      accB = regB.user;
+    });
+
+    it('Tài khoản A cài Chibi -> Tài khoản B không bị nhiễm Chibi của A khi đăng nhập', async () => {
+      const expA = Date.now() + 24 * 3600 * 1000;
+      await dbService.updateGps(
+        accA.id,
+        16.06,
+        108.22,
+        'Tâm trạng A',
+        accA.full_name,
+        accA.avatar_url,
+        accA.user_code,
+        accA.phone,
+        null,
+        'chibi-droplet-happy',
+        'classic_teardrop',
+        null,
+        null,
+        expA
+      );
+
+      // Đăng xuất tài khoản A
+      await dbService.setUserOffline(accA.id);
+
+      // Đăng nhập tài khoản B
+      const loginB = await dbService.loginUser({
+        email: accB.email,
+        password: 'Password123!'
+      });
+
+      assert.ok(loginB.success);
+      assert.ok(!loginB.user.custom_chibi, 'Tài khoản B tuyệt đối không được có Chibi của tài khoản A');
+      assert.ok(!loginB.user.chibi_expires_at);
+
+      const serverUserB = await dbService.getUserById(accB.id);
+      assert.ok(!serverUserB.custom_chibi, 'Profile trên Database của B phải là null hoặc undefined');
+    });
+
+    it('Tài khoản B gửi GPS Update không Chibi -> Database của B không bị lây nhiễm Chibi của A', async () => {
+      const updatedB = await dbService.updateGps(
+        accB.id,
+        16.07,
+        108.23,
+        '',
+        accB.full_name,
+        accB.avatar_url,
+        accB.user_code,
+        accB.phone,
+        null,
+        null, // không có chibi
+        'auto',
+        null,
+        null,
+        null
+      );
+
+      assert.ok(updatedB);
+      assert.equal(updatedB.custom_chibi, null, 'Cập nhật GPS của B phải bảo toàn custom_chibi = null');
+
+      const serverUserB = await dbService.getUserById(accB.id);
+      assert.equal(serverUserB.custom_chibi, null);
+    });
+
+    it('Tài khoản B sau đó tự cài Chibi riêng -> Cả A và B độc lập dữ liệu 100%', async () => {
+      const expB = Date.now() + 12 * 3600 * 1000;
+      await dbService.updateGps(
+        accB.id,
+        16.07,
+        108.23,
+        'Tâm trạng B',
+        accB.full_name,
+        accB.avatar_url,
+        accB.user_code,
+        accB.phone,
+        null,
+        'chibi-anime-cool',
+        'aura_circle',
+        null,
+        null,
+        expB
+      );
+
+      const userAAfter = await dbService.getUserById(accA.id);
+      const userBAfter = await dbService.getUserById(accB.id);
+
+      assert.equal(userAAfter.custom_chibi, 'chibi-droplet-happy', 'Chibi của A không bị ảnh hưởng');
+      assert.equal(userBAfter.custom_chibi, 'chibi-anime-cool', 'Chibi của B hiển thị đúng của B');
+    });
+
+    it('Tài khoản B gỡ bỏ Chibi -> Tài khoản A vẫn còn Chibi bình thường', async () => {
+      await dbService.updateUserProfile(accB.id, {
+        customChibi: null,
+        chibiExpiresAt: null
+      });
+
+      const userBAfter = await dbService.getUserById(accB.id);
+      assert.equal(userBAfter.custom_chibi, null, 'B đã gỡ Chibi');
+
+      const userAAfter = await dbService.getUserById(accA.id);
+      assert.equal(userAAfter.custom_chibi, 'chibi-droplet-happy', 'A vẫn còn Chibi');
+    });
+  });
 });

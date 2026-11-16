@@ -357,23 +357,21 @@ export default function App() {
   const [userCustomChibiExpiresAt, setUserCustomChibiExpiresAt] = useState(() => {
     try {
       const scopedKey = currentUserId ? `vivu_user_custom_chibi_expires_${currentUserId}` : null;
-      const savedExp = scopedKey ? localStorage.getItem(scopedKey) : localStorage.getItem('vivu_user_custom_chibi_expires');
+      const savedExp = scopedKey ? localStorage.getItem(scopedKey) : null;
       return savedExp ? Number(savedExp) : null;
     } catch { return null; }
   });
   const [userCustomChibi, setUserCustomChibi] = useState(() => {
     try {
       const scopedExpKey = currentUserId ? `vivu_user_custom_chibi_expires_${currentUserId}` : null;
-      const savedExp = Number((scopedExpKey ? localStorage.getItem(scopedExpKey) : null) || localStorage.getItem('vivu_user_custom_chibi_expires'));
+      const savedExp = Number(scopedExpKey ? localStorage.getItem(scopedExpKey) : null);
       if (savedExp && Date.now() > savedExp) {
         if (scopedExpKey) localStorage.removeItem(scopedExpKey);
-        localStorage.removeItem('vivu_user_custom_chibi_expires');
         if (currentUserId) localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
-        localStorage.removeItem('vivu_user_custom_chibi');
         return null;
       }
       const scopedKey = currentUserId ? `vivu_user_custom_chibi_${currentUserId}` : null;
-      return (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('vivu_user_custom_chibi') || null;
+      return scopedKey ? localStorage.getItem(scopedKey) : null;
     } catch { return null; }
   });
   const [userPinSkin, setUserPinSkin] = useState('auto');
@@ -406,16 +404,8 @@ export default function App() {
       } catch {}
     } else {
       setUserPinSkin('auto');
-      try {
-        const genExp = Number(localStorage.getItem('vivu_user_custom_chibi_expires') || null);
-        const isExp = genExp && Date.now() > genExp;
-        const genChibi = isExp ? null : localStorage.getItem('vivu_user_custom_chibi');
-        setUserCustomChibi(genChibi || null);
-        setUserCustomChibiExpiresAt(isExp ? null : (genExp || null));
-      } catch {
-        setUserCustomChibi(null);
-        setUserCustomChibiExpiresAt(null);
-      }
+      setUserCustomChibi(null);
+      setUserCustomChibiExpiresAt(null);
       setUserPinMascot(null);
       setUserPinAction(null);
     }
@@ -634,6 +624,11 @@ export default function App() {
       safeRemoveItem('vivu_user_profile_data');
       safeRemoveItem('vivu_user_custom_status');
       safeRemoveItem('vivu_user_custom_song');
+      safeRemoveItem('vivu_user_custom_chibi');
+      safeRemoveItem('vivu_user_custom_chibi_expires');
+      safeRemoveItem('vivu_user_pin_skin');
+      safeRemoveItem('vivu_user_pin_mascot');
+      safeRemoveItem('vivu_user_pin_action');
     }
   }, [user?.id]);
 
@@ -822,22 +817,23 @@ export default function App() {
       if (savedChibi) {
         setUserCustomChibi(savedChibi);
         setUserCustomChibiExpiresAt(savedExp || null);
-        try {
-          localStorage.setItem('vivu_user_custom_chibi', savedChibi);
-          if (savedExp) localStorage.setItem('vivu_user_custom_chibi_expires', String(savedExp));
-        } catch {}
+      } else {
+        setUserCustomChibi(null);
+        setUserCustomChibiExpiresAt(null);
       }
       if (savedStatus) {
         setUserCustomStatus(savedStatus);
-        try { localStorage.setItem('vivu_user_custom_status', savedStatus); } catch {}
+      } else {
+        setUserCustomStatus('');
       }
       if (savedSong) {
         setUserCustomSong(savedSong);
-        try { localStorage.setItem('vivu_user_custom_song', JSON.stringify(savedSong)); } catch {}
+      } else {
+        setUserCustomSong(null);
       }
-      if (savedSkin) setUserPinSkin(savedSkin);
-      if (savedMascot) setUserPinMascot(savedMascot);
-      if (savedAction) setUserPinAction(savedAction);
+      setUserPinSkin(savedSkin || 'auto');
+      setUserPinMascot(savedMascot || null);
+      setUserPinAction(savedAction || null);
     } catch (e) {
       console.warn('[App] Lỗi nạp nhanh Story Chibi từ cache:', e);
     }
@@ -856,32 +852,47 @@ export default function App() {
         setUserCustomChibiExpiresAt(expMs);
         try {
           localStorage.setItem(`vivu_user_custom_chibi_${currentUserId}`, serverChibi);
-          localStorage.setItem('vivu_user_custom_chibi', serverChibi);
           if (expMs) {
             localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(expMs));
-            localStorage.setItem('vivu_user_custom_chibi_expires', String(expMs));
           }
+        } catch {}
+      } else {
+        setUserCustomChibi(null);
+        setUserCustomChibiExpiresAt(null);
+        try {
+          localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
+          localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
         } catch {}
       }
       if (serverUser.custom_status) {
         setUserCustomStatus(serverUser.custom_status);
         try {
           localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, serverUser.custom_status);
-          localStorage.setItem('vivu_user_custom_status', serverUser.custom_status);
         } catch {}
+      } else {
+        setUserCustomStatus('');
+        try { localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`); } catch {}
       }
       if (serverUser.custom_song) {
         setUserCustomSong(serverUser.custom_song);
         try {
           const songStr = typeof serverUser.custom_song === 'object' ? JSON.stringify(serverUser.custom_song) : String(serverUser.custom_song);
           localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, songStr);
-          localStorage.setItem('vivu_user_custom_song', songStr);
         } catch {}
+      } else {
+        setUserCustomSong(null);
+        try { localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`); } catch {}
       }
-      if (serverUser.pin_skin) {
-        setUserPinSkin(serverUser.pin_skin);
-        try { localStorage.setItem(`vivu_user_pin_skin_${currentUserId}`, serverUser.pin_skin); } catch {}
-      }
+      setUserPinSkin(serverUser.pin_skin || 'auto');
+      setUserPinMascot(serverUser.pin_mascot || null);
+      setUserPinAction(serverUser.pin_action || null);
+      try {
+        if (serverUser.pin_skin) localStorage.setItem(`vivu_user_pin_skin_${currentUserId}`, serverUser.pin_skin);
+        if (serverUser.pin_mascot) localStorage.setItem(`vivu_user_pin_mascot_${currentUserId}`, serverUser.pin_mascot);
+        else localStorage.removeItem(`vivu_user_pin_mascot_${currentUserId}`);
+        if (serverUser.pin_action) localStorage.setItem(`vivu_user_pin_action_${currentUserId}`, serverUser.pin_action);
+        else localStorage.removeItem(`vivu_user_pin_action_${currentUserId}`);
+      } catch {}
     }).catch(() => {});
 
     return () => { isMounted = false; };
@@ -1450,10 +1461,10 @@ export default function App() {
           let safeChibiExp = userCustomChibiExpiresAt;
           if (!safeChibi && currentUserId) {
             try {
-              const expRaw = localStorage.getItem(`vivu_user_custom_chibi_expires_${currentUserId}`) || localStorage.getItem('vivu_user_custom_chibi_expires');
+              const expRaw = localStorage.getItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
               const expTime = expRaw ? Number(expRaw) : null;
               if (expTime && expTime > Date.now()) {
-                safeChibi = localStorage.getItem(`vivu_user_custom_chibi_${currentUserId}`) || localStorage.getItem('vivu_user_custom_chibi') || null;
+                safeChibi = localStorage.getItem(`vivu_user_custom_chibi_${currentUserId}`) || null;
                 safeChibiExp = expTime;
               }
             } catch {}
@@ -1461,7 +1472,7 @@ export default function App() {
           let safeStatus = (userCustomStatus === 'Khoảnh khắc mới' || userCustomStatus === 'Tâm trạng') ? '' : userCustomStatus;
           if (!safeStatus && currentUserId) {
             try {
-              safeStatus = localStorage.getItem(`vivu_user_custom_status_${currentUserId}`) || localStorage.getItem('vivu_user_custom_status') || '';
+              safeStatus = localStorage.getItem(`vivu_user_custom_status_${currentUserId}`) || '';
             } catch {}
           }
 
@@ -3606,18 +3617,15 @@ export default function App() {
           setUserCustomChibi(chibiId || null);
           setUserCustomChibiExpiresAt(expiresAt || null);
           try {
-            if (status) localStorage.setItem(currentUserId ? `vivu_user_custom_status_${currentUserId}` : "vivu_user_custom_status", status);
-            else localStorage.removeItem(currentUserId ? `vivu_user_custom_status_${currentUserId}` : "vivu_user_custom_status");
-            if (song) localStorage.setItem(currentUserId ? `vivu_user_custom_song_${currentUserId}` : "vivu_user_custom_song", JSON.stringify(song));
-            else localStorage.removeItem(currentUserId ? `vivu_user_custom_song_${currentUserId}` : "vivu_user_custom_song");
-            if (chibiId) localStorage.setItem(currentUserId ? `vivu_user_custom_chibi_${currentUserId}` : "vivu_user_custom_chibi", chibiId);
-            else localStorage.removeItem(currentUserId ? `vivu_user_custom_chibi_${currentUserId}` : "vivu_user_custom_chibi");
-            if (expiresAt) {
-              if (currentUserId) localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(expiresAt));
-              localStorage.setItem("vivu_user_custom_chibi_expires", String(expiresAt));
-            } else {
-              if (currentUserId) localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
-              localStorage.removeItem("vivu_user_custom_chibi_expires");
+            if (currentUserId && !currentUserId.startsWith('client-')) {
+              if (status) localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, status);
+              else localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`);
+              if (song) localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, JSON.stringify(song));
+              else localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
+              if (chibiId) localStorage.setItem(`vivu_user_custom_chibi_${currentUserId}`, chibiId);
+              else localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
+              if (expiresAt) localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(expiresAt));
+              else localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
             }
           } catch {}
           if (currentUserId) {

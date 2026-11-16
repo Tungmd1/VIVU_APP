@@ -35,6 +35,16 @@ export default function PinWardrobeModal({
   const [selectedAction, setSelectedAction] = useState(currentAction || 'scooter');
   const [isEquippedMascot, setIsEquippedMascot] = useState(Boolean(currentMascot && currentAction));
 
+  // Đồng bộ lại diện mạo ghim & mascot mới nhất mỗi khi mở lại modal
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedSkin(currentPinSkin || 'auto');
+      setSelectedFamily(currentMascot || 'ami_fat_cat');
+      setSelectedAction(currentAction || 'scooter');
+      setIsEquippedMascot(Boolean(currentMascot && currentAction));
+    }
+  }, [isOpen, currentPinSkin, currentMascot, currentAction]);
+
   if (!isOpen) return null;
 
   const previewActionUrl = getMascotActionDataUrl(selectedFamily, selectedAction);

@@ -782,6 +782,11 @@ export async function signOut() {
   localStorage.removeItem('vivu_user_name');
   localStorage.removeItem('vivu_user_custom_status');
   localStorage.removeItem('vivu_user_custom_song');
+  localStorage.removeItem('vivu_user_custom_chibi');
+  localStorage.removeItem('vivu_user_custom_chibi_expires');
+  localStorage.removeItem('vivu_user_pin_skin');
+  localStorage.removeItem('vivu_user_pin_mascot');
+  localStorage.removeItem('vivu_user_pin_action');
   localStorage.removeItem('vivu_user_active_story');
 
   if (isSupabaseConfigured && supabase) {

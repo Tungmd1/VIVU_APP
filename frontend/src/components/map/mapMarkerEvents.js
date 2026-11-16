@@ -48,32 +48,18 @@ export function bindOwnerMarkerEvents(el, {
       }
     }
 
-    // 4. Phát âm thanh tương tác: Ưu tiên 100% phát nhạc khi ghim có bài hát
-    const curSong = userCustomSongRef.current;
+    // 4. Phát âm thanh tương tác Chibi & Mascot hoạt động (Rule 3)
     const chibiTarget = e.target.closest('[data-chibi-sound]');
-    const bubbleTarget = e.target.closest('.owner-bubble-wrapper');
-    if (chibiTarget || bubbleTarget) {
-      if (curSong && storyAudioPlayer) {
-        // Có bài hát -> Phát/dừng nhạc Apple Music, triệt tiêu tiếng kêu điện tử Chibi lạ
-        const isPlaying = storyAudioPlayer.togglePlay(curSong, { loop: true });
-        const playIcon = el.querySelector('#btn-play-owner-song i');
-        if (playIcon) playIcon.className = isPlaying ? 'bi bi-pause-fill text-[9px] text-[#10FFA0]' : 'bi bi-play-fill text-[9px]';
-      } else if (chibiTarget) {
-        // Không có bài hát -> Phát tiếng kêu tương tác vui nhộn của Chibi
-        const soundType = chibiTarget.getAttribute('data-chibi-sound');
-        if (soundType) playChibiSound(soundType);
-      }
-      return; // Dừng tại đây, không tự ý bật UserLocationSheet làm gián đoạn việc nghe nhạc
-    }
-
-    // 5. Phát âm thanh mascot hoạt động trong tủ đồ
     const actionTarget = e.target.closest('[data-action-sound]');
-    if (actionTarget) {
+    if (chibiTarget) {
+      const soundType = chibiTarget.getAttribute('data-chibi-sound');
+      if (soundType) playChibiSound(soundType);
+    } else if (actionTarget) {
       const soundType = actionTarget.getAttribute('data-action-sound');
       if (soundType) playActionSound(soundType);
     }
 
-    // 6. Mở bảng Menu Ghim Vị Trí (UserLocationSheet) khi bấm vào thân ghim Avatar ở dưới đất
+    // 5. Mở bảng Menu Ghim Vị Trí (UserLocationSheet) để người dùng xem thông tin và đổi Chibi/Ghim ngay lập tức
     if (onOpenUserMenuRef.current) {
       onOpenUserMenuRef.current();
     }

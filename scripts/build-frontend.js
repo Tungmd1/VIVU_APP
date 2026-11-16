@@ -119,6 +119,16 @@ async function build() {
     });
 
     console.log('[Build] esbuild-wasm bundle completed successfully!');
+
+    // 4. Generate and update dist/index.html with exact bundled assets
+    console.log('[Build] Generating dist/index.html...');
+    const templateHtml = fs.readFileSync(path.resolve(frontendDir, 'index.html'), 'utf8');
+    const finalHtml = templateHtml
+      .replace('</head>', '  <link rel="stylesheet" crossorigin href="/assets/index-CnGff0oW.css">\n</head>')
+      .replace('<script type="module" src="/src/main.jsx"></script>', '<script type="module" crossorigin src="/assets/index-BOF8WbQc.js"></script>');
+    fs.writeFileSync(path.resolve(distDir, 'index.html'), finalHtml, 'utf8');
+    console.log('[Build] dist/index.html successfully updated with index-BOF8WbQc.js & index-CnGff0oW.css!');
+
     console.log('[Build] Finished! index-BOF8WbQc.js and index-CnGff0oW.css updated.');
   } catch (err) {
     console.error('[Build Error]:', err);

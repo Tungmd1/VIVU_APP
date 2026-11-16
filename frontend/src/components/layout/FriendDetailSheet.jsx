@@ -14,7 +14,8 @@ export default function FriendDetailSheet({
   onOpenDirectChat, 
   onStartNavigation,
   onOpenMemeTroll,
-  onOpenStoryDetail
+  onOpenStoryDetail,
+  onOpenUserProfile
 }) {
   if (!friend) return null;
 
@@ -35,7 +36,11 @@ export default function FriendDetailSheet({
         
         {/* Thông tin Avatar & Tên & Nút đóng */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div 
+            className="flex items-center gap-3 cursor-pointer group"
+            onClick={() => { if (onOpenUserProfile) onOpenUserProfile(friend); }}
+            title={`Xem trang cá nhân đầy đủ của ${friend.name}`}
+          >
             <div className="relative">
               <img 
                 src={friend.avatar} 

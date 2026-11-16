@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React from 'react';
 
 /**
@@ -75,7 +76,7 @@ export default function RadarNotificationDrawer({
               >
                 <div className="relative w-11 h-11 rounded-full overflow-hidden border border-[#D2D9F4] shrink-0 bg-[#F2F3FF]">
                   <img
-                    src={notif.item?.hostAvatar || notif.item?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                    src={notif.item?.hostAvatar || notif.item?.avatar || DEFAULT_WHITE_PERSON_AVATAR}
                     alt=""
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                   />

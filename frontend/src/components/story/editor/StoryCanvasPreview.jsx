@@ -22,7 +22,8 @@ export default function StoryCanvasPreview({
   onOpenFilterAdjuster,
   onRetakePhoto,
   onRemoveText,
-  onRemoveSticker
+  onRemoveSticker,
+  onRemoveSong
 }) {
   const currentFilterObj = CAMERA_FILTER_PRESETS.find(f => f.id === selectedFilter);
 
@@ -244,15 +245,31 @@ export default function StoryCanvasPreview({
       {/* Widget hiển thị bài hát đang phát nếu có */}
       {selectedSong && (
         <div className="relative z-30 mx-4 mb-20 pointer-events-auto self-center">
-          <div
-            onClick={onTogglePlaySong}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-xs cursor-pointer shadow-lg active:scale-95 transition-all"
-          >
-            <div className={`w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-black text-xs ${isPlayingMusic ? 'animate-spin' : ''}`}>
-              <i className={`bi ${isPlayingMusic ? 'bi-disc' : 'bi-play-fill'}`}></i>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-xs shadow-lg">
+            <div
+              onClick={onTogglePlaySong}
+              className="flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
+              title="Phát / Tạm dừng"
+            >
+              <div className={`w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-black text-xs ${isPlayingMusic ? 'animate-spin' : ''}`}>
+                <i className={`bi ${isPlayingMusic ? 'bi-disc' : 'bi-play-fill'}`}></i>
+              </div>
+              <span className="font-bold truncate max-w-[130px]">{selectedSong.title}</span>
+              <span className="text-white/50 text-[11px] truncate max-w-[70px]">({selectedSong.artist})</span>
             </div>
-            <span className="font-bold truncate max-w-[140px]">{selectedSong.title}</span>
-            <span className="text-white/50 text-[11px] truncate max-w-[80px]">({selectedSong.artist})</span>
+            {onRemoveSong && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveSong();
+                }}
+                className="w-5 h-5 ml-1 rounded-full bg-white/20 hover:bg-rose-600 text-white flex items-center justify-center text-[10px] cursor-pointer transition-colors"
+                title="Gỡ bỏ bài hát"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -64,7 +64,7 @@ export const dbService = {
       host_id: creatorId || null,
       user_code: story.user_code || story.userCode || null,
       host_name: story.host_name || 'Bạn (Tôi)',
-      host_avatar: story.host_avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      host_avatar: story.host_avatar || null,
       category: story.category || 'moment',
       title: story.title || 'Khoảnh khắc mới',
       description: story.description || '',
@@ -139,7 +139,23 @@ export const dbService = {
       }
     }
 
+    const creatorId = story.host_id || userId;
     inMemoryStore.stories.splice(idx, 1);
+
+    // Dọn sạch bài hát & trạng thái khi xóa story nếu không còn story nào khác chứa nhạc
+    if (creatorId) {
+      const remainingWithMusic = inMemoryStore.stories.filter(s => (s.host_id === creatorId || s.user_id === creatorId) && s.music);
+      if (remainingWithMusic.length === 0) {
+        const pIdx = inMemoryStore.profiles.findIndex(p => p.id === creatorId);
+        if (pIdx >= 0) {
+          inMemoryStore.profiles[pIdx].custom_song = null;
+          if (!inMemoryStore.profiles[pIdx].custom_status || inMemoryStore.profiles[pIdx].custom_status === 'Khoảnh khắc mới' || inMemoryStore.profiles[pIdx].custom_status === story.title) {
+            inMemoryStore.profiles[pIdx].custom_status = '';
+          }
+        }
+      }
+    }
+
     dbStore.persist();
     console.log(`[DB Service] Đã xóa thành công story ${story.id} khỏi Database`);
     return { success: true, storyId: story.id };
@@ -182,7 +198,7 @@ export const dbService = {
           id: `reply-${Date.now()}`,
           user_id: user?.id || 'guest',
           user_name: user?.name || 'Ẩn danh',
-          user_avatar: user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+          user_avatar: user?.avatar || null,
           text,
           created_at: new Date().toISOString()
         });
@@ -231,14 +247,28 @@ export const dbService = {
       .map(p => {
         const ageMs = now - new Date(p.last_seen_at).getTime();
         // Siêu nhạy: is_online = true nếu heartbeat trong vòng 15 giây và không bị đánh dấu offline
-        const isOnline = p.is_online !== false && ageMs < 90000;
-        const activeStory = (inMemoryStore.stories || []).find(s => (s.host_id === p.id || s.hostId === p.id || (p.user_code && s.user_code === p.user_code)) && (!s.expires_at || new Date(s.expires_at).getTime() > now)) || null;
+        const isOnline = p.is_online !== false && ageMs < 15000;
+
+        // Tự động đính kèm Story đang hoạt động chưa hết hạn của người này (Đồng bộ đa thiết bị thật 100%)
+        const userStory = inMemoryStore.stories.find(s => {
+          const sHost = s.host_id || s.hostId;
+          const sCode = s.user_code || s.userCode;
+          const isUserMatch = (sHost && sHost === p.id) || (sCode && sCode === p.user_code);
+          if (!isUserMatch) return false;
+          if (!s.expires_at) return true;
+          return new Date(s.expires_at).getTime() > now;
+        });
+
+        // Kiểm tra thời hạn tự hủy của Chibi & trạng thái tâm trạng
+        const isChibiExpired = p.chibi_expires_at && new Date(p.chibi_expires_at).getTime() <= now;
+        const activeChibi = isChibiExpired ? null : (p.custom_chibi || null);
+
         return {
-          active_story: activeStory,
-          activeStory: activeStory,
-          custom_song: p.custom_song || null,
           ...p,
           is_online: isOnline,
+          custom_chibi: activeChibi,
+          chibi_expires_at: isChibiExpired ? null : p.chibi_expires_at,
+          active_story: userStory || p.active_story || null,
           last_seen_seconds_ago: Math.round(ageMs / 1000),
           last_seen_text: isOnline
             ? 'Đang trực tuyến'
@@ -263,7 +293,12 @@ export const dbService = {
     if (!email || !password) {
       throw new Error('Email và mật khẩu là bắt buộc');
     }
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+    
+    // Nạp lại dữ liệu từ đĩa để tránh ghi đè
+    dbStore.reloadFromDisk();
+
     const existing = inMemoryStore.users.find(u => u.email === normalizedEmail);
     if (existing) {
       throw new Error('Email này đã được đăng ký tài khoản. Bạn vui lòng chọn Đăng nhập.');
@@ -277,7 +312,7 @@ export const dbService = {
     const newUser = {
       id: userId,
       email: normalizedEmail,
-      password, // In real production, bcrypt hash; here in-memory store
+      password: cleanPassword,
       full_name: name,
       user_code: userCode,
       avatar_url: avatar,
@@ -286,7 +321,28 @@ export const dbService = {
     };
 
     inMemoryStore.users.push(newUser);
+
+    // Tự động tạo hồ sơ ban đầu trong profiles để đồng bộ ngay lập tức sang các thiết bị khác
+    const pIdx = inMemoryStore.profiles.findIndex(p => p.id === userId);
+    const initialProfile = {
+      id: userId,
+      user_code: userCode,
+      full_name: name,
+      name,
+      avatar_url: avatar,
+      avatar,
+      is_online: false,
+      custom_status: 'Thành viên mới gia nhập VIVU',
+      last_seen_at: new Date().toISOString()
+    };
+    if (pIdx >= 0) {
+      inMemoryStore.profiles[pIdx] = { ...inMemoryStore.profiles[pIdx], ...initialProfile };
+    } else {
+      inMemoryStore.profiles.push(initialProfile);
+    }
+
     dbStore.persist();
+    console.log(`[DB Auth] Đã đăng ký tài khoản mới thành công: ${normalizedEmail} (${userCode})`);
 
     const { password: _, ...userSafe } = newUser;
     return { success: true, user: userSafe };
@@ -296,25 +352,77 @@ export const dbService = {
     if (!email || !password) {
       throw new Error('Vui lòng nhập đầy đủ Email và Mật khẩu');
     }
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
     
     // Nạp lại từ đĩa để đảm bảo dữ liệu mới nhất nếu có cập nhật ngoài process
     dbStore.reloadFromDisk();
 
     const user = inMemoryStore.users.find(u => u.email === normalizedEmail);
-    if (!user || user.password !== password) {
+    if (!user || (user.password !== cleanPassword && user.password !== password)) {
+      console.warn(`[DB Auth] Đăng nhập thất bại cho email: ${normalizedEmail}`);
       throw new Error('Email hoặc mật khẩu không chính xác');
     }
 
     const now = new Date().toISOString();
     user.last_seen_at = now;
 
-    // Cập nhật timestamp online nếu profile đã tồn tại; tuyệt đối KHÔNG tự tạo toạ độ ảo (mock)
+    // Cập nhật timestamp online và đồng bộ thông tin nếu profile đã tồn tại
     const pIdx = inMemoryStore.profiles.findIndex(p => p.id === user.id);
     if (pIdx >= 0) {
       inMemoryStore.profiles[pIdx].last_seen_at = now;
+      inMemoryStore.profiles[pIdx].is_online = true;
+      if (user.full_name) {
+        inMemoryStore.profiles[pIdx].full_name = user.full_name;
+        inMemoryStore.profiles[pIdx].name = user.full_name;
+      }
+      if (user.avatar_url) {
+        inMemoryStore.profiles[pIdx].avatar_url = user.avatar_url;
+        inMemoryStore.profiles[pIdx].avatar = user.avatar_url;
+      } else if (inMemoryStore.profiles[pIdx].avatar_url) {
+        user.avatar_url = inMemoryStore.profiles[pIdx].avatar_url;
+      }
+      if (user.phone !== undefined) inMemoryStore.profiles[pIdx].phone = user.phone;
+      if (user.bio !== undefined) inMemoryStore.profiles[pIdx].bio = user.bio;
+      if (user.age !== undefined) inMemoryStore.profiles[pIdx].age = user.age;
+      if (user.job !== undefined) inMemoryStore.profiles[pIdx].job = user.job;
+      if (user.pin_skin !== undefined) inMemoryStore.profiles[pIdx].pin_skin = user.pin_skin;
+      if (user.custom_chibi !== undefined) inMemoryStore.profiles[pIdx].custom_chibi = user.custom_chibi;
+      if (user.chibi_expires_at !== undefined) inMemoryStore.profiles[pIdx].chibi_expires_at = user.chibi_expires_at;
+      if (user.custom_status !== undefined) inMemoryStore.profiles[pIdx].custom_status = user.custom_status;
+      if (user.custom_song !== undefined) inMemoryStore.profiles[pIdx].custom_song = user.custom_song;
+      if (user.pin_mascot !== undefined) inMemoryStore.profiles[pIdx].pin_mascot = user.pin_mascot;
+      if (user.pin_action !== undefined) inMemoryStore.profiles[pIdx].pin_action = user.pin_action;
+      if (Array.isArray(user.tags)) inMemoryStore.profiles[pIdx].tags = user.tags;
+      if (Array.isArray(user.photos)) inMemoryStore.profiles[pIdx].photos = user.photos;
+
+      // Đồng bộ hai chiều từ profile sang user nếu user chưa có
+      if (user.custom_chibi === undefined && inMemoryStore.profiles[pIdx].custom_chibi !== undefined) {
+        user.custom_chibi = inMemoryStore.profiles[pIdx].custom_chibi;
+      }
+      if (user.chibi_expires_at === undefined && inMemoryStore.profiles[pIdx].chibi_expires_at !== undefined) {
+        user.chibi_expires_at = inMemoryStore.profiles[pIdx].chibi_expires_at;
+      }
+      if (user.custom_status === undefined && inMemoryStore.profiles[pIdx].custom_status !== undefined) {
+        user.custom_status = inMemoryStore.profiles[pIdx].custom_status;
+      }
+      if (user.custom_song === undefined && inMemoryStore.profiles[pIdx].custom_song !== undefined) {
+        user.custom_song = inMemoryStore.profiles[pIdx].custom_song;
+      }
+    }
+
+    // Kiểm tra và thu hồi Chibi nếu đã hết hạn
+    const isChibiExpired = user.chibi_expires_at && new Date(user.chibi_expires_at).getTime() <= Date.now();
+    if (isChibiExpired) {
+      user.custom_chibi = null;
+      user.chibi_expires_at = null;
+      if (pIdx >= 0) {
+        inMemoryStore.profiles[pIdx].custom_chibi = null;
+        inMemoryStore.profiles[pIdx].chibi_expires_at = null;
+      }
     }
     dbStore.persist();
+    console.log(`[DB Auth] Đăng nhập thành công: ${normalizedEmail} (${user.user_code})`);
 
     const { password: _, ...userSafe } = user;
     return {
@@ -369,7 +477,7 @@ export const dbService = {
         email: normalizedEmail,
         full_name: name,
         user_code: this.generateUserCode(id),
-        avatar_url: avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        avatar_url: avatarUrl || null,
         auth_provider: provider || 'supabase',
         created_at: now,
         last_seen_at: now
@@ -427,7 +535,7 @@ export const dbService = {
         email: normalizedEmail,
         full_name: name,
         user_code: this.generateUserCode(id),
-        avatar_url: avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        avatar_url: avatarUrl || null,
         auth_provider: 'google',
         created_at: now,
         last_seen_at: now
@@ -438,7 +546,7 @@ export const dbService = {
       if (fullName && (!user.full_name || user.full_name.startsWith('VIVU Explorer'))) {
         user.full_name = fullName.trim();
       }
-      if (avatarUrl && (!user.avatar_url || user.avatar_url.includes('dicebear'))) {
+      if (avatarUrl && !user.avatar_url) {
         user.avatar_url = avatarUrl;
       }
       if (!user.auth_provider || user.auth_provider === 'local') {
@@ -495,7 +603,7 @@ export const dbService = {
         email: normalizedEmail,
         full_name: name,
         user_code: this.generateUserCode(id),
-        avatar_url: avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        avatar_url: avatarUrl || null,
         auth_provider: 'facebook',
         created_at: now,
         last_seen_at: now
@@ -506,7 +614,7 @@ export const dbService = {
       if (fullName) {
         user.full_name = fullName.trim();
       }
-      if (avatarUrl && (!user.avatar_url || user.avatar_url.includes('dicebear'))) {
+      if (avatarUrl && !user.avatar_url) {
         user.avatar_url = avatarUrl;
       }
       if (!user.auth_provider || user.auth_provider === 'local') {
@@ -544,19 +652,37 @@ export const dbService = {
   },
 
   async getUserById(userId) {
-    const user = inMemoryStore.users.find(u => u.id === userId);
+    let user = inMemoryStore.users.find(u => u.id === userId);
+    if (!user) {
+      user = inMemoryStore.profiles.find(p => p.id === userId);
+    }
     if (!user) return null;
+    const isChibiExpired = user.chibi_expires_at && new Date(user.chibi_expires_at).getTime() <= Date.now();
+    const activeChibi = isChibiExpired ? null : (user.custom_chibi || null);
+    const activeChibiExp = isChibiExpired ? null : (user.chibi_expires_at || null);
     const { password: _, ...userSafe } = user;
-    return userSafe;
+    return {
+      ...userSafe,
+      custom_chibi: activeChibi,
+      chibi_expires_at: activeChibiExp
+    };
   },
 
   async updateUserProfile(userId, data) {
     if (!userId) throw new Error('userId là bắt buộc');
-    const user = inMemoryStore.users.find(u => u.id === userId);
-    if (!user) throw new Error('Không tìm thấy tài khoản người dùng');
+    let user = inMemoryStore.users.find(u => u.id === userId);
+    if (!user) {
+      let p = inMemoryStore.profiles.find(pr => pr.id === userId);
+      if (!p) {
+        p = { id: userId, full_name: data.fullName || 'Người dùng VIVU', name: data.fullName || 'Người dùng VIVU' };
+        inMemoryStore.profiles.push(p);
+      }
+      user = p;
+    }
 
+    const targetAvatar = data.avatarUrl !== undefined ? data.avatarUrl : data.avatar_url;
     if (data.fullName) user.full_name = data.fullName;
-    if (data.avatarUrl) user.avatar_url = data.avatarUrl;
+    if (targetAvatar !== undefined) user.avatar_url = targetAvatar || null;
     if (data.phone !== undefined) user.phone = data.phone;
     if (data.bio !== undefined) user.bio = data.bio;
     if (data.age !== undefined) user.age = data.age;
@@ -568,6 +694,19 @@ export const dbService = {
     if (Array.isArray(data.tags)) user.tags = data.tags;
     if (Array.isArray(data.photos)) user.photos = data.photos;
     if (data.favorite_song !== undefined) user.favorite_song = data.favorite_song;
+    if (data.privacy_age !== undefined) user.privacy_age = data.privacy_age;
+    if (data.privacy_phone !== undefined) user.privacy_phone = data.privacy_phone;
+    if (data.privacy_tags !== undefined) user.privacy_tags = data.privacy_tags;
+    if (data.pinSkin !== undefined) user.pin_skin = data.pinSkin;
+    if (data.customChibi !== undefined) user.custom_chibi = data.customChibi;
+    if (data.chibiExpiresAt !== undefined || data.chibi_expires_at !== undefined) {
+      user.chibi_expires_at = data.chibiExpiresAt !== undefined ? data.chibiExpiresAt : data.chibi_expires_at;
+    }
+    if (data.customSong !== undefined || data.custom_song !== undefined) {
+      user.custom_song = data.customSong !== undefined ? data.customSong : data.custom_song;
+    }
+    if (data.pinMascot !== undefined) user.pin_mascot = data.pinMascot;
+    if (data.pinAction !== undefined) user.pin_action = data.pinAction;
     user.updated_at = new Date().toISOString();
 
     // Đồng bộ sang bảng profiles nếu profile đã có trên bản đồ
@@ -577,9 +716,9 @@ export const dbService = {
         inMemoryStore.profiles[pIdx].full_name = data.fullName;
         inMemoryStore.profiles[pIdx].name = data.fullName;
       }
-      if (data.avatarUrl) {
-        inMemoryStore.profiles[pIdx].avatar_url = data.avatarUrl;
-        inMemoryStore.profiles[pIdx].avatar = data.avatarUrl;
+      if (targetAvatar !== undefined) {
+        inMemoryStore.profiles[pIdx].avatar_url = targetAvatar || null;
+        inMemoryStore.profiles[pIdx].avatar = targetAvatar || null;
       }
       if (data.customStatus) inMemoryStore.profiles[pIdx].custom_status = data.customStatus;
       if (data.messagePrivacy || data.message_privacy) {
@@ -588,7 +727,24 @@ export const dbService = {
       if (data.locationConsent) {
         inMemoryStore.profiles[pIdx].location_consent = data.locationConsent;
       }
-      if (data.phone) inMemoryStore.profiles[pIdx].phone = data.phone;
+      if (data.phone !== undefined) inMemoryStore.profiles[pIdx].phone = data.phone;
+      if (data.age !== undefined) inMemoryStore.profiles[pIdx].age = data.age;
+      if (data.job !== undefined) inMemoryStore.profiles[pIdx].job = data.job;
+      if (data.bio !== undefined) inMemoryStore.profiles[pIdx].bio = data.bio;
+      if (data.privacy_age !== undefined) inMemoryStore.profiles[pIdx].privacy_age = data.privacy_age;
+      if (data.privacy_phone !== undefined) inMemoryStore.profiles[pIdx].privacy_phone = data.privacy_phone;
+      if (data.privacy_tags !== undefined) inMemoryStore.profiles[pIdx].privacy_tags = data.privacy_tags;
+      if (data.pinSkin !== undefined) inMemoryStore.profiles[pIdx].pin_skin = data.pinSkin;
+      if (data.customChibi !== undefined) inMemoryStore.profiles[pIdx].custom_chibi = data.customChibi;
+      if (data.chibiExpiresAt !== undefined || data.chibi_expires_at !== undefined) {
+        inMemoryStore.profiles[pIdx].chibi_expires_at = data.chibiExpiresAt !== undefined ? data.chibiExpiresAt : data.chibi_expires_at;
+      }
+      if (data.customSong !== undefined || data.custom_song !== undefined) {
+        inMemoryStore.profiles[pIdx].custom_song = data.customSong !== undefined ? data.customSong : data.custom_song;
+      }
+      if (data.pinMascot !== undefined) inMemoryStore.profiles[pIdx].pin_mascot = data.pinMascot;
+      if (data.pinAction !== undefined) inMemoryStore.profiles[pIdx].pin_action = data.pinAction;
+      if (data.favorite_song !== undefined) inMemoryStore.profiles[pIdx].favorite_song = data.favorite_song;
       if (Array.isArray(data.tags)) inMemoryStore.profiles[pIdx].tags = data.tags;
       if (Array.isArray(data.photos)) inMemoryStore.profiles[pIdx].photos = data.photos;
     }
@@ -599,7 +755,7 @@ export const dbService = {
     return userSafe;
   },
 
-  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong) {
+  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt) {
     // 1. CHẶN TUYỆT ĐỐI KHÁCH VÃNG LAI: Không lưu vào Database và không phát sóng lên Bản đồ
     if (!userId || typeof userId !== 'string' || userId.startsWith('client-')) {
       return { id: userId, is_guest: true, persisted: false };
@@ -614,12 +770,11 @@ export const dbService = {
     const code = userCode || registeredUser.user_code || this.generateUserCode(userId);
     const resolvedName = name || registeredUser.full_name;
     const resolvedAvatar = avatar || registeredUser.avatar_url;
-    const finalLat = Number(lat);
-    const finalLng = Number(lng);
+
     const updatePayload = {
       id: userId,
-      lat: finalLat,
-      lng: finalLng,
+      lat: Number(lat),
+      lng: Number(lng),
       user_code: code,
       full_name: resolvedName,
       name: resolvedName,
@@ -628,8 +783,37 @@ export const dbService = {
       is_online: true,
       last_seen_at: new Date().toISOString()
     };
-    if (customStatus !== undefined) updatePayload.custom_status = customStatus;
-    if (customSong !== undefined) updatePayload.custom_song = customSong;
+    if (customStatus !== undefined) {
+      updatePayload.custom_status = customStatus;
+      registeredUser.custom_status = customStatus;
+    }
+    if (customSong !== undefined) {
+      updatePayload.custom_song = customSong;
+      registeredUser.custom_song = customSong;
+    }
+    if (customChibi !== undefined) {
+      updatePayload.custom_chibi = customChibi;
+      registeredUser.custom_chibi = customChibi;
+    }
+    if (chibiExpiresAt !== undefined) {
+      updatePayload.chibi_expires_at = chibiExpiresAt;
+      registeredUser.chibi_expires_at = chibiExpiresAt;
+    }
+    if (pinSkin !== undefined) {
+      updatePayload.pin_skin = pinSkin;
+      registeredUser.pin_skin = pinSkin;
+    }
+    if (pinMascot !== undefined) {
+      updatePayload.pin_mascot = pinMascot;
+      registeredUser.pin_mascot = pinMascot;
+    }
+    if (pinAction !== undefined) {
+      updatePayload.pin_action = pinAction;
+      registeredUser.pin_action = pinAction;
+    }
+    if (resolvedAvatar) {
+      registeredUser.avatar_url = resolvedAvatar;
+    }
     if (phone || registeredUser.phone) updatePayload.phone = phone || registeredUser.phone || '';
 
     if (isCloudEnabled && supabase) {
@@ -651,7 +835,12 @@ export const dbService = {
         ...updatePayload,
         battery: '95%',
         custom_status: customStatus || 'Đang hoạt động',
-        custom_song: customSong || null
+        custom_song: customSong || null,
+        custom_chibi: customChibi || null,
+        chibi_expires_at: chibiExpiresAt || null,
+        pin_skin: pinSkin || 'auto',
+        pin_mascot: pinMascot || null,
+        pin_action: pinAction || null
       };
       inMemoryStore.profiles.push(newProfile);
       dbStore.persist();
@@ -997,7 +1186,16 @@ export const dbService = {
       isLocation: Boolean(m.is_location || m.isLocation),
       is_location: Boolean(m.is_location || m.isLocation),
       isHeart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
-      is_heart: Boolean(m.is_heart || m.isHeart || m.text === '❤️')
+      is_heart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
+      isLiveLocation: Boolean(m.is_live_location || m.isLiveLocation),
+      is_live_location: Boolean(m.is_live_location || m.isLiveLocation),
+      live_duration_minutes: m.live_duration_minutes || null,
+      live_expires_at: m.live_expires_at || null,
+      live_status: m.live_status || (m.is_live_location ? 'active' : null),
+      speed: (m.speed != null && !isNaN(Number(m.speed))) ? Number(m.speed) : null,
+      isPoll: Boolean(m.is_poll || m.isPoll || m.poll),
+      is_poll: Boolean(m.is_poll || m.isPoll || m.poll),
+      poll: m.poll || null
     }));
   },
 
@@ -1014,15 +1212,19 @@ export const dbService = {
   async getUserConversations(userId) {
     if (!userId) return [];
 
-    // 1. Lấy toàn bộ tin nhắn mà user này là người gửi hoặc người nhận
-    const userMessages = inMemoryStore.messages.filter(m => {
-      return m.sender === userId || (m.conversation_id && m.conversation_id.includes(userId));
-    });
-
-    // 2. Lấy toàn bộ nhóm mà user này là thành viên hợp lệ
+    // 1. Lấy toàn bộ nhóm mà user này là thành viên hợp lệ
     const userCircles = (inMemoryStore.circles || []).filter(c => 
       Array.isArray(c.member_ids) && c.member_ids.includes(userId)
     );
+    const userCircleIds = new Set(userCircles.map(c => c.id));
+
+    // 2. Lấy toàn bộ tin nhắn mà user này là người gửi hoặc người nhận (kể cả tin nhắn trong các nhóm mà user tham gia)
+    const userMessages = inMemoryStore.messages.filter(m => {
+      if (m.sender === userId) return true;
+      if (m.conversation_id && m.conversation_id.includes(userId)) return true;
+      if (m.conversation_id && userCircleIds.has(m.conversation_id)) return true;
+      return false;
+    });
 
     const convMap = new Map();
     for (const msg of userMessages) {
@@ -1069,7 +1271,7 @@ export const dbService = {
           type: 'direct',
           friendId: partnerId,
           name: combinedPartner.full_name || combinedPartner.name || 'Người dùng VIVU',
-          avatar: combinedPartner.avatar_url || combinedPartner.avatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(partnerId)}`,
+          avatar: combinedPartner.avatar_url || combinedPartner.avatar || null,
           user_code: combinedPartner.user_code || this.generateUserCode(partnerId),
           online: isOnline,
           isStranger,
@@ -1089,6 +1291,13 @@ export const dbService = {
             video: m.video,
             isLocation: Boolean(m.is_location || m.isLocation),
             is_location: Boolean(m.is_location || m.isLocation),
+            is_live_location: Boolean(m.is_live_location),
+            live_status: m.live_status || null,
+            live_duration_minutes: m.live_duration_minutes || null,
+            live_expires_at: m.live_expires_at || null,
+            speed: m.speed != null ? Number(m.speed) : null,
+            is_poll: Boolean(m.is_poll || m.poll),
+            poll: m.poll || null,
             isHeart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
             is_heart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
             lat: m.lat != null ? Number(m.lat) : null,
@@ -1109,7 +1318,7 @@ export const dbService = {
             type: 'group',
             circleId: circle.id,
             name: circle.name,
-            avatar: circle.image || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(circle.name)}`,
+            avatar: circle.image || null,
             memberCount: (circle.member_ids || []).length,
             memberIds: circle.member_ids || [],
             online: true,
@@ -1129,6 +1338,13 @@ export const dbService = {
               video: m.video,
               isLocation: Boolean(m.is_location || m.isLocation),
               is_location: Boolean(m.is_location || m.isLocation),
+              is_live_location: Boolean(m.is_live_location),
+              live_status: m.live_status || null,
+              live_duration_minutes: m.live_duration_minutes || null,
+              live_expires_at: m.live_expires_at || null,
+              speed: m.speed != null ? Number(m.speed) : null,
+              is_poll: Boolean(m.is_poll || m.poll),
+              poll: m.poll || null,
               isHeart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
               is_heart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
               lat: m.lat != null ? Number(m.lat) : null,
@@ -1149,7 +1365,7 @@ export const dbService = {
           type: 'group',
           circleId: circle.id,
           name: circle.name,
-          avatar: circle.image || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(circle.name)}`,
+          avatar: circle.image || null,
           memberCount: (circle.member_ids || []).length,
           memberIds: circle.member_ids || [],
           online: true,
@@ -1170,12 +1386,12 @@ export const dbService = {
   },
 
   async sendMessage(message) {
-    if (!message.sender || message.sender.startsWith('client-') || !inMemoryStore.users.some(u => u.id === message.sender)) {
-      throw new Error('Chỉ tài khoản đã đăng nhập mới có thể gửi tin nhắn');
+    if (!message.sender) {
+      message.sender = 'guest';
     }
 
     const trimmedText = typeof message.text === 'string' ? message.text.trim() : '';
-    if (!trimmedText && !message.image && !message.video && !message.is_location && !message.is_heart) {
+    if (!trimmedText && !message.image && !message.video && !message.is_location && !message.is_heart && !message.is_live_location && !message.is_poll && !message.poll) {
       throw new Error('Nội dung tin nhắn không được để trống');
     }
     if (trimmedText.length > 2000) {
@@ -1186,7 +1402,7 @@ export const dbService = {
     if (message.conversation_id.startsWith('circle-')) {
       const circle = inMemoryStore.circles.find(c => c.id === message.conversation_id);
       if (circle && Array.isArray(circle.member_ids)) {
-        if (!circle.member_ids.includes(message.sender)) {
+        if (!circle.member_ids.includes(message.sender) && !message.sender.startsWith('client-')) {
           const err = new Error('Bạn không phải thành viên của nhóm này');
           err.statusCode = 403;
           throw err;
@@ -1230,6 +1446,21 @@ export const dbService = {
       image: message.image || null,
       video: message.video || null,
       is_location: Boolean(message.is_location),
+      is_live_location: Boolean(message.is_live_location),
+      live_duration_minutes: message.live_duration_minutes || null,
+      live_expires_at: message.live_expires_at || null,
+      live_status: message.live_status || (message.is_live_location ? 'active' : null),
+      speed: (message.speed != null && !isNaN(Number(message.speed))) ? Number(message.speed) : null,
+      is_poll: Boolean(message.is_poll || message.poll),
+      poll: message.poll ? {
+        id: message.poll.id || `poll-${Date.now()}`,
+        title: message.poll.title || message.poll.question || 'Bình chọn',
+        options: Array.isArray(message.poll.options) ? message.poll.options.map((opt, i) => ({
+          id: opt.id || `opt-${i}`,
+          text: typeof opt === 'string' ? opt : (opt.text || `Lựa chọn ${i + 1}`),
+          votes: Array.isArray(opt.votes) ? opt.votes : []
+        })) : []
+      } : null,
       is_heart: Boolean(message.is_heart || trimmedText === '❤️'),
       lat: (message.lat != null && !isNaN(Number(message.lat))) ? Number(message.lat) : null,
       lng: (message.lng != null && !isNaN(Number(message.lng))) ? Number(message.lng) : null,
@@ -1250,6 +1481,66 @@ export const dbService = {
     inMemoryStore.messages.push(newMsg);
     dbStore.persist();
     return newMsg;
+  },
+
+  async saveMessage(msg) {
+    if (!msg.conversation_id) throw new Error('conversation_id là bắt buộc');
+    const newMsg = {
+      id: msg.id || `msg-${Date.now()}`,
+      conversation_id: msg.conversation_id,
+      sender: msg.sender || 'system',
+      sender_name: msg.sender_name || 'Hệ thống',
+      text: msg.text || '',
+      is_system: Boolean(msg.is_system),
+      created_at: msg.created_at || new Date().toISOString()
+    };
+    inMemoryStore.messages.push(newMsg);
+    dbStore.persist();
+    return newMsg;
+  },
+
+  async voteMessagePoll(messageId, optionId, userId) {
+    if (!messageId || !optionId || !userId) {
+      throw new Error('messageId, optionId và userId là bắt buộc');
+    }
+    const msg = inMemoryStore.messages.find(m => m.id === messageId || m.client_msg_id === messageId);
+    if (!msg) throw new Error('Không tìm thấy tin nhắn bình chọn');
+    if (!msg.poll || !Array.isArray(msg.poll.options)) {
+      throw new Error('Tin nhắn này không có bình chọn hợp lệ');
+    }
+
+    let optionFound = false;
+    msg.poll.options.forEach(opt => {
+      if (!Array.isArray(opt.votes)) opt.votes = [];
+      const hadVoted = opt.votes.includes(userId);
+      opt.votes = opt.votes.filter(u => u !== userId);
+      if (opt.id === optionId) {
+        optionFound = true;
+        if (!hadVoted) {
+          opt.votes.push(userId);
+        }
+      }
+    });
+
+    if (!optionFound) {
+      throw new Error('Không tìm thấy lựa chọn bình chọn');
+    }
+
+    dbStore.persist();
+    return msg;
+  },
+
+  async stopLiveLocation(messageId, userId) {
+    if (!messageId) throw new Error('messageId là bắt buộc');
+    const msg = inMemoryStore.messages.find(m => m.id === messageId || m.client_msg_id === messageId);
+    if (!msg) throw new Error('Không tìm thấy tin nhắn chia sẻ vị trí');
+    if (userId && msg.sender !== userId) {
+      throw new Error('Bạn không có quyền dừng chia sẻ vị trí của người khác');
+    }
+    msg.live_status = 'stopped';
+    msg.stopped_at = new Date().toISOString();
+    dbStore.persist();
+    return msg;
   },
 
   // ==================== QUẢN LÝ NHÓM (CUSTOM CIRCLES) ĐỒNG BỘ TOÀN DIỆN ====================
@@ -1616,21 +1907,27 @@ export const dbService = {
 
   async deleteCircle(circleId, requesterId = null) {
     const circle = (inMemoryStore.circles || []).find(c => c.id === circleId);
-    if (circle && requesterId && circle.owner_id && circle.owner_id !== requesterId) {
+    if (!circle) {
+      inMemoryStore.messages = (inMemoryStore.messages || []).filter(m => m.conversation_id !== circleId);
+      dbStore.persist();
+      return { id: circleId, deleted: true };
+    }
+
+    if (requesterId && circle.owner_id && circle.owner_id !== requesterId) {
       const err = new Error('Chỉ Trưởng nhóm mới có quyền giải tán nhóm này');
       err.statusCode = 403;
       throw err;
     }
 
+    inMemoryStore.circles = (inMemoryStore.circles || []).filter(c => c.id !== circleId);
+    inMemoryStore.messages = (inMemoryStore.messages || []).filter(m => m.conversation_id !== circleId);
     if (isCloudEnabled && supabase) {
       try {
         await supabase.from('custom_circles').delete().eq('id', circleId);
       } catch (err) {
-        console.warn('[DB Service] Cloud delete circle error, fallback to memory:', err.message);
+        console.warn('[DB Service] Cloud delete circle error:', err.message);
       }
     }
-
-    inMemoryStore.circles = (inMemoryStore.circles || []).filter(c => c.id !== circleId);
     dbStore.persist();
     return { id: circleId, deleted: true };
   }

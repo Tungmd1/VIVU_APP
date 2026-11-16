@@ -1,25 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
-import CameraControlsBar from './CameraControlsBar';
 import DualCameraOverlay from './DualCameraOverlay';
+import CameraRightToolbar from './CameraRightToolbar';
+import CameraBottomBar from './CameraBottomBar';
+import { CAMERA_FILTER_PRESETS } from './cameraPresets';
 import { playTactileClickSound, playShutterSound, playCountdownBeep } from '../storyAudioEffects';
 
-export const CAMERA_FILTER_PRESETS = [
-  { id: 'normal', name: 'Gốc', css: 'none' },
-  { id: 'vintage', name: 'Vintage', css: 'sepia(0.45) contrast(1.1) brightness(0.95)' },
-  { id: 'noir', name: 'B&W Noir', css: 'grayscale(1) contrast(1.2)' },
-  { id: 'cyberpunk', name: 'Cyberpunk', css: 'hue-rotate(180deg) saturate(1.8) contrast(1.2)' },
-  { id: 'sunset', name: 'Sunset', css: 'sepia(0.3) saturate(1.4) brightness(1.05)' },
-  { id: 'cool', name: 'Cool Fresh', css: 'hue-rotate(-20deg) saturate(1.2) brightness(1.05)' },
-  { id: 'vivid', name: 'Vivid Pop', css: 'saturate(2) contrast(1.15)' },
-  { id: 'film90s', name: 'Film 90s', css: 'contrast(0.9) brightness(1.1) saturate(1.3) sepia(0.2)' }
-];
+export { CAMERA_FILTER_PRESETS };
 
+/**
+ * CameraViewfinder - Giao Diện Story Camera Chuẩn Instagram 1:1
+ * - Đỉnh: [X] Đóng (trái), Flash trợ sáng (giữa), Hẹn giờ & Cài đặt (phải)
+ * - Cột phải: CameraRightToolbar (Tạo [Aa], Boomerang [∞], Hiệu ứng [✿], Mũi tên [⌄], Nhạc [♫], Nhãn dán [☺])
+ * - Đáy: CameraBottomBar (Nút Shutter viền kép, Bong bóng bộ lọc, Thư viện, Mode BÀI VIẾT/TIN/THƯỚC PHIM, Lật Camera)
+ * Rule 5 (100% Bootstrap Icons), Rule 7 (< 450 dòng), Rule 18 (LAN fallback)
+ */
 export default function CameraViewfinder({
   onPhotoCaptured,
   onSwitchToTextMode,
+  onOpenMusicPicker,
+  onOpenStickerPicker,
+  selectedSong,
   onClose
 }) {
-  const [facingMode, setFacingMode] = useState('user'); // 'user' | 'environment'
+  const [facingMode, setFacingMode] = useState('user');
   const [flashOn, setFlashOn] = useState(false);
   const [gridOn, setGridOn] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -28,15 +31,16 @@ export default function CameraViewfinder({
   const [selectedFilter, setSelectedFilter] = useState('normal');
   const [cameraError, setCameraError] = useState(false);
   const [isCapturingDual, setIsCapturingDual] = useState(false);
-  const [dualPhase, setDualPhase] = useState(null); // 'PRIMARY' | 'SECONDARY'
+  const [dualPhase, setDualPhase] = useState(null);
   const [firstCapturedImage, setFirstCapturedImage] = useState(null);
+  const [activeStoryMode, setActiveStoryMode] = useState('STORY'); // 'POST' | 'STORY' | 'REEL'
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileInputRef = useRef(null);
   const nativeCameraInputRef = useRef(null);
 
-  // Khởi động Camera stream
   useEffect(() => {
     startCamera();
     return () => stopCamera();
@@ -53,11 +57,29 @@ export default function CameraViewfinder({
     stopCamera();
     setCameraError(false);
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode, width: { ideal: 1080 }, height: { ideal: 1920 } },
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError(true);
+        return;
+      }
+      let stream = null;
+      try {
+        const constraints = {
+          video: facingMode ? { facingMode: { ideal: facingMode } } : true,
           audio: false
-        });
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err1) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          });
+        } catch (err2) {
+          console.warn('[Camera] getUserMedia fallback note:', err2);
+        }
+      }
+
+      if (stream) {
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -67,7 +89,7 @@ export default function CameraViewfinder({
         setCameraError(true);
       }
     } catch (err) {
-      console.warn('[Camera] getUserMedia failed, fallback to native file input:', err);
+      console.warn('[Camera] Fallback file input mode:', err);
       setCameraError(true);
     }
   };
@@ -77,195 +99,142 @@ export default function CameraViewfinder({
     setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
   };
 
-  // Chụp ảnh thực tế từ Video Stream lên Canvas
   const captureFrameFromVideo = () => {
     const video = videoRef.current;
-    if (!video) return null;
+    if (!video || !video.videoWidth) return null;
 
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 1080;
     canvas.height = video.videoHeight || 1920;
     const ctx = canvas.getContext('2d');
 
-    // Áp dụng bộ lọc màu lên canvas
     const activeFilter = CAMERA_FILTER_PRESETS.find(f => f.id === selectedFilter);
     if (activeFilter && activeFilter.css !== 'none') {
       ctx.filter = activeFilter.css;
     }
 
-    // Nếu là camera trước thì lật gương ngang tự nhiên
     if (facingMode === 'user') {
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.92);
+    return canvas.toDataURL('image/jpeg', 0.88);
   };
 
-  // Kích hoạt tiến trình chụp (xử lý Timer + Dual Cam)
-  const triggerCapture = () => {
-    if (countdown !== null) return;
+  const executeCapture = () => {
+    // Nếu camera chưa mở hoặc thiết bị không hỗ trợ getUserMedia -> Mở camera gốc hoặc thư viện ảnh mượt mà
+    if (cameraError || !streamRef.current) {
+      if (nativeCameraInputRef.current) {
+        nativeCameraInputRef.current.click();
+      } else if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+      return;
+    }
 
-    if (timerSeconds > 0) {
+    playShutterSound();
+    if (navigator.vibrate) navigator.vibrate(60);
+
+    if (isDualCam) {
+      const primaryShot = captureFrameFromVideo();
+      setFirstCapturedImage(primaryShot);
+      setIsCapturingDual(true);
+      setDualPhase('SECONDARY');
+      setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
+
+      setTimeout(() => {
+        const secondaryShot = captureFrameFromVideo();
+        setIsCapturingDual(false);
+        setDualPhase(null);
+        if (onPhotoCaptured) {
+          onPhotoCaptured({
+            mainImage: primaryShot,
+            dualImage: secondaryShot,
+            isDualCam: true,
+            filterId: selectedFilter
+          });
+        }
+      }, 1400);
+    } else {
+      const mainImage = captureFrameFromVideo();
+      if (mainImage && onPhotoCaptured) {
+        onPhotoCaptured({
+          mainImage,
+          dualImage: null,
+          isDualCam: false,
+          filterId: selectedFilter
+        });
+      } else {
+        fileInputRef.current?.click();
+      }
+    }
+  };
+
+  const triggerCapture = () => {
+    playTactileClickSound();
+    if (timerSeconds > 0 && !cameraError) {
       let count = timerSeconds;
       setCountdown(count);
-      playCountdownBeep(false);
-
+      playCountdownBeep();
       const interval = setInterval(() => {
         count -= 1;
         if (count > 0) {
           setCountdown(count);
-          playCountdownBeep(false);
+          playCountdownBeep();
         } else {
           clearInterval(interval);
           setCountdown(null);
-          playCountdownBeep(true);
-          performInstantCapture();
+          executeCapture();
         }
       }, 1000);
     } else {
-      performInstantCapture();
+      executeCapture();
     }
   };
 
-  const performInstantCapture = async () => {
-    // Hiệu ứng flash màn hình
-    if (flashOn) {
-      const flashEl = document.getElementById('camera-screen-flash');
-      if (flashEl) {
-        flashEl.style.opacity = '1';
-        setTimeout(() => { flashEl.style.opacity = '0'; }, 150);
-      }
-    }
-
-    playShutterSound();
-    if (navigator.vibrate) navigator.vibrate(40);
-
-    const shot1 = captureFrameFromVideo();
-    if (!shot1) return;
-
-    if (isDualCam && !isCapturingDual) {
-      // Chế độ Dual Camera BeReal: Chụp xong mặt 1 -> chuyển camera chụp mặt 2
-      setFirstCapturedImage(shot1);
-      setIsCapturingDual(true);
-      setDualPhase('SECONDARY');
-
-      // Tự động lật camera đối diện
-      setFacingMode(prev => (prev === 'user' ? 'environment' : 'user'));
-
-      // Đếm ngược 1.2s chụp mặt 2
-      setTimeout(() => {
-        playShutterSound();
-        if (navigator.vibrate) navigator.vibrate(40);
-        const shot2 = captureFrameFromVideo();
-        setIsCapturingDual(false);
-        setDualPhase(null);
-
-        onPhotoCaptured({
-          mainImage: shot1,
-          dualImage: shot2 || null,
-          isDualCam: true,
-          filterId: selectedFilter
-        });
-      }, 1200);
-    } else {
-      // Chụp đơn bình thường
-      onPhotoCaptured({
-        mainImage: shot1,
-        dualImage: null,
-        isDualCam: false,
-        filterId: selectedFilter
-      });
-    }
-  };
-
-  // Chọn ảnh từ Gallery
   const handleSelectFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     playTactileClickSound();
     const reader = new FileReader();
     reader.onload = () => {
-      onPhotoCaptured({
-        mainImage: reader.result,
-        dualImage: null,
-        isDualCam: false,
-        filterId: selectedFilter
-      });
+      if (onPhotoCaptured) {
+        onPhotoCaptured({
+          mainImage: reader.result,
+          dualImage: null,
+          isDualCam: false,
+          filterId: selectedFilter
+        });
+      }
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleNextFilter = () => {
+    const curIdx = CAMERA_FILTER_PRESETS.findIndex(f => f.id === selectedFilter);
+    const nextIdx = (curIdx + 1) % CAMERA_FILTER_PRESETS.length;
+    setSelectedFilter(CAMERA_FILTER_PRESETS[nextIdx].id);
+  };
+
+  const handleChangeStoryMode = (mode) => {
+    setActiveStoryMode(mode);
+    if (mode === 'POST' && onSwitchToTextMode) {
+      onSwitchToTextMode();
+    } else if (mode === 'REEL' && onOpenMusicPicker) {
+      onOpenMusicPicker();
+    }
   };
 
   const currentFilterObj = CAMERA_FILTER_PRESETS.find(f => f.id === selectedFilter);
 
   return (
-    <div className="relative w-full h-full bg-black select-none overflow-hidden flex flex-col justify-between">
-      {/* Flash overlay trắng */}
-      <div
-        id="camera-screen-flash"
-        className="absolute inset-0 z-50 bg-white pointer-events-none transition-opacity duration-150 opacity-0"
-      />
-
-      {/* Đếm ngược đếm to giữa màn hình */}
-      {countdown !== null && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-          <span className="text-8xl font-black text-white font-mono drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)] animate-ping">
-            {countdown}
-          </span>
-        </div>
-      )}
-
-      {/* Thông báo Dual Camera Phase */}
-      {isCapturingDual && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-40 px-4 py-1.5 rounded-full bg-purple-600/90 text-white text-xs font-bold font-mono tracking-wider shadow-lg flex items-center gap-2 animate-pulse">
-          <i className="bi bi-camera-fill"></i>
-          <span>ĐANG CHỤP MẶT 2 (DUAL BEREAL)...</span>
-        </div>
-      )}
-
-      {/* Thanh công cụ đỉnh */}
-      <CameraControlsBar
-        flashOn={flashOn}
-        onToggleFlash={() => setFlashOn(v => !v)}
-        gridOn={gridOn}
-        onToggleGrid={() => setGridOn(v => !v)}
-        timerSeconds={timerSeconds}
-        onChangeTimer={setTimerSeconds}
-        onSwitchToTextMode={onSwitchToTextMode}
-        isDualCam={isDualCam}
-        onToggleDualCam={() => setIsDualCam(v => !v)}
-        onClose={onClose}
-      />
-
-      {/* Viewfinder Video hoặc Fallback */}
-      <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
-        {cameraError ? (
-          <div className="p-6 text-center text-white/80 max-w-sm space-y-4">
-            <div className="w-16 h-16 rounded-full bg-white/10 mx-auto flex items-center justify-center text-2xl text-amber-400">
-              <i className="bi bi-camera-video-off"></i>
-            </div>
-            <p className="text-sm font-medium">Không thể mở luồng Camera trực tiếp (do chính sách HTTP mạng LAN hoặc thiết bị chưa cấp quyền).</p>
-            <div className="flex flex-col gap-2.5">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full px-5 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold text-sm shadow-[0_4px_16px_rgba(236,72,153,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <i className="bi bi-images text-lg"></i>
-                <span>Chọn Ảnh Từ Thư Viện / Máy</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => nativeCameraInputRef.current?.click()}
-                className="w-full px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <i className="bi bi-camera-fill text-sm"></i>
-                <span>Mở Camera Gốc Của Máy</span>
-              </button>
-            </div>
-          </div>
-        ) : (
+    <div className="relative w-full h-full bg-black flex flex-col justify-between overflow-hidden select-none font-sans">
+      
+      {/* 1. MÀN HÌNH CAMERA VIEWFINDER (CHUẨN STUDIO ĐEN TỐI GIẢN) */}
+      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-hidden bg-black">
+        {!cameraError ? (
           <video
             ref={videoRef}
             playsInline
@@ -274,101 +243,135 @@ export default function CameraViewfinder({
             className={`w-full h-full object-cover transition-all ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
             style={{ filter: currentFilterObj?.css || 'none' }}
           />
+        ) : (
+          /* Phông nền Studio tối giản chuẩn Instagram khi chưa có camera stream */
+          <div className="w-full h-full bg-gradient-to-b from-[#131418] via-black to-[#0e0f13] flex items-center justify-center relative">
+            <div className="w-40 h-40 rounded-full bg-white/[0.02] border border-white/5 flex items-center justify-center">
+              <i className="bi bi-camera text-4xl text-white/10"></i>
+            </div>
+          </div>
         )}
 
         {/* Lưới Grid 3x3 */}
         {gridOn && !cameraError && (
-          <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-white/20">
-            <div className="border-r border-b border-white/20"></div>
-            <div className="border-r border-b border-white/20"></div>
-            <div className="border-b border-white/20"></div>
-            <div className="border-r border-b border-white/20"></div>
-            <div className="border-r border-b border-white/20"></div>
-            <div className="border-b border-white/20"></div>
-            <div className="border-r border-white/20"></div>
-            <div className="border-r border-white/20"></div>
+          <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3 border border-white/15">
+            <div className="border-r border-b border-white/15"></div>
+            <div className="border-r border-b border-white/15"></div>
+            <div className="border-b border-white/15"></div>
+            <div className="border-r border-b border-white/15"></div>
+            <div className="border-r border-b border-white/15"></div>
+            <div className="border-b border-white/15"></div>
+            <div className="border-r border-b border-white/15"></div>
+            <div className="border-r border-b border-white/15"></div>
             <div></div>
           </div>
         )}
+
+        {flashOn && <div className="absolute inset-0 bg-white/80 pointer-events-none transition-opacity duration-300"></div>}
+
+        {countdown !== null && (
+          <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <span className="text-8xl font-black text-white font-mono animate-ping drop-shadow-2xl">{countdown}</span>
+          </div>
+        )}
+
+        {isCapturingDual && (
+          <DualCameraOverlay firstImage={firstCapturedImage} phase={dualPhase} />
+        )}
       </div>
 
-      {/* Dải chọn Filter xem trước live */}
-      <div className="absolute bottom-28 left-0 right-0 z-30 px-4 py-2 flex items-center justify-center gap-2 overflow-x-auto no-scrollbar pointer-events-auto">
-        {CAMERA_FILTER_PRESETS.map(filter => (
+      {/* 2. THANH CÔNG CỤ ĐỈNH (TOP BAR CHUẨN 100% ẢNH 1 INSTAGRAM) */}
+      <div className="relative z-30 pt-4 px-4 flex items-center justify-between pointer-events-auto">
+        {/* Nút [X] Đóng */}
+        <button
+          type="button"
+          onClick={() => {
+            playTactileClickSound();
+            if (onClose) onClose();
+          }}
+          className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform cursor-pointer"
+          title="Đóng Story Studio"
+        >
+          <i className="bi bi-x-lg text-lg"></i>
+        </button>
+
+        {/* Nút Flash trợ sáng ở tâm */}
+        <button
+          type="button"
+          onClick={() => {
+            playTactileClickSound();
+            setFlashOn(v => !v);
+          }}
+          className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md transition-all cursor-pointer ${
+            flashOn ? 'bg-amber-400 text-black shadow-lg shadow-amber-400/40' : 'bg-black/40 border border-white/20 text-white'
+          }`}
+          title="Bật/Tắt Flash"
+        >
+          <i className={`bi ${flashOn ? 'bi-lightning-fill' : 'bi-lightning-slash'} text-lg`}></i>
+        </button>
+
+        {/* Nút Cài đặt / Hẹn giờ bên phải */}
+        <div className="flex items-center gap-2">
           <button
-            key={filter.id}
             type="button"
             onClick={() => {
               playTactileClickSound();
-              setSelectedFilter(filter.id);
+              setTimerSeconds(s => (s === 0 ? 3 : s === 3 ? 10 : 0));
             }}
-            className={`px-3 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all ${
-              selectedFilter === filter.id
-                ? 'bg-white text-black shadow-lg scale-105'
-                : 'bg-black/50 backdrop-blur-md text-white/70 hover:text-white border border-white/10'
+            className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border transition-all cursor-pointer ${
+              timerSeconds > 0 ? 'bg-[#10FFA0] text-black border-[#10FFA0] font-bold text-xs' : 'bg-black/40 border-white/20 text-white'
             }`}
+            title="Hẹn giờ"
           >
-            {filter.name}
+            {timerSeconds > 0 ? <span className="font-mono text-xs">{timerSeconds}s</span> : <i className="bi bi-stopwatch text-base"></i>}
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={() => {
+              playTactileClickSound();
+              setGridOn(v => !v);
+            }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border transition-all cursor-pointer ${
+              gridOn ? 'bg-white text-black border-white' : 'bg-black/40 border-white/20 text-white'
+            }`}
+            title="Cài đặt lưới"
+          >
+            <i className="bi bi-gear-wide-connected text-base"></i>
+          </button>
+        </div>
       </div>
 
-      {/* Thanh điều khiển đáy: Thư viện, Nút Chụp Shutter, Lật Cam */}
-      <div className="absolute bottom-0 left-0 right-0 z-30 p-6 pb-safe flex items-center justify-around bg-gradient-to-t from-black/85 via-black/40 to-transparent pointer-events-auto">
-        {/* Nút thư viện ảnh */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="flex flex-col items-center gap-1 group cursor-pointer"
-          title="Chọn ảnh từ thiết bị"
-        >
-          <div className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform group-hover:bg-white/25">
-            <i className="bi bi-images text-xl"></i>
-          </div>
-          <span className="text-[10px] text-white/80 font-medium font-sans">Thư viện</span>
-        </button>
+      {/* 3. CỘT CÔNG CỤ BÊN PHẢI (CHUẨN 100% ẢNH 1 INSTAGRAM) */}
+      <CameraRightToolbar
+        onSwitchToTextMode={onSwitchToTextMode}
+        isDualCam={isDualCam}
+        onToggleDualCam={() => setIsDualCam(prev => !prev)}
+        selectedFilter={selectedFilter}
+        onNextFilter={handleNextFilter}
+        isToolbarExpanded={isToolbarExpanded}
+        onToggleExpand={() => setIsToolbarExpanded(v => !v)}
+        selectedSong={selectedSong}
+        onOpenMusicPicker={onOpenMusicPicker}
+        onOpenStickerPicker={onOpenStickerPicker}
+      />
 
-        {/* Nút chụp Shutter tròn phong cách Pro Camera */}
-        <button
-          type="button"
-          onClick={triggerCapture}
-          className="relative w-20 h-20 rounded-full flex items-center justify-center active:scale-90 transition-transform group"
-          title="Chụp ảnh"
-        >
-          <div className="absolute inset-0 rounded-full border-4 border-white/90 group-hover:border-white transition-colors"></div>
-          <div className="w-16 h-16 rounded-full bg-white shadow-xl group-hover:scale-95 transition-transform"></div>
-        </button>
-
-        {/* Nút lật camera trước / sau */}
-        <button
-          type="button"
-          onClick={handleFlipCamera}
-          className="w-12 h-12 rounded-full bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-transform hover:bg-white/25"
-          title="Lật camera"
-        >
-          <i className="bi bi-arrow-repeat text-2xl"></i>
-        </button>
-      </div>
+      {/* 4. KHU VỰC ĐIỀU KHIỂN ĐÁY (CHUẨN 100% ẢNH 1 INSTAGRAM) */}
+      <CameraBottomBar
+        onTriggerCapture={triggerCapture}
+        filterPresets={CAMERA_FILTER_PRESETS}
+        selectedFilter={selectedFilter}
+        onSelectFilter={setSelectedFilter}
+        onOpenGallery={() => fileInputRef.current?.click()}
+        activeStoryMode={activeStoryMode}
+        onChangeStoryMode={handleChangeStoryMode}
+        onFlipCamera={handleFlipCamera}
+      />
 
       {/* Thẻ input chọn file ẩn */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleSelectFile}
-        className="hidden"
-      />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleSelectFile} className="hidden" />
 
       {/* Thẻ input native camera an toàn cho mạng LAN (Rule 18) */}
-      <input
-        ref={nativeCameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={handleSelectFile}
-        className="hidden"
-      />
+      <input ref={nativeCameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleSelectFile} className="hidden" />
     </div>
   );
 }
-

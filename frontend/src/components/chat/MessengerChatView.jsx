@@ -23,6 +23,7 @@ export default function MessengerChatView({
   myActiveStory = null,
   onOpenCreateStory,
   onOpenStoryDetail,
+  onOpenUserProfile,
   onToggleRightFriendshipPanel,
   pendingFriendRequestsCount = 0,
   userLat,
@@ -44,7 +45,9 @@ export default function MessengerChatView({
   onStartNavigation,
   onOpenDirectChat,
   onViewCircleOnMap,
-  onBackToMap
+  onBackToMap,
+  onOpenMemeTroll,
+  onOpenTakeoverMeme
 }) {
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [chatFilterTab, setChatFilterTab] = useState('all'); // 'all', 'group', 'spam'
@@ -101,17 +104,33 @@ export default function MessengerChatView({
     }
   };
 
-  const handleConfirmDeleteGroup = () => {
+  const handleConfirmDeleteGroup = async () => {
     if (!groupToDelete) return;
-    if (onDeleteCircle) onDeleteCircle(groupToDelete.circleId || groupToDelete.id);
-    if (activeConversationId === groupToDelete.id) setActiveConversationId(null);
+    const targetId = groupToDelete.circleId || groupToDelete.id;
+    if (activeConversationId === groupToDelete.id || activeConversationId === targetId) {
+      setActiveConversationId(null);
+    }
     setGroupToDelete(null);
+    if (onDeleteCircle) {
+      await onDeleteCircle(targetId);
+    }
   };
 
   const handleCreatePoll = (pollData) => {
     onSendMessage({
       conversationId: activeConversationId,
-      text: `[BÌNH CHỌN]: ${pollData.title}\n${pollData.options.map(o => `• ${o.text}`).join('\n')}`
+      text: `[BÌNH CHỌN]: ${pollData.title}`,
+      isPoll: true,
+      is_poll: true,
+      poll: {
+        id: `poll-${Date.now()}`,
+        title: pollData.title,
+        options: (pollData.options || []).map((opt, idx) => ({
+          id: opt.id || `opt-${idx + 1}`,
+          text: opt.text,
+          votes: []
+        }))
+      }
     });
     confetti({ particleCount: 30, spread: 50 });
   };
@@ -137,6 +156,8 @@ export default function MessengerChatView({
         groupCount={groupCount}
         spamCount={spamCount}
         userAvatar={userAvatar}
+        friends={friends}
+        onOpenDirectChat={onOpenDirectChat}
         onBackToMap={onBackToMap}
         onToggleRightFriendshipPanel={onToggleRightFriendshipPanel}
         pendingFriendRequestsCount={pendingFriendRequestsCount}
@@ -152,10 +173,14 @@ export default function MessengerChatView({
         messages={messages}
         userLat={userLat}
         userLng={userLng}
+        currentUserId={currentUserId}
         onSendMessage={onSendMessage}
         onSendQuickHeart={onSendQuickHeart}
         onStartCall={onStartCall}
         onBackToMap={onBackToMap}
+        onOpenUserProfile={(target) => onOpenUserProfile && onOpenUserProfile(target, 'chat')}
+        onOpenMemeTroll={onOpenMemeTroll}
+        onOpenTakeoverMeme={onOpenTakeoverMeme}
         setIsProfileModalOpen={setIsProfileModalOpen}
         setIsGroupMembersModalOpen={setIsGroupMembersModalOpen}
         onOpenMapForStory={onOpenMapForStory}
@@ -169,22 +194,36 @@ export default function MessengerChatView({
         handleSend={handleSend}
       />
 
-      {/* MODAL XÓA NHÓM */}
+      {/* MODAL XÓA NHÓM (Rule 12 Tương phản dark theme & style zIndex 99999) */}
       {groupToDelete && (
-        <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex justify-center items-center p-4">
-          <div className="w-full max-w-sm bg-white rounded-3xl p-5 border border-[#D2D9F4] space-y-4 shadow-2xl">
-            <h3 className="font-bold text-sm text-[#131315] font-display">Xác nhận xóa nhóm</h3>
-            <p className="text-xs text-[#70787E]">Bạn có chắc muốn xóa nhóm "{groupToDelete.name}"?</p>
-            <div className="flex gap-2">
+        <div 
+          style={{ zIndex: 99999 }}
+          className="fixed inset-0 bg-black/75 backdrop-blur-md flex justify-center items-center p-4 select-none font-sans"
+        >
+          <div className="w-full max-w-sm bg-[#151619] rounded-3xl p-5 border border-white/10 space-y-4 shadow-2xl text-white">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-400 flex items-center justify-center">
+                <i className="bi bi-trash3-fill text-sm"></i>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white font-display">Xác nhận xóa nhóm</h3>
+                <p className="text-[10px] text-white/50">Hành động này không thể hoàn tác</p>
+              </div>
+            </div>
+            <p className="text-xs text-white/80 leading-relaxed">
+              Bạn có chắc chắn muốn xóa nhóm <strong className="text-white">"{groupToDelete.name}"</strong>?
+            </p>
+            <div className="flex gap-2 pt-1">
               <button 
                 onClick={handleConfirmDeleteGroup} 
-                className="flex-1 py-2.5 bg-[#EF4444] text-white rounded-xl font-bold text-xs cursor-pointer shadow-xs font-display"
+                className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:opacity-90 active:scale-95 text-white rounded-xl font-bold text-xs cursor-pointer shadow-md transition-all flex items-center justify-center gap-1.5"
               >
-                Xóa nhóm
+                <i className="bi bi-trash3"></i>
+                <span>Xóa nhóm</span>
               </button>
               <button 
                 onClick={() => setGroupToDelete(null)} 
-                className="px-4 py-2.5 bg-[#F2F3FF] border border-[#D2D9F4] text-[#131315] hover:bg-[#E6E7F6] rounded-xl font-medium text-xs cursor-pointer"
+                className="px-4 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-xl font-medium text-xs cursor-pointer transition-colors"
               >
                 Hủy
               </button>
@@ -234,6 +273,9 @@ export default function MessengerChatView({
         onOpenDirectChat={(friend) => {
           if (onOpenDirectChat) onOpenDirectChat(friend);
           setIsGroupMembersModalOpen(false);
+        }}
+        onOpenUserProfile={(friend) => {
+          if (onOpenUserProfile) onOpenUserProfile(friend, 'group');
         }}
         onAddMembers={onAddMembers || onInviteMembers}
         onInviteMembers={onInviteMembers}

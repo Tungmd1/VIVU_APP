@@ -74,12 +74,12 @@ export default function ProfileStoryHighlights({
     const newHighlight = {
       id: `highlight-${Date.now()}`,
       title: newTitle.trim(),
-      coverImage: newCoverImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300',
+      coverImage: newCoverImage || '',
       stories: [
         {
           id: `hl-story-${Date.now()}`,
           title: newTitle.trim(),
-          image: newCoverImage || 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=300',
+          image: newCoverImage || '',
           created_at: new Date().toISOString()
         }
       ],

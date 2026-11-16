@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../utils/avatarUtils';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 
 const STORAGE_KEYS = {
@@ -48,7 +49,7 @@ export const vivuBackendService = {
         return data.map(row => ({
           id: row.id,
           hostName: row.host_name || 'Người dùng VIVU',
-          hostAvatar: row.host_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          hostAvatar: row.host_avatar || DEFAULT_WHITE_PERSON_AVATAR,
           category: row.category || 'moment',
           title: row.title,
           description: row.description,
@@ -145,7 +146,7 @@ export const vivuBackendService = {
               onNewStory({
                 id: row.id,
                 hostName: row.host_name || 'Người dùng VIVU',
-                hostAvatar: row.host_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+                hostAvatar: row.host_avatar || DEFAULT_WHITE_PERSON_AVATAR,
                 category: row.category || 'moment',
                 title: row.title,
                 description: row.description,

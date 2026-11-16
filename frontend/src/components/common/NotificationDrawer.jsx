@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState } from 'react';
 
 /**
@@ -223,7 +224,7 @@ export default function NotificationDrawer({
                     {/* Avatar with type badge */}
                     <div className="relative flex-shrink-0">
                       <img
-                        src={notif.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}
+                        src={notif.avatar || DEFAULT_WHITE_PERSON_AVATAR}
                         alt=""
                         className="w-11 h-11 rounded-2xl object-cover border border-[#D2D9F4] bg-[#F2F3FF]"
                       />

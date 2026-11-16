@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
+import React, { useState, useEffect, useMemo } from 'react';
 import StoryFloatingReactions from './viewer/StoryFloatingReactions';
 import StoryInteractiveLayer from './viewer/StoryInteractiveLayer';
 import StoryMiniMapRadar from './viewer/StoryMiniMapRadar';
 import DualCameraOverlay from './camera/DualCameraOverlay';
 import StoryFullscreenLightbox from './viewer/StoryFullscreenLightbox';
-import { storyAudioPlayer } from '../../data/trendingSongs';
+import StoryDeleteConfirmDialog from './viewer/StoryDeleteConfirmDialog';
+import StoryHeaderBar from './viewer/StoryHeaderBar';
+import { storyAudioPlayer, resolveSongMetadata } from '../../data/trendingSongs';
 import { playTactileClickSound } from './storyAudioEffects';
 
 function formatRemainingTime(expiresAt) {
@@ -27,6 +30,7 @@ export default function StoryViewerModal({
   initialIndex = 0,
   onClose,
   onOpenStoryChat,
+  onOpenUserProfile,
   onVotePoll,
   onReplyQA,
   onReact,
@@ -65,24 +69,25 @@ export default function StoryViewerModal({
   const rawStory = activeList[currentIndex] || story;
   const actualStory = rawStory?.activeStory || rawStory;
 
-  // Quản lý phát nhạc của Story hiện tại
-  useEffect(() => {
-    if (!actualStory) return;
+  // Chuẩn hóa bài hát gắn kèm Story (Tự động fallback bài hát thịnh hành nếu Story chưa chọn nhạc)
+  const resolvedStoryMusic = useMemo(() => {
+    if (!actualStory) return null;
+    const song = actualStory.music || actualStory.song || actualStory.custom_song || actualStory.customSong || actualStory.host_custom_song || actualStory.hostCustomSong;
+    return resolveSongMetadata(song);
+  }, [actualStory]);
 
-    const musicUrl = actualStory.music?.audio_url || actualStory.music?.audioUrl;
-    if (actualStory.music && musicUrl) {
-      storyAudioPlayer.playSong(actualStory.music, { loop: true });
-      setIsPlayingMusic(true);
-    } else {
-      storyAudioPlayer.stop();
-      setIsPlayingMusic(false);
-    }
+  // Quản lý phát nhạc của Story hiện tại: Khi mở Story sẽ tự động phát nhạc Apple Music
+  useEffect(() => {
+    if (!actualStory || !resolvedStoryMusic) return;
+
+    storyAudioPlayer.playSong(resolvedStoryMusic, { loop: true });
+    setIsPlayingMusic(true);
 
     return () => {
       storyAudioPlayer.stop();
       setIsPlayingMusic(false);
     };
-  }, [actualStory?.id, actualStory?.music]);
+  }, [actualStory?.id, currentIndex, resolvedStoryMusic]);
 
   if (!actualStory) return null;
 
@@ -181,12 +186,12 @@ export default function StoryViewerModal({
 
   const handleToggleMusic = (e) => {
     e.stopPropagation();
-    if (!actualStory.music) return;
+    if (!resolvedStoryMusic) return;
     if (isPlayingMusic) {
       storyAudioPlayer.stop();
       setIsPlayingMusic(false);
     } else {
-      storyAudioPlayer.playSong(actualStory.music, { loop: true });
+      storyAudioPlayer.playSong(resolvedStoryMusic, { loop: true });
       setIsPlayingMusic(true);
     }
   };
@@ -292,104 +297,21 @@ export default function StoryViewerModal({
         )}
 
         {/* THANH HEADER: VẠCH PHÂN ĐOẠN, TÊN, NHẠC, NÚT XÓA, FULLSCREEN & ĐÓNG */}
-        <div className="absolute top-0 left-0 right-0 z-40 p-3 pt-safe bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-          {/* Thanh vạch phân đoạn Segmented Bars */}
-          <div className="w-full flex items-center gap-1.5 mb-3">
-            {activeList.map((_, idx) => (
-              <div
-                key={idx}
-                className="flex-1 h-1 rounded-full overflow-hidden transition-all duration-300"
-                style={{
-                  backgroundColor: idx < currentIndex ? '#FFFFFF' : (idx === currentIndex ? '#10FFA0' : 'rgba(255,255,255,0.25)'),
-                  boxShadow: idx === currentIndex ? '0 0 8px #10FFA0' : 'none'
-                }}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between pointer-events-auto">
-            <div className="flex items-center gap-2.5">
-              <img
-                src={actualStory.host_avatar || actualStory.hostAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
-                alt=""
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-white/80 shadow-md"
-              />
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-bold text-sm text-white">{actualStory.host_name || actualStory.hostName}</h3>
-                  <span className="px-1.5 py-0.5 rounded-full bg-white/15 text-[10px] text-white/80 font-mono">
-                    {activeList.length > 1 ? `${currentIndex + 1}/${activeList.length}` : (actualStory.user_code || actualStory.userCode || 'VU')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-white/70">
-                  <i className="bi bi-clock-history text-amber-400"></i>
-                  <span>{remainingTime}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Nút đĩa nhạc quay */}
-              {actualStory.music && (
-                <button
-                  type="button"
-                  onClick={handleToggleMusic}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-white text-[11px] font-bold"
-                  title="Nhạc nền"
-                >
-                  <i className={`bi bi-disc text-teal-400 ${isPlayingMusic ? 'animate-spin' : ''}`}></i>
-                  <span className="truncate max-w-[80px]">{actualStory.music.title}</span>
-                </button>
-              )}
-
-              {/* NÚT XÓA STORY (Chỉ hiển thị cho chủ sở hữu bài đăng) */}
-              {isOwner && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playTactileClickSound();
-                    setShowDeleteConfirm(true);
-                  }}
-                  className="w-8 h-8 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-500/30 text-rose-400 hover:text-rose-200 flex items-center justify-center transition-all cursor-pointer shadow-md"
-                  title="Xóa Story này"
-                >
-                  <i className="bi bi-trash3 text-xs"></i>
-                </button>
-              )}
-
-              {/* Nút Xem Toàn Màn Hình */}
-              {mainImageSrc && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    playTactileClickSound();
-                    setIsFullscreenLightbox(true);
-                  }}
-                  className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white hover:text-[#10FFA0] hover:bg-black/70 flex items-center justify-center transition-all cursor-pointer shadow-md"
-                  title="Mở toàn màn hình"
-                >
-                  <i className="bi bi-arrows-fullscreen text-xs"></i>
-                </button>
-              )}
-
-              {/* Nút đóng */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  playTactileClickSound();
-                  onClose();
-                }}
-                className="w-8 h-8 rounded-full bg-black/50 backdrop-blur-md text-white flex items-center justify-center hover:bg-black/70 cursor-pointer"
-                title="Đóng Story"
-              >
-                <i className="bi bi-x-lg text-sm"></i>
-              </button>
-            </div>
-          </div>
-        </div>
+        <StoryHeaderBar
+          activeList={activeList}
+          currentIndex={currentIndex}
+          actualStory={actualStory}
+          remainingTime={remainingTime}
+          resolvedStoryMusic={resolvedStoryMusic}
+          isPlayingMusic={isPlayingMusic}
+          onToggleMusic={handleToggleMusic}
+          isOwner={isOwner}
+          onOpenDeleteConfirm={() => setShowDeleteConfirm(true)}
+          mainImageSrc={mainImageSrc}
+          onOpenFullscreen={() => setIsFullscreenLightbox(true)}
+          onClose={onClose}
+          onOpenUserProfile={onOpenUserProfile}
+        />
 
         {/* Chân Story: Mini Map Radar, Floating Reactions & Input Reply DM */}
         <div className="absolute bottom-0 left-0 right-0 z-40 p-4 pb-safe bg-gradient-to-t from-black/95 via-black/60 to-transparent space-y-3 pointer-events-auto">
@@ -431,59 +353,12 @@ export default function StoryViewerModal({
       </div>
 
       {/* POPUP XÁC NHẬN XÓA STORY (2 LỰA CHỌN THÔNG MINH) */}
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-[65] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="w-full max-w-sm rounded-2xl bg-[#1A1A1E] border border-white/15 p-6 shadow-2xl space-y-4 text-center animate-in zoom-in-95 duration-150">
-            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
-              <i className="bi bi-archive-fill text-xl"></i>
-            </div>
-
-            <div className="space-y-1">
-              <h3 className="text-base font-bold text-white">Quản Lý Khoảnh Khắc</h3>
-              <p className="text-xs text-[#8E8E93] leading-relaxed">
-                Bạn muốn gỡ bài đăng này khỏi Bản đồ 3D như thế nào?
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-2">
-              {/* Lựa chọn 1: Chỉ gỡ khỏi bản đồ, lưu vào kho */}
-              <button
-                type="button"
-                onClick={() => handleConfirmDelete({ preserveInArchive: true })}
-                disabled={isDeleting}
-                className="w-full py-2.5 px-4 rounded-xl bg-teal-500/20 hover:bg-teal-500/30 border border-teal-500/40 text-[#10FFA0] text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <i className="bi bi-archive-fill text-sm"></i>
-                <span>Chỉ gỡ khỏi Bản đồ (Giữ trong Kho Lưu Trữ)</span>
-              </button>
-
-              {/* Lựa chọn 2: Xóa vĩnh viễn tất cả */}
-              <button
-                type="button"
-                onClick={() => handleConfirmDelete({ preserveInArchive: false })}
-                disabled={isDeleting}
-                className="w-full py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 hover:text-rose-200 text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                <i className="bi bi-trash3-fill text-xs"></i>
-                <span>Xóa vĩnh viễn tất cả</span>
-              </button>
-
-              {/* Lựa chọn 3: Hủy bỏ */}
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
-                className="w-full py-2 text-white/50 hover:text-white text-xs font-medium transition-colors"
-              >
-                Hủy bỏ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <StoryDeleteConfirmDialog
+        isOpen={showDeleteConfirm}
+        isDeleting={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setShowDeleteConfirm(false)}
+      />
 
       {/* Chế độ xem toàn màn hình (Lightbox Fullscreen) */}
       {isFullscreenLightbox && mainImageSrc && (

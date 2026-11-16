@@ -1,73 +1,88 @@
 /**
- * trendingMemes.js
- * Danh mục Meme Hot Trend thịnh hành mạng xã hội dùng để ném trêu bạn bè
- * 100% ảnh chất lượng cao PNG trong suốt / SVG
+ * trendingMemes.js - Kho Vũ Khí Trêu Chọc & Meme Tương Tác Bản Quyền VIVU
+ * 100% Native Graphics (Rule 45), Web Audio Synth đa tần số, 100% Bootstrap Icons (Rule 5)
  */
 
 export const TRENDING_MEMES = [
   {
-    id: 'popcat',
-    name: 'Mèo Popcat',
-    desc: 'Mèo há mồm liên thanh nhây bựa',
-    image: 'https://media.tenor.com/FwF793zGqZcAAAAM/pop-cat.gif',
-    soundType: 'pop',
-    reactionText: 'bụp bụp bụp!'
+    id: 'tomato_splat',
+    name: 'Cà Chua Nổ Bẹp',
+    desc: 'Bắn nát quả cà chua đỏ lòm loang lổ trên mặt kính',
+    icon: 'bi-egg-fill',
+    color: '#EF4444',
+    bgGradient: 'from-[#EF4444] to-[#B91C1C]',
+    soundType: 'splat',
+    tag: 'HOT TREND',
+    reactionText: 'Bẹp! Bạn vừa bị ném một quả cà chua chín mọng!',
+    badge: '🍅 CÀ CHUA'
   },
   {
-    id: 'bongo_cat',
-    name: 'Bongo Cat Gõ Phím',
-    desc: 'Gõ bàn phím điên cuồng đòi rep tin',
-    image: 'https://media.tenor.com/2RoR3Qv_a4AAAAAM/bongo-cat.gif',
-    soundType: 'fast_tap',
-    reactionText: 'Rep tin nhắn đêeee!'
-  },
-  {
-    id: 'side_eye_dog',
-    name: 'Shiba Liếc Mắt',
-    desc: 'Ánh mắt phán xét đỉnh cao',
-    image: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=300',
-    soundType: 'suspense',
-    reactionText: 'Nhìn nghi ngờ ghê nha...'
-  },
-  {
-    id: 'pepe_smug',
-    name: 'Ếch Pepe Cười Đểu',
-    desc: 'Cười nhếch mép khi troll thành công',
-    image: 'https://media.tenor.com/J4PzYfG3X_cAAAAM/pepe-frog.gif',
-    soundType: 'laugh',
-    reactionText: 'Hehe bị lừa rồi cưng!'
-  },
-  {
-    id: 'cheems_cry',
-    name: 'Cheems Ngơ Ngác',
-    desc: 'Bối rối không hiểu chuyện gì đang xảy ra',
-    image: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=300',
+    id: 'slipper_throw',
+    name: 'Dép Lào Thần Chưởng',
+    desc: 'Chiếc dép lào xanh bay xoay tít gõ bốp vào màn hình',
+    icon: 'bi-send-fill',
+    color: '#00E5FF',
+    bgGradient: 'from-[#00E5FF] to-[#00B4D8]',
     soundType: 'bonk',
-    reactionText: 'Ủa là sao ta?'
+    tag: 'SÁT THƯƠNG CAO',
+    reactionText: 'Bốp! Ăn ngay một chiếc dép lào thần chưởng!',
+    badge: '🩴 DÉP LÀO'
   },
   {
-    id: 'loading_cat',
-    name: 'Mèo Não Loading',
-    desc: 'Dành cho đứa bạn rep chậm hoặc lag não',
-    image: 'https://media.tenor.com/h5rZ_s41oB4AAAAM/cat-loading.gif',
-    soundType: 'dialup',
-    reactionText: 'Não đang tải dữ liệu... 99%'
+    id: 'airhorn_blast',
+    name: 'Còi Hơi Thức Tỉnh',
+    desc: 'Còi xe tải hú hét phát sóng âm xung kích giật mình',
+    icon: 'bi-volume-up-fill',
+    color: '#F59E0B',
+    bgGradient: 'from-[#F59E0B] to-[#D97706]',
+    soundType: 'airhorn',
+    tag: 'HÚ HÉT',
+    reactionText: 'Péppp péppp! Mau dậy rep tin nhắn bạn ơi!',
+    badge: '📢 CÒI HƠI'
   },
   {
-    id: 'capybara_chill',
-    name: 'Capybara Bất Cần Đời',
-    desc: 'Bình thản trước mọi phong ba bão táp',
-    image: 'https://images.unsplash.com/photo-1564349683136-77e08dba1ef7?w=300',
-    soundType: 'chill',
-    reactionText: 'Capybara nói: Kệ đi!'
+    id: 'water_spray',
+    name: 'Phun Sương Mờ Kính',
+    desc: 'Xịt bọt nước phủ sương mù mờ ảo kèm cần gạt kính',
+    icon: 'bi-droplet-half',
+    color: '#38BDF8',
+    bgGradient: 'from-[#38BDF8] to-[#0284C7]',
+    soundType: 'spray',
+    tag: 'MÁT LẠNH',
+    reactionText: 'Xịt xịt! Mát mẻ tỉnh táo lại chưa nào?!',
+    badge: '💦 PHUN NƯỚC'
   },
   {
-    id: 'psyduck_confused',
-    name: 'Vịt Psyduck Ôm Đầu',
-    desc: 'Đau đầu bối rối vì bị hỏi dồn dập',
-    image: 'https://media.tenor.com/T_FpSjZ4xZAAAAAM/psyduck-headache.gif',
-    soundType: 'quack',
-    reactionText: 'Đau cái đầu quá nè!'
+    id: 'cash_rain',
+    name: 'Cơn Mưa Tiền Rơi',
+    desc: 'Từng cọc tiền và tờ đô la bay ngập tràn toàn màn hình',
+    icon: 'bi-cash-stack',
+    color: '#10B981',
+    bgGradient: 'from-[#10B981] to-[#059669]',
+    soundType: 'cash',
+    tag: 'ĐẠI GIA',
+    reactionText: 'Có tiền rồi nè! Rủ đi cafe dạo phố liền đi!',
+    badge: '💵 MƯA TIỀN'
+  },
+  {
+    id: 'popcat_combo',
+    name: 'Mèo Popcat Bụp Bụp',
+    desc: 'Mèo Popcat há mồm liên thanh nhây bựa đếm combo',
+    icon: 'bi-chat-dots-fill',
+    color: '#EC4899',
+    bgGradient: 'from-[#EC4899] to-[#BE185D]',
+    soundType: 'pop',
+    tag: 'COMBO NHÂY',
+    reactionText: 'Bụp bụp bụp! Popcat ghé thăm spam ngập tràn!',
+    badge: '🐱 POPCAT'
   }
 ];
 
+export const QUICK_TROLL_QUOTES = [
+  'Dậy đi cafe dạo phố bạn ơi!',
+  'Ủa alo, sao chưa rep tin nhắn?!',
+  'Đang ở đâu đấy, tui qua đón nè!',
+  'Bị troll rồi cưng ơi hehe!',
+  'Não đang tải dữ liệu 99%...',
+  'Bắn trả nếu dám nha!'
+];

@@ -21,8 +21,10 @@ backend/.env
 
 # Temporary database and runtime files
 backend/data/*.tmp
+backend/data/*.bak
 *.log
 *.tmp
+*.bak
 
 # IDE, Agent configs & Tooling cache
 .gemini/

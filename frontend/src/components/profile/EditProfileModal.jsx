@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TRENDING_SONGS } from '../../data/trendingSongs';
+import { compressAvatar } from '../../utils/imageCompressor';
 
 // Danh sách gợi ý các sở thích VIVU phong phú
 const SUGGESTED_TAGS = [
@@ -10,7 +11,7 @@ const SUGGESTED_TAGS = [
 /**
  * EditProfileModal - Modal Chỉnh Sửa Hồ Sơ Cá Nhân Toàn Diện
  * Chuẩn Resend Dark Monochrome, 100% Bootstrap Icons
- * Hỗ trợ tải avatar trực tiếp từ thiết bị, nhập họ tên, tuổi, nghề nghiệp, bio, sđt, bài hát yêu thích, sở thích
+ * Hỗ trợ tải avatar trực tiếp từ thiết bị (nén 256x256 WebP/JPEG), nhập họ tên, tuổi, nghề nghiệp, bio, sđt, bài hát yêu thích, sở thích
  */
 export default function EditProfileModal({
   isOpen,
@@ -21,7 +22,7 @@ export default function EditProfileModal({
   isSubmitting
 }) {
   const fileInputRef = useRef(null);
-  const meta = currentUser?.user_metadata || {};
+  const prevIsOpenRef = useRef(false);
 
   const [fullName, setFullName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -33,37 +34,57 @@ export default function EditProfileModal({
   const [favoriteSong, setFavoriteSong] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
   const [newTagInput, setNewTagInput] = useState('');
+  const [isCompressingAvatar, setIsCompressingAvatar] = useState(false);
+  const [privacyAge, setPrivacyAge] = useState('public');
+  const [privacyPhone, setPrivacyPhone] = useState('friends');
+  const [privacyTags, setPrivacyTags] = useState('public');
 
+  // Chỉ khởi tạo state khi modal chuyển từ đóng sang mở, chống re-render đè avatar vừa chọn
   useEffect(() => {
-    if (currentUser && isOpen) {
-      setFullName(meta.full_name || '');
-      setAvatarUrl(meta.avatar_url || '');
+    if (isOpen && !prevIsOpenRef.current) {
+      const meta = currentUser?.user_metadata || {};
+      const currentAvatar = meta.avatar_url || currentUser?.avatar || currentUser?.avatar_url || '';
+      setFullName(meta.full_name || currentUser?.name || currentUser?.fullName || '');
+      setAvatarUrl(currentAvatar);
       setCustomStatus(meta.custom_status || currentStatus || '');
       setAge(meta.age || '');
       setJob(meta.job || '');
       setPhone(meta.phone || '');
       setBio(meta.bio || '');
-      setFavoriteSong(meta.favorite_song || TRENDING_SONGS[0].title);
+      setFavoriteSong(meta.favorite_song || TRENDING_SONGS[0]?.title || '');
       setSelectedTags(Array.isArray(meta.tags) ? meta.tags : ['CafeĐêm', 'DạoPhố']);
+      setPrivacyAge(meta.privacy_age || currentUser?.privacy_age || 'public');
+      setPrivacyPhone(meta.privacy_phone || currentUser?.privacy_phone || 'friends');
+      setPrivacyTags(meta.privacy_tags || currentUser?.privacy_tags || 'public');
     }
-  }, [currentUser, currentStatus, isOpen, meta]);
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, currentUser, currentStatus]);
 
   if (!isOpen) return null;
 
-  // Xử lý tải ảnh đại diện từ thiết bị
-  const handleAvatarFile = (e) => {
+  // Xử lý tải ảnh đại diện từ thiết bị với nén Canvas tự động
+  const handleAvatarFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 8 * 1024 * 1024) {
-      alert('Kích thước ảnh tối đa 8MB');
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Kích thước ảnh tối đa 15MB');
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setAvatarUrl(reader.result);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    setIsCompressingAvatar(true);
+    try {
+      const compressedDataUrl = await compressAvatar(file, 256, 256, 0.85);
+      setAvatarUrl(compressedDataUrl);
+    } catch (err) {
+      console.warn('Lỗi nén ảnh, fallback sang FileReader:', err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsCompressingAvatar(false);
+      e.target.value = '';
+    }
   };
 
   const toggleTag = (tag) => {
@@ -82,9 +103,9 @@ export default function EditProfileModal({
     setNewTagInput('');
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    await onSaveProfile({
+    const cleanProfile = {
       fullName: fullName.trim() || 'Người dùng VIVU',
       avatarUrl: avatarUrl || null,
       customStatus: customStatus.trim() || 'Đang vivu dạo phố',
@@ -93,14 +114,41 @@ export default function EditProfileModal({
       phone: phone.trim() || '',
       bio: bio.trim() || '',
       favorite_song: favoriteSong || '',
+      privacy_age: privacyAge,
+      privacy_phone: privacyPhone,
+      privacy_tags: privacyTags,
       tags: selectedTags
-    });
+    };
+
+    // 1. Lưu ngay lập tức vào bộ nhớ cục bộ chống mất mát thông tin
+    const targetUserId = currentUser?.id || localStorage.getItem('vivu_client_user_id');
+    try {
+      const scopedKey = targetUserId && targetUserId !== 'guest' ? `vivu_user_profile_data_${targetUserId}` : null;
+      const existingRaw = localStorage.getItem('vivu_user_profile_data');
+      const existing = existingRaw ? JSON.parse(existingRaw) : {};
+      const payload = { ...existing, ...cleanProfile };
+      localStorage.setItem('vivu_user_profile_data', JSON.stringify(payload));
+      if (scopedKey) {
+        localStorage.setItem(scopedKey, JSON.stringify(payload));
+      }
+    } catch (saveErr) {
+      console.warn('Lỗi lưu local storage:', saveErr);
+    }
+
+    // 2. Lập tức thoát modal theo yêu cầu trải nghiệm
     onClose();
+
+    // 3. Đồng bộ lên state hệ thống và backend
+    if (onSaveProfile) {
+      Promise.resolve(onSaveProfile({ ...cleanProfile, userId: targetUserId })).catch(err => {
+        console.warn('Lỗi khi lưu profile:', err);
+      });
+    }
   };
 
   return (
     <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none font-sans">
-      <div className="w-full max-w-md bg-[#0E0E10] rounded-3xl p-5 border border-white/15 shadow-[0_25px_60px_rgba(0,0,0,0.95)] max-h-[90vh] overflow-y-auto no-scrollbar space-y-4 text-white">
+      <div className="w-full max-w-md bg-[#0E0E10] rounded-3xl border border-white/15 shadow-[0_25px_60px_rgba(0,0,0,0.95)] max-h-[90vh] flex flex-col text-white overflow-hidden">
         
         {/* Ẩn file input tải avatar */}
         <input
@@ -111,8 +159,8 @@ export default function EditProfileModal({
           className="hidden"
         />
 
-        {/* Header Modal */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        {/* Header Modal - Cố định ở đỉnh */}
+        <div className="flex items-center justify-between p-4 px-5 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center text-sm border border-white/15">
               <i className="bi bi-person-gear text-base"></i>
@@ -131,17 +179,21 @@ export default function EditProfileModal({
           </button>
         </div>
 
-        {/* Form Nhập Liệu */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Form Nhập Liệu với Thanh Nút Bấm Cố Định Dưới Cùng */}
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0 overflow-hidden">
           
-          {/* 1. Ảnh Đại Diện: Xem trước & Nút Tải Lên */}
+          <div className="p-5 overflow-y-auto no-scrollbar flex-1 space-y-4">
+            {/* 1. Ảnh Đại Diện: Xem trước & Nút Tải Lên */}
           <div className="flex items-center gap-4 bg-[#151619] p-3 rounded-2xl border border-white/10">
-            <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/30 shrink-0 bg-black">
+            <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white/30 shrink-0 bg-white flex items-center justify-center">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-white/40">
-                  <i className="bi bi-person-fill text-3xl"></i>
+                <i className="bi bi-person-fill text-3xl text-neutral-400"></i>
+              )}
+              {isCompressingAvatar && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <i className="bi bi-arrow-repeat text-lg text-[#00E5FF] animate-spin"></i>
                 </div>
               )}
             </div>
@@ -152,19 +204,20 @@ export default function EditProfileModal({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-[#EAEAEA] active:scale-95 transition-all flex items-center gap-1.5"
+                  disabled={isCompressingAvatar}
+                  className="px-3 py-1.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-[#EAEAEA] active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <i className="bi bi-upload"></i>
-                  <span>Tải ảnh từ máy</span>
+                  <span>{isCompressingAvatar ? 'Đang nén ảnh...' : 'Tải ảnh từ máy'}</span>
                 </button>
                 {avatarUrl && (
                   <button
                     type="button"
                     onClick={() => setAvatarUrl('')}
-                    className="px-2.5 py-1.5 rounded-xl bg-white/10 text-rose-400 hover:bg-white/20 text-xs"
+                    className="px-2.5 py-1.5 rounded-xl bg-white/10 text-rose-400 hover:bg-white/20 text-xs cursor-pointer"
                     title="Xóa avatar"
                   >
-                    <i className="bi bi-trash"></i>
+                    <i className="bi bi-trash3"></i>
                   </button>
                 )}
               </div>
@@ -186,7 +239,19 @@ export default function EditProfileModal({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-[#8E8E93]">Tuổi</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-medium text-[#8E8E93]">Tuổi</label>
+                <select
+                  value={privacyAge}
+                  onChange={(e) => setPrivacyAge(e.target.value)}
+                  className="bg-transparent text-[10px] text-[#00E5FF] font-medium outline-none cursor-pointer border-b border-[#00E5FF]/30 pb-0.5"
+                  title="Quyền riêng tư tuổi"
+                >
+                  <option value="public" className="bg-[#151619] text-white">Công khai</option>
+                  <option value="friends" className="bg-[#151619] text-white">Bạn bè</option>
+                  <option value="private" className="bg-[#151619] text-white">Chỉ tôi</option>
+                </select>
+              </div>
               <input
                 type="number"
                 min={13}
@@ -213,7 +278,19 @@ export default function EditProfileModal({
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-medium text-[#8E8E93]">Số điện thoại</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-medium text-[#8E8E93]">Số điện thoại</label>
+                <select
+                  value={privacyPhone}
+                  onChange={(e) => setPrivacyPhone(e.target.value)}
+                  className="bg-transparent text-[10px] text-[#00E5FF] font-medium outline-none cursor-pointer border-b border-[#00E5FF]/30 pb-0.5"
+                  title="Quyền riêng tư số điện thoại"
+                >
+                  <option value="friends" className="bg-[#151619] text-white">Bạn bè</option>
+                  <option value="public" className="bg-[#151619] text-white">Công khai</option>
+                  <option value="private" className="bg-[#151619] text-white">Chỉ tôi</option>
+                </select>
+              </div>
               <input
                 type="tel"
                 value={phone}
@@ -267,10 +344,22 @@ export default function EditProfileModal({
 
           {/* 7. Danh sách Sở thích Tags */}
           <div className="space-y-2">
-            <label className="text-[11px] font-medium text-[#8E8E93] flex justify-between">
-              <span>Sở thích & Phong cách của bạn</span>
-              <span className="text-white/60">Đã chọn {selectedTags.length}</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-medium text-[#8E8E93]">Sở thích &amp; Phong cách của bạn</span>
+              <div className="flex items-center gap-2">
+                <span className="text-white/60 text-[10px]">Đã chọn {selectedTags.length}</span>
+                <select
+                  value={privacyTags}
+                  onChange={(e) => setPrivacyTags(e.target.value)}
+                  className="bg-transparent text-[10px] text-[#00E5FF] font-medium outline-none cursor-pointer border-b border-[#00E5FF]/30 pb-0.5"
+                  title="Quyền riêng tư sở thích"
+                >
+                  <option value="public" className="bg-[#151619] text-white">Công khai</option>
+                  <option value="friends" className="bg-[#151619] text-white">Bạn bè</option>
+                  <option value="private" className="bg-[#151619] text-white">Chỉ tôi</option>
+                </select>
+              </div>
+            </div>
 
             {/* Các tag gợi ý */}
             <div className="flex flex-wrap gap-1.5">
@@ -311,20 +400,21 @@ export default function EditProfileModal({
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Nút Submit */}
-          <div className="pt-3 border-t border-white/10 flex gap-2">
+          {/* Nút Submit Cố Định Dưới Cùng (Sticky Footer) */}
+          <div className="p-4 bg-[#0E0E10] border-t border-white/10 flex gap-2 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all"
+              className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all cursor-pointer"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 py-2.5 rounded-xl bg-white text-black text-xs font-extrabold hover:bg-[#EAEAEA] active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5"
+              className="flex-1 py-2.5 rounded-xl bg-white text-black text-xs font-extrabold hover:bg-[#EAEAEA] active:scale-95 transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
             >
               {isSubmitting ? (
                 <>

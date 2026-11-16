@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import confetti from 'canvas-confetti';
@@ -59,9 +60,9 @@ export default function SpatialBumpModal3D({
   isOpen = false,
   onClose,
   initiatorName = 'Bạn',
-  initiatorAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+  initiatorAvatar = DEFAULT_WHITE_PERSON_AVATAR,
   targetName = 'Người bạn',
-  targetAvatar = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+  targetAvatar = DEFAULT_WHITE_PERSON_AVATAR,
   isInitiator = true
 }) {
   const containerRef = useRef(null);

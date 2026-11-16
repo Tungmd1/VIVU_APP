@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 
 /**
- * VivuPermissionGate - Cổng Cấp Quyền Bắt Buộc (GPS Thực, Âm Thanh, Camera)
- * - Yêu cầu bắt buộc 3 quyền cốt lõi khi mới vào Web App
- * - Nếu người dùng từ chối -> Khóa màn hình / Đóng Web App theo yêu cầu
- * - Khi người dùng bấm cho phép: Tương tác chạm mở khóa Browser Autoplay cho Video Intro
- * - Chuẩn Luminous Solar-Cyber HUD, 100% Bootstrap Icons, Rule 7 (< 450 dòng)
+ * VivuPermissionGate - Cổng Cấp Quyền (Vị trí GPS, Âm thanh, Camera)
+ * - Yêu cầu cấp 3 quyền cốt lõi khi mới vào Web App
+ * - Hỗ trợ thiết bị máy tính không có camera hoặc trình duyệt hạn chế quyền (Rule 18 & Rule 22)
+ * - Không bao giờ khóa cứng màn hình: Cung cấp tùy chọn tiếp tục với chế độ dự phòng
+ * - Chuẩn Luminous Solar-Cyber HUD, 100% Bootstrap Icons (Rule 5), Rule 7 (< 450 dòng)
  */
 export default function VivuPermissionGate({ onGranted }) {
   const [isRequesting, setIsRequesting] = useState(false);
   const [isDenied, setIsDenied] = useState(false);
   const [deniedReason, setDeniedReason] = useState('');
+
+  const finishAndEnter = () => {
+    try {
+      localStorage.setItem('vivu_permissions_granted_v1', 'true');
+      localStorage.setItem('vivu_location_terms_accepted', 'true');
+    } catch {}
+    if (onGranted) onGranted();
+  };
 
   const handleRequestAllPermissions = async () => {
     setIsRequesting(true);
@@ -32,61 +40,43 @@ export default function VivuPermissionGate({ onGranted }) {
       }
 
       // 2. Yêu cầu quyền GPS thực tế
-      if (!navigator.geolocation) {
-        throw new Error('Trình duyệt của bạn không hỗ trợ định vị GPS phần cứng.');
+      if (navigator.geolocation) {
+        await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve(pos),
+            (err) => {
+              console.warn('GPS prompt note:', err?.message);
+              resolve(null);
+            },
+            { enableHighAccuracy: true, timeout: 6000 }
+          );
+        });
       }
 
-      await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => resolve(pos),
-          (err) => {
-            if (err.code === err.PERMISSION_DENIED) {
-              reject(new Error('Quyền truy cập GPS thực tế bị từ chối. VIVU yêu cầu vị trí để đồng bộ bản đồ.'));
-            } else {
-              // Timeout hoặc vị trí tạm thời vẫn cho phép tiếp tục
-              resolve(null);
-            }
-          },
-          { enableHighAccuracy: true, timeout: 8000 }
-        );
-      });
-
-      // 3. Yêu cầu quyền Camera / Hình ảnh (nếu thiết bị có camera)
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      // 3. Yêu cầu quyền Camera (Thích ứng cả PC webcam lẫn camera điện thoại)
+      if (navigator.mediaDevices?.getUserMedia) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: 'environment' } 
-          });
-          // Tắt ngay sau khi đã xác nhận cấp quyền
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
           stream.getTracks().forEach(track => track.stop());
         } catch (camErr) {
-          // Nếu bị từ chối thẳng thừng bởi người dùng
-          if (camErr.name === 'NotAllowedError' || camErr.name === 'PermissionDeniedError') {
-            throw new Error('Quyền truy cập Camera/Hình ảnh bị từ chối. VIVU yêu cầu máy ảnh để tạo khoảnh khắc Story.');
-          }
-          console.warn('Camera probe note:', camErr);
+          console.warn('Camera probe warning (Fallback to gallery upload mode):', camErr?.message);
+          // Không quăng lỗi chặn cứng app nếu PC không có webcam hoặc bị từ chối camera
         }
       }
 
-      // Đánh dấu đã cấp quyền thành công
-      try {
-        localStorage.setItem('vivu_permissions_granted_v1', 'true');
-        localStorage.setItem('vivu_location_terms_accepted', 'true');
-      } catch {}
-
       setIsRequesting(false);
-      if (onGranted) onGranted();
+      finishAndEnter();
 
     } catch (err) {
+      console.warn('Permission gate note:', err);
       setIsRequesting(false);
       setIsDenied(true);
-      setDeniedReason(err.message || 'Bạn đã từ chối một hoặc nhiều quyền bắt buộc của VIVU.');
+      setDeniedReason(err.message || 'Thiết bị chưa cấp quyền. Bạn vẫn có thể tiếp tục với chế độ tải ảnh từ thư viện.');
     }
   };
 
-  const handleReject = () => {
-    setIsDenied(true);
-    setDeniedReason('Bạn đã chọn từ chối cấp quyền. Theo chính sách hoạt động của VIVU, ứng dụng không thể tiếp tục.');
+  const handleBypass = () => {
+    finishAndEnter();
   };
 
   return (
@@ -100,23 +90,29 @@ export default function VivuPermissionGate({ onGranted }) {
               <i className="bi bi-shield-lock-fill text-base"></i>
             </div>
             <div>
-              <h2 className="text-sm font-bold text-[#131315] font-display">Cấp Quyền Bắt Buộc</h2>
-              <p className="text-[10px] text-[#70787E]">VIVU Social Map • Xác thực quyền hệ thống</p>
+              <h2 className="text-sm font-bold text-[#131315] font-display">Cấp Quyền Ứng Dụng</h2>
+              <p className="text-[10px] text-[#70787E]">VIVU Social Map • Khởi tạo quyền hệ thống</p>
             </div>
           </div>
-          <span className="px-2 py-0.5 rounded-full bg-[#F2F3FF] border border-[#D2D9F4] text-[10px] font-mono font-bold text-[#00838F]">
-            3 QUYỀN
-          </span>
+          
+          <button
+            type="button"
+            onClick={handleBypass}
+            className="w-7 h-7 rounded-full bg-[#F2F3FF] hover:bg-[#E0E2F0] border border-[#D2D9F4] text-[#70787E] hover:text-[#131315] flex items-center justify-center transition-all cursor-pointer"
+            title="Đóng & vào bản đồ"
+          >
+            <i className="bi bi-x-lg text-xs"></i>
+          </button>
         </div>
 
         {/* Nội dung chính */}
         {!isDenied ? (
           <div className="p-6 space-y-4 bg-[#FAFAFF]">
             <p className="text-xs text-[#40484D] leading-relaxed">
-              Để trải nghiệm đầy đủ mạng xã hội thời gian thực, VIVU <strong className="text-[#131315]">bắt buộc</strong> yêu cầu bạn cấp 3 quyền truy cập sau:
+              Để trải nghiệm đầy đủ mạng xã hội thời gian thực, VIVU cần bạn cấp các quyền truy cập sau:
             </p>
 
-            {/* Danh sách 3 quyền bắt buộc */}
+            {/* Danh sách 3 quyền */}
             <div className="space-y-2.5">
               {/* 1. GPS Thật */}
               <div className="p-3 rounded-2xl bg-white border border-[#D2D9F4] flex items-start gap-3 shadow-xs">
@@ -124,7 +120,7 @@ export default function VivuPermissionGate({ onGranted }) {
                   <i className="bi bi-geo-alt-fill text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-[#131315] font-display">1. GPS Định Vị Không Gian Thực</div>
+                  <div className="text-xs font-bold text-[#131315] font-display">1. GPS Định Vị Không Gian</div>
                   <div className="text-[11px] text-[#70787E] mt-0.5">
                     Cắm ghim giọt nước và đồng bộ tọa độ trực tiếp với bạn bè trên bản đồ 3D.
                   </div>
@@ -137,9 +133,9 @@ export default function VivuPermissionGate({ onGranted }) {
                   <i className="bi bi-volume-up-fill text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-[#131315] font-display">2. Âm Thanh Video &amp; Radar Chime</div>
+                  <div className="text-xs font-bold text-[#131315] font-display">2. Âm Thanh &amp; Nhạc Nền MP3</div>
                   <div className="text-[11px] text-[#70787E] mt-0.5">
-                    Phát video intro có âm thanh, chuông radar story và hiệu ứng âm thanh sống động.
+                    Mở khóa chuông radar phát hiện bài đăng và nghe thử nhạc MP3 trực tiếp.
                   </div>
                 </div>
               </div>
@@ -150,9 +146,9 @@ export default function VivuPermissionGate({ onGranted }) {
                   <i className="bi bi-camera-fill text-base"></i>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-[#131315] font-display">3. Hình Ảnh &amp; Máy Ảnh Camera</div>
+                  <div className="text-xs font-bold text-[#131315] font-display">3. Máy Ảnh Hoặc Thư Viện Ảnh</div>
                   <div className="text-[11px] text-[#70787E] mt-0.5">
-                    Chụp nhanh khoảnh khắc quanh bạn, đăng Story và quét mã kết nối bạn bè.
+                    Chụp khoảnh khắc hoặc tải ảnh từ thiết bị để tạo bài Story quanh bạn.
                   </div>
                 </div>
               </div>
@@ -181,46 +177,57 @@ export default function VivuPermissionGate({ onGranted }) {
 
               <button
                 type="button"
-                onClick={handleReject}
+                onClick={handleBypass}
                 disabled={isRequesting}
-                className="w-full py-2 text-[11px] font-bold text-[#70787E] hover:text-[#EF4444] transition-colors cursor-pointer"
+                className="w-full py-2 text-[11px] font-bold text-[#70787E] hover:text-[#00838F] transition-colors cursor-pointer"
               >
-                Từ chối và Đóng ứng dụng
+                Bỏ qua &amp; Dùng chế độ cơ bản (Tải ảnh thư viện)
               </button>
             </div>
           </div>
         ) : (
-          /* MÀN HÌNH KHÓA / ĐÓNG WEBAPP KHI TỪ CHỐI */
+          /* MÀN HÌNH THÔNG BÁO VÀ TIẾP TỤC KHÔNG BỊ KHÓA (Rule 22) */
           <div className="p-6 text-center space-y-4 bg-[#FAFAFF] animate-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 mx-auto rounded-3xl bg-[#FEE2E2] border border-[#FCA5A5] text-[#EF4444] flex items-center justify-center text-2xl shadow-xs">
-              <i className="bi bi-x-octagon-fill"></i>
+            <div className="w-14 h-14 mx-auto rounded-3xl bg-amber-50 border border-amber-200 text-amber-500 flex items-center justify-center text-2xl shadow-xs">
+              <i className="bi bi-shield-exclamation text-2xl"></i>
             </div>
             
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-[#EF4444] font-display">Ứng Dụng Đã Bị Khóa</h3>
+              <h3 className="text-sm font-bold text-[#131315] font-display">Chế Độ Dự Phòng Sẵn Sàng</h3>
               <p className="text-xs text-[#70787E] leading-relaxed">
                 {deniedReason}
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-white border border-[#D2D9F4] text-[11px] text-[#40484D] text-left space-y-1 shadow-xs">
+            <div className="p-3 rounded-2xl bg-white border border-[#D2D9F4] text-[11px] text-[#40484D] text-left space-y-1 shadow-xs">
               <div className="font-bold text-[#131315] flex items-center gap-1.5">
                 <i className="bi bi-info-circle text-[#00838F]"></i>
-                <span>Cách mở lại quyền:</span>
+                <span>Gợi ý cho bạn:</span>
               </div>
               <p className="text-[#70787E]">
-                Nhấn vào biểu tượng ổ khóa bên trái thanh địa chỉ trình duyệt, chọn <strong>Cho phép (Allow)</strong> Vị trí, Âm thanh &amp; Camera, sau đó tải lại trang.
+                Nếu thiết bị không có webcam hoặc truy cập qua mạng nội bộ LAN, bạn vẫn có thể đăng Story bình thường bằng cách chọn ảnh từ thư viện thiết bị.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleRequestAllPermissions}
-              className="w-full h-11 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] text-[#08202E] font-display font-bold text-xs flex items-center justify-center gap-2 shadow-xs active:scale-98 transition-all cursor-pointer"
-            >
-              <i className="bi bi-arrow-clockwise text-sm font-bold"></i>
-              <span>Thử Cấp Quyền Lại</span>
-            </button>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleBypass}
+                className="w-full h-11 rounded-2xl bg-gradient-to-r from-[#00E5FF] to-[#10FFA0] text-[#08202E] font-display font-bold text-xs flex items-center justify-center gap-2 shadow-md active:scale-98 transition-all cursor-pointer"
+              >
+                <i className="bi bi-geo-alt-fill text-sm"></i>
+                <span>Tiếp Tục Vào Bản Đồ Ngay</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRequestAllPermissions}
+                className="w-full py-2 rounded-xl bg-white border border-[#D2D9F4] text-[#40484D] hover:text-[#131315] font-semibold text-xs active:scale-98 transition-all cursor-pointer"
+              >
+                <i className="bi bi-arrow-clockwise text-xs mr-1"></i>
+                <span>Thử Cấp Quyền Lại</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -228,4 +235,3 @@ export default function VivuPermissionGate({ onGranted }) {
     </div>
   );
 }
-

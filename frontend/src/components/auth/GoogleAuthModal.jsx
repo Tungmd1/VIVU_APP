@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState, useEffect } from 'react';
 
 /**
@@ -121,7 +122,7 @@ export default function GoogleAuthModal({
     setErrorMessage('');
     setLocalSubmitting(true);
     try {
-      const avatarUrl = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || email)}`;
+      const avatarUrl = DEFAULT_WHITE_PERSON_AVATAR;
       await onGoogleSuccess({
         email,
         fullName: name,

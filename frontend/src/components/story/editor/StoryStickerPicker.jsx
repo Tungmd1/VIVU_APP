@@ -1,5 +1,11 @@
-import React, { useState, useRef } from 'react';
-import { MEME_STICKERS, playTactileClickSound } from '../storyAudioEffects';
+import React, { useState, useRef, useMemo } from 'react';
+import { playTactileClickSound } from '../storyAudioEffects';
+import { 
+  CHIBI_MASCOT_FAMILIES, 
+  CHIBI_MASCOTS, 
+  getChibiDataUrl, 
+  playChibiSound 
+} from '../../../data/chibiMascotData';
 
 export default function StoryStickerPicker({
   userLocationName = 'TP. Hồ Chí Minh',
@@ -10,7 +16,12 @@ export default function StoryStickerPicker({
   onClose
 }) {
   const [activeTab, setActiveTab] = useState('meme'); // 'meme' | 'poll' | 'qa' | 'location'
+  const [chibiFamily, setChibiFamily] = useState('droplet');
   const customMemeInputRef = useRef(null);
+
+  const displayedChibis = useMemo(() => {
+    return CHIBI_MASCOTS.filter(m => m.family === chibiFamily);
+  }, [chibiFamily]);
 
   // Poll form state
   const [pollQuestion, setPollQuestion] = useState('Đi dạo không?');
@@ -135,17 +146,78 @@ export default function StoryStickerPicker({
           </button>
         </div>
 
-        {/* Nội dung Tab Meme */}
+        {/* Nội dung Tab Meme / Chibi Stickers */}
         {activeTab === 'meme' && (
           <div className="space-y-3">
-            {/* Nút tải meme từ máy */}
+            {/* Phân nhóm 3 gia đình Chibi */}
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-black/60 rounded-xl border border-white/10">
+              {CHIBI_MASCOT_FAMILIES.map((fam) => {
+                const isActive = chibiFamily === fam.id;
+                return (
+                  <button
+                    key={fam.id}
+                    type="button"
+                    onClick={() => { playTactileClickSound(); setChibiFamily(fam.id); }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      isActive
+                        ? 'bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white shadow-md'
+                        : 'text-white/60 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <i className={`bi ${fam.icon} text-xs`}></i>
+                    <span className="truncate">{fam.label.split(' ')[0]}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Danh sách 12 Mascot Chibi của nhóm */}
+            <div className="grid grid-cols-3 gap-2 max-h-[260px] overflow-y-auto no-scrollbar pt-1">
+              {displayedChibis.map((mascot) => {
+                const dataUrl = getChibiDataUrl(mascot);
+                return (
+                  <div
+                    key={mascot.id}
+                    onClick={() => {
+                      playChibiSound(mascot.soundType);
+                      onSelectMeme({
+                        id: mascot.id,
+                        type: 'meme',
+                        label: mascot.name,
+                        image: dataUrl,
+                        icon: 'bi-emoji-smile-fill',
+                        bg: 'bg-cyan-500/20 text-cyan-400 border-cyan-400/40'
+                      });
+                      onClose();
+                    }}
+                    className="flex flex-col items-center p-2 rounded-xl bg-[#1A1A1E] hover:bg-[#222228] border border-white/10 hover:border-cyan-400/50 cursor-pointer active:scale-95 transition-all group"
+                  >
+                    <div className="w-12 h-12 flex items-center justify-center mb-1 group-hover:scale-115 transition-transform">
+                      <img
+                        src={dataUrl}
+                        alt={mascot.name}
+                        className="w-full h-full object-contain pointer-events-none"
+                      />
+                    </div>
+                    <p className="text-[10px] font-bold text-white truncate max-w-full leading-tight text-center">
+                      {mascot.name}
+                    </p>
+                    <span className="text-[9px] text-[#8E8E93] font-mono mt-0.5">
+                      {mascot.emotion}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Nút tải meme riêng từ máy */}
             <button
               type="button"
               onClick={() => customMemeInputRef.current?.click()}
-              className="w-full py-2.5 px-4 rounded-xl border border-dashed border-[#0A8395]/60 bg-[#0A8395]/10 text-[#0A8395] hover:bg-[#0A8395]/20 flex items-center justify-center gap-2 text-xs font-bold active:scale-98 transition-all"
+              className="w-full py-2 px-3 rounded-xl border border-dashed border-white/20 bg-white/5 text-white/70 hover:text-white hover:bg-white/10 flex items-center justify-center gap-2 text-xs font-semibold active:scale-98 transition-all"
             >
-              <i className="bi bi-cloud-arrow-up-fill text-base"></i>
-              <span>Tải Ảnh Nhãn Dán Meme Riêng Từ Máy</span>
+              <i className="bi bi-cloud-arrow-up-fill text-sm"></i>
+              <span>Hoặc tải ảnh nhãn dán từ máy</span>
             </button>
             <input
               ref={customMemeInputRef}
@@ -154,34 +226,6 @@ export default function StoryStickerPicker({
               onChange={handleCustomMemeUpload}
               className="hidden"
             />
-
-            {/* Danh sách 10 Meme thịnh hành */}
-            <div className="grid grid-cols-2 gap-2.5 pt-1">
-              {MEME_STICKERS.map((meme) => (
-                <div
-                  key={meme.id}
-                  onClick={() => {
-                    playTactileClickSound();
-                    onSelectMeme(meme);
-                    onClose();
-                  }}
-                  className="flex items-center gap-2.5 p-2 rounded-xl bg-[#1A1A1E] hover:bg-[#222228] border border-white/5 hover:border-white/20 cursor-pointer active:scale-95 transition-all group"
-                >
-                  <img
-                    src={meme.image}
-                    alt={meme.label}
-                    className="w-11 h-11 rounded-lg object-cover border border-white/10 group-hover:scale-105 transition-transform"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-white truncate">{meme.label}</p>
-                    <span className="text-[10px] text-white/50 flex items-center gap-1 mt-0.5">
-                      <i className={`bi ${meme.icon}`}></i>
-                      <span>Hot Meme</span>
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
 

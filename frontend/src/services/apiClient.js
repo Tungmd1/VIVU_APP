@@ -40,7 +40,10 @@ export const apiClient = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, fullName, avatarUrl })
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok && json.message) {
+        throw new Error(json.message);
+      }
       return json;
     } catch (err) {
       console.warn('[API Client] register error:', err.message);
@@ -55,7 +58,10 @@ export const apiClient = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok && json.message) {
+        throw new Error(json.message);
+      }
       return json;
     } catch (err) {
       console.warn('[API Client] login error:', err.message);
@@ -249,12 +255,12 @@ export const apiClient = {
     return null;
   },
 
-  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong) {
+  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt) {
     try {
       const res = await fetch(`${API_BASE_URL}/gps/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong })
+        body: JSON.stringify({ userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt })
       });
       const json = await res.json();
       if (json.success && json.data) return json.data;
@@ -338,6 +344,39 @@ export const apiClient = {
       console.warn('[API Client] sendMessage fallback:', err.message);
     }
     return null;
+  },
+
+  async stopLiveLocation(messageId, userId) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/messages/stop-live-location`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, userId })
+      });
+      return await res.json();
+    } catch (err) {
+      console.warn('[API Client] stopLiveLocation error:', err.message);
+      return null;
+    }
+  },
+
+  async voteMessagePoll(messageId, optionId, userId) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/messages/${messageId}/poll-vote`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': userId || ''
+        },
+        body: JSON.stringify({ optionId, userId })
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+      throw new Error(json.message || 'Lỗi bình chọn');
+    } catch (err) {
+      console.warn('[API Client] voteMessagePoll error:', err.message);
+      throw err;
+    }
   },
 
   async markMessagesAsRead(conversationId, readerId) {
@@ -516,10 +555,22 @@ export const apiClient = {
       });
       const json = await res.json();
       if (json.success && json.data) return json.data;
+      throw new Error(json.message || 'Lỗi tạo nhóm từ máy chủ');
     } catch (err) {
       console.warn('[API Client] createCircle fallback:', err.message);
+      // Local fallback khi offline
+      if (circlePayload.name) {
+        return {
+          id: `circle-${Date.now()}`,
+          name: circlePayload.name,
+          image: circlePayload.image || null,
+          owner_id: circlePayload.ownerId || 'me',
+          member_ids: [circlePayload.ownerId || 'me', ...(circlePayload.memberIds || [])],
+          created_at: new Date().toISOString()
+        };
+      }
+      throw err;
     }
-    return null;
   },
 
   async updateCircle(circleId, updatePayload) {
@@ -701,4 +752,6 @@ export const apiClient = {
     return false;
   }
 };
+
+export default apiClient;
 

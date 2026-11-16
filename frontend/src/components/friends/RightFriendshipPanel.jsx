@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { getSafeAvatar } from '../../utils/avatarUtils';
 import { apiClient } from '../../services/apiClient';
+import FriendsListSection from './FriendsListSection';
+import NearbyPeersSection from './NearbyPeersSection';
 
 /**
  * RightFriendshipPanel - Khu vực Quản lý Kết nối & Bạn bè chuyên dụng ở Cạnh Phải Màn Hình
  * Phong cách Luminous Solar-Cyber HUD (White Cyberpunk)
  * Căn cứ kỹ thuật: Screen 11 & docs/Tokens_Spec.md (Nút 3.1, 3.2, 3.3, 3.4)
+ * Tuân thủ Rule 7 (< 450 dòng), Rule 5 (100% Bootstrap Icons), Rule 45 (Không mockup)
  */
 export default function RightFriendshipPanel({
   isOpen,
@@ -31,9 +35,7 @@ export default function RightFriendshipPanel({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onClose?.();
-      }
+      if (e.key === 'Escape') onClose?.();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -44,12 +46,8 @@ export default function RightFriendshipPanel({
     if (!currentUserId) return;
     try {
       const data = await apiClient.getFriendRequests(currentUserId);
-      if (data && Array.isArray(data.received)) {
-        setPendingRequests(data.received);
-      }
-      if (data && Array.isArray(data.sent)) {
-        setSentRequests(data.sent);
-      }
+      if (data && Array.isArray(data.received)) setPendingRequests(data.received);
+      if (data && Array.isArray(data.sent)) setSentRequests(data.sent);
     } catch (e) {
       console.warn('Lỗi tải friend requests:', e);
     }
@@ -86,6 +84,21 @@ export default function RightFriendshipPanel({
       clearTimeout(t);
     };
   }, [searchQuery, currentUserId]);
+
+  // Phân loại bạn bè: Online trước, Offline sau
+  const sortedFriends = useMemo(() => {
+    if (!Array.isArray(friends)) return [];
+    return [...friends].sort((a, b) => {
+      const aOn = Boolean(a.isOnline || a.is_online);
+      const bOn = Boolean(b.isOnline || b.is_online);
+      if (aOn === bOn) return (a.name || '').localeCompare(b.name || '');
+      return aOn ? -1 : 1;
+    });
+  }, [friends]);
+
+  const onlineFriendsCount = useMemo(() => {
+    return sortedFriends.filter(f => Boolean(f.isOnline || f.is_online)).length;
+  }, [sortedFriends]);
 
   // Gửi lời mời kết bạn
   const handleSendRequest = async (targetUserId, targetName) => {
@@ -149,9 +162,24 @@ export default function RightFriendshipPanel({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  // Định vị bạn bè trên bản đồ 3D
+  const handleLocateFriend = (friend) => {
+    const targetLat = Number(friend.lat ?? friend.realLat);
+    const targetLng = Number(friend.lng ?? friend.realLng);
+    if (!isNaN(targetLat) && !isNaN(targetLng) && window.__vivu_map) {
+      onClose?.();
+      window.__vivu_map.flyTo({
+        center: [targetLng, targetLat],
+        zoom: 17,
+        pitch: 35,
+        duration: 900
+      });
+    }
+  };
+
   return (
     <>
-      {/* Lớp phủ Backdrop trên Mobile & Desktop khi mở panel */}
+      {/* Backdrop */}
       {isOpen && (
         <div
           onClick={onClose}
@@ -165,13 +193,11 @@ export default function RightFriendshipPanel({
         role="dialog"
         aria-modal="true"
         aria-label="Khu vực Kết nối & Bạn bè"
-        className={`fixed top-0 right-0 h-[100dvh] w-full max-w-[340px] sm:max-w-[380px] bg-white/98 backdrop-blur-2xl border-l border-[#D2D9F4] z-50 flex flex-col justify-between transition-transform duration-300 ease-out motion-reduce:transition-none shadow-2xl font-sans select-none ${
+        className={`fixed top-0 right-0 h-[100dvh] w-full max-w-[340px] sm:max-w-[380px] bg-white/98 backdrop-blur-2xl border-l border-[#D2D9F4] z-50 flex flex-col justify-between transition-transform duration-300 ease-out shadow-2xl font-sans select-none ${
           isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
       >
-        {/* ======================================================== */}
-        {/* 1. HEADER PANEL                                          */}
-        {/* ======================================================== */}
+        {/* 1. HEADER PANEL */}
         <div className="p-4 border-b border-[#D2D9F4] shrink-0 space-y-3 bg-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -180,11 +206,10 @@ export default function RightFriendshipPanel({
               </div>
               <div>
                 <h2 className="text-sm font-bold text-[#131315] font-display tracking-tight">Kết Nối &amp; Bạn Bè</h2>
-                <p className="text-[10px] text-[#70787E]">Tìm bạn &amp; quản lý lời mời</p>
+                <p className="text-[10px] text-[#70787E]">Danh sách bạn bè &amp; lời mời kết nối</p>
               </div>
             </div>
 
-            {/* Nút 3.2: Đóng panel (36x36px, bo 12px, #F2F3FF) */}
             <button
               type="button"
               onClick={onClose}
@@ -196,7 +221,7 @@ export default function RightFriendshipPanel({
             </button>
           </div>
 
-          {/* Nút 3.1: Thẻ mã cá nhân của bạn */}
+          {/* Thẻ mã cá nhân */}
           {currentUserCode && (
             <div className="p-2.5 rounded-xl bg-[#FAFAFF] border border-[#D2D9F4] flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -217,7 +242,7 @@ export default function RightFriendshipPanel({
             </div>
           )}
 
-          {/* Ô tìm kiếm người dùng */}
+          {/* Ô tìm kiếm */}
           <div className="relative">
             <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#70787E]"></i>
             <input
@@ -239,7 +264,7 @@ export default function RightFriendshipPanel({
           </div>
         </div>
 
-        {/* Thông báo thao tác thành công (Toast mini) */}
+        {/* Thông báo thao tác */}
         {statusMessage && (
           <div className="mx-4 mt-2 p-2 rounded-xl bg-[rgba(16,255,160,0.15)] border border-[rgba(16,255,160,0.4)] text-[#00838F] text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200">
             <i className="bi bi-check-circle-fill text-[#10FFA0]"></i>
@@ -247,12 +272,10 @@ export default function RightFriendshipPanel({
           </div>
         )}
 
-        {/* ======================================================== */}
-        {/* 2. NỘI DUNG CUỘN DANH SÁCH                                */}
-        {/* ======================================================== */}
+        {/* 2. NỘI DUNG CUỘN DANH SÁCH */}
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-5 bg-[#FAFAFF]">
-          {/* KẾT QUẢ TÌM KIẾM (NẾU CÓ SEARCH QUERY) */}
           {searchQuery.trim() ? (
+            /* KẾT QUẢ TÌM KIẾM */
             <div className="space-y-2">
               <div className="text-[11px] font-bold text-[#70787E] uppercase tracking-wider flex items-center justify-between font-display">
                 <span>Kết quả tìm kiếm</span>
@@ -271,7 +294,7 @@ export default function RightFriendshipPanel({
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
                       <img
-                        src={user.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                        src={getSafeAvatar(user.avatar || user.avatar_url)}
                         alt=""
                         className="w-9 h-9 rounded-full object-cover border border-[#D2D9F4] shrink-0"
                       />
@@ -310,8 +333,17 @@ export default function RightFriendshipPanel({
             </div>
           ) : (
             <>
-              {/* PHẦN 1: LỜI MỜI KẾT BẠN ĐANG CHỜ */}
-              <div className="space-y-2.5">
+              {/* PHẦN 1: BẠN BÈ CỦA BẠN (ONLINE & OFFLINE) */}
+              <FriendsListSection
+                sortedFriends={sortedFriends}
+                onlineFriendsCount={onlineFriendsCount}
+                onLocateFriend={handleLocateFriend}
+                onStartChatWithUser={onStartChatWithUser}
+                onClose={onClose}
+              />
+
+              {/* PHẦN 2: LỜI MỜI KẾT BẠN ĐANG CHỜ */}
+              <div className="space-y-2.5 pt-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-[#70787E] uppercase tracking-wider flex items-center gap-1.5 font-display">
                     <i className="bi bi-envelope-paper-fill text-[#00838F] text-xs"></i>
@@ -325,7 +357,7 @@ export default function RightFriendshipPanel({
                 </div>
 
                 {pendingRequests.length === 0 ? (
-                  <div className="py-4 px-3 rounded-2xl bg-white border border-[#D2D9F4] text-center text-xs text-[#70787E]">
+                  <div className="py-3 px-3 rounded-2xl bg-white border border-[#D2D9F4] text-center text-xs text-[#70787E]">
                     Không có lời mời nào đang chờ.
                   </div>
                 ) : (
@@ -337,7 +369,7 @@ export default function RightFriendshipPanel({
                       >
                         <div className="flex items-center gap-2.5">
                           <img
-                            src={req.sender_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                            src={getSafeAvatar(req.sender_avatar)}
                             alt=""
                             className="w-9 h-9 rounded-full object-cover border-2 border-[#10FFA0] shrink-0"
                           />
@@ -351,7 +383,6 @@ export default function RightFriendshipPanel({
                           </div>
                         </div>
 
-                        {/* Nút 3.3 Chấp nhận / Nút 3.4 Từ chối */}
                         <div className="grid grid-cols-2 gap-2 pt-1">
                           <button
                             type="button"
@@ -382,102 +413,15 @@ export default function RightFriendshipPanel({
                 )}
               </div>
 
-              {/* PHẦN 2: GỢI Ý NGƯỜI DÙNG QUANH ĐÂY (GPS THỰC TẾ) */}
-              <div className="space-y-2.5 pt-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-[#70787E] uppercase tracking-wider flex items-center gap-1.5 font-display">
-                    <i className="bi bi-geo-alt-fill text-[#00838F] text-xs"></i>
-                    <span>Người ở gần bạn</span>
-                  </span>
-                  <span className="text-[10px] text-[#00838F] font-mono font-bold">
-                    {nearbyPeers.length} trực tuyến
-                  </span>
-                </div>
-
-                {nearbyPeers.length === 0 ? (
-                  <div className="py-4 px-3 rounded-2xl bg-white border border-[#D2D9F4] text-center text-xs text-[#70787E]">
-                    Chưa phát hiện người dùng ở gần.
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {nearbyPeers.slice(0, 8).map((peer) => {
-                      const peerName = peer.full_name || peer.name || 'Người dùng VIVU';
-                      const peerAvatar = peer.avatar_url || peer.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
-                      const peerCode = peer.user_code || '';
-                      const isAlreadyFriend = friends.some(f => (peer.id && f.id === peer.id) || f.name === peerName) || peer.is_friend || peer.relationshipStatus === 'friends';
-                      const isPendingSent = sentRequests.some(r => r.receiver_id === peer.id) || peer.friendship_status === 'pending_sent';
-
-                      return (
-                        <div
-                          key={peer.id}
-                          className="p-2.5 rounded-2xl bg-white border border-[#D2D9F4] flex items-center justify-between gap-2 hover:border-[rgba(0,229,255,0.4)] transition-all group shadow-xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div className="relative shrink-0">
-                              <img
-                                src={peerAvatar}
-                                alt={peerName}
-                                className="w-9 h-9 rounded-full object-cover border border-[#D2D9F4]"
-                              />
-                              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#10FFA0] border-2 border-white shadow-[0_0_6px_#10FFA0]" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-xs font-bold text-[#131315] font-display truncate group-hover:text-[#00838F] transition-colors">
-                                {peerName}
-                              </div>
-                              <div className="text-[10px] text-[#70787E] truncate font-mono">
-                                {peerCode ? `(${peerCode}) • ` : ''}Gần bạn
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {onStartChatWithUser && (
-                              <button
-                                type="button"
-                                onClick={() => onStartChatWithUser(peer)}
-                                className="w-7 h-7 rounded-full bg-[#F2F3FF] hover:bg-[#E6E7F6] text-[#131315] border border-[#D2D9F4] flex items-center justify-center text-xs active:scale-90 transition-all cursor-pointer shadow-xs"
-                                title="Nhắn tin"
-                                aria-label={`Nhắn tin với ${peerName}`}
-                              >
-                                <i className="bi bi-chat-dots-fill text-[11px] text-[#00838F]"></i>
-                              </button>
-                            )}
-
-                            {isAlreadyFriend ? (
-                              <span className="px-2.5 py-1 rounded-full bg-[#F2F3FF] text-[#00838F] border border-[#D2D9F4] text-[10px] font-semibold flex items-center gap-1">
-                                <i className="bi bi-check-circle-fill text-[#10FFA0] text-[9px]"></i>
-                                <span>Bạn bè</span>
-                              </span>
-                            ) : isPendingSent ? (
-                              <span className="px-2.5 py-1 rounded-full bg-[rgba(255,170,0,0.15)] text-[#B06000] border border-[rgba(255,170,0,0.4)] text-[10px] font-semibold flex items-center gap-1">
-                                <i className="bi bi-hourglass-split text-[9px]"></i>
-                                <span>Đã gửi</span>
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={loadingActionId === peer.id}
-                                onClick={() => handleSendRequest(peer.id, peerName)}
-                                className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] text-[#08202E] border border-[#00F0FF] hover:opacity-95 active:scale-95 text-[10px] font-display font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50 shadow-xs"
-                                title="Gửi lời mời kết bạn"
-                                aria-label={`Kết bạn với ${peerName}`}
-                              >
-                                {loadingActionId === peer.id ? (
-                                  <i className="bi bi-arrow-repeat animate-spin"></i>
-                                ) : (
-                                  <i className="bi bi-person-plus-fill"></i>
-                                )}
-                                <span>Kết bạn</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              {/* PHẦN 3: GỢI Ý NGƯỜI DÙNG QUANH ĐÂY */}
+              <NearbyPeersSection
+                nearbyPeers={nearbyPeers}
+                sortedFriends={sortedFriends}
+                sentRequests={sentRequests}
+                loadingActionId={loadingActionId}
+                onSendRequest={handleSendRequest}
+                onStartChatWithUser={onStartChatWithUser}
+              />
             </>
           )}
         </div>

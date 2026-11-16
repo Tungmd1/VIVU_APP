@@ -50,7 +50,7 @@ export async function signUpWithEmail(email, password, fullName) {
       options: {
         data: {
           full_name: fullName.trim(),
-          avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName.trim())}`
+          avatar_url: null
         }
       }
     });
@@ -65,7 +65,7 @@ export async function signUpWithEmail(email, password, fullName) {
         await supabase.from('profiles').upsert({
           id: data.user.id,
           full_name: fullName.trim(),
-          avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(fullName.trim())}`,
+          avatar_url: null,
           custom_status: 'Thành viên mới gia nhập VIVU',
           battery: '100%',
           last_seen_at: new Date().toISOString()
@@ -87,48 +87,21 @@ export async function signUpWithEmail(email, password, fullName) {
     return { success: true, email: normalizedEmail, user: data?.user };
   }
 
-  // Dual-Mode: Kết nối Backend Server API trung tâm (Chia sẻ chung giữa Máy tính & Điện thoại)
+  // Kết nối Backend Server API trung tâm (Chia sẻ chung giữa Máy tính & Điện thoại & Đa trình duyệt)
   try {
-    const res = await apiClient.register(normalizedEmail, password, fullName.trim());
+    const cleanPassword = String(password).trim();
+    const cleanFullName = String(fullName || '').trim();
+    const res = await apiClient.register(normalizedEmail, cleanPassword, cleanFullName);
     if (res && res.success) {
       return { success: true, email: normalizedEmail, user: res.user };
     }
     if (res && res.message) {
       throw new Error(res.message);
     }
+    throw new Error('Đăng ký không thành công. Vui lòng thử lại.');
   } catch (apiErr) {
-    if (apiErr.message && !apiErr.message.includes('fetch')) {
-      throw apiErr;
-    }
-    console.warn('[VIVU Auth] Backend offline, fallback to local storage:', apiErr.message);
+    throw apiErr;
   }
-
-  // Dự phòng ngoại tuyến khi mất mạng hoàn toàn
-  let registeredUsers = [];
-  try {
-    registeredUsers = JSON.parse(localStorage.getItem(LOCAL_REGISTERED_USERS_KEY) || '[]');
-  } catch {
-    registeredUsers = [];
-  }
-
-  const existing = registeredUsers.find(u => u.email === normalizedEmail);
-  if (existing) {
-    throw new Error('Email này đã được đăng ký tài khoản. Bạn vui lòng chọn Đăng nhập.');
-  }
-
-  const localUser = {
-    id: `local-user-${Date.now()}`,
-    email: normalizedEmail,
-    password: password,
-    user_metadata: {
-      full_name: fullName.trim(),
-      avatar_url: null
-    }
-  };
-
-  registeredUsers.push(localUser);
-  localStorage.setItem(LOCAL_REGISTERED_USERS_KEY, JSON.stringify(registeredUsers));
-  return { success: true, email: normalizedEmail, user: localUser };
 }
 
 /**
@@ -138,11 +111,12 @@ export async function signUpWithEmail(email, password, fullName) {
  */
 export async function signInWithEmail(email, password) {
   const normalizedEmail = email.trim().toLowerCase();
+  const cleanPassword = String(password).trim();
 
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: normalizedEmail,
-      password: password
+      password: cleanPassword
     });
 
     if (error) {
@@ -152,17 +126,28 @@ export async function signInWithEmail(email, password) {
     return data;
   }
 
-  // Dual-Mode: Xác thực qua Backend Server trung tâm
+  // Xác thực qua Backend Server trung tâm (Đồng bộ đa trình duyệt 100%)
   try {
-    const res = await apiClient.login(normalizedEmail, password);
+    const res = await apiClient.login(normalizedEmail, cleanPassword);
     if (res && res.success) {
       const userObj = {
         id: res.user.id,
         email: res.user.email,
+        ...res.user,
         user_metadata: {
+          ...res.user,
           full_name: res.user.full_name,
           avatar_url: res.user.avatar_url,
-          user_code: res.user.user_code
+          user_code: res.user.user_code,
+          phone: res.user.phone,
+          bio: res.user.bio,
+          age: res.user.age,
+          job: res.user.job,
+          tags: res.user.tags,
+          favorite_song: res.user.favorite_song,
+          privacy_age: res.user.privacy_age,
+          privacy_phone: res.user.privacy_phone,
+          privacy_tags: res.user.privacy_tags
         }
       };
       const sessionObj = {
@@ -170,45 +155,61 @@ export async function signInWithEmail(email, password) {
         access_token: res.session?.access_token || `vivu-tok-${res.user.id}`
       };
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(sessionObj));
+      const targetAvatar = res.user.avatar_url || res.user.avatar;
+      try {
+        const scopedKey = `vivu_user_profile_data_${res.user.id}`;
+        let existingProfile = {};
+        const raw = localStorage.getItem(scopedKey);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.id === res.user.id || parsed.userId === res.user.id) {
+            existingProfile = parsed;
+          }
+        }
+        const mergedProfile = {
+          ...existingProfile,
+          ...res.user,
+          userId: res.user.id,
+          id: res.user.id,
+          fullName: res.user.full_name || existingProfile.fullName || '',
+          avatarUrl: targetAvatar || existingProfile.avatarUrl || null,
+          avatar_url: targetAvatar || existingProfile.avatar_url || null
+        };
+        localStorage.setItem(scopedKey, JSON.stringify(mergedProfile));
+        if (targetAvatar) {
+          localStorage.setItem(`vivu_user_avatar_${res.user.id}`, targetAvatar);
+          localStorage.setItem('vivu_user_avatar', targetAvatar);
+        }
+        if (res.user.custom_chibi) {
+          const isExp = res.user.chibi_expires_at && new Date(res.user.chibi_expires_at).getTime() <= Date.now();
+          if (!isExp) {
+            localStorage.setItem(`vivu_user_custom_chibi_${res.user.id}`, res.user.custom_chibi);
+            if (res.user.chibi_expires_at) {
+              const expMs = typeof res.user.chibi_expires_at === 'number' ? res.user.chibi_expires_at : new Date(res.user.chibi_expires_at).getTime();
+              localStorage.setItem(`vivu_user_custom_chibi_expires_${res.user.id}`, String(expMs));
+            }
+          }
+        }
+        if (res.user.custom_status) {
+          localStorage.setItem(`vivu_user_custom_status_${res.user.id}`, res.user.custom_status);
+        }
+        if (res.user.custom_song) {
+          const songStr = typeof res.user.custom_song === 'object' ? JSON.stringify(res.user.custom_song) : String(res.user.custom_song);
+          localStorage.setItem(`vivu_user_custom_song_${res.user.id}`, songStr);
+        }
+        if (res.user.pin_skin) {
+          localStorage.setItem(`vivu_user_pin_skin_${res.user.id}`, res.user.pin_skin);
+        }
+      } catch {}
       return { user: userObj, session: sessionObj };
     }
     if (res && res.message) {
       throw new Error(res.message);
     }
+    throw new Error('Đăng nhập không thành công. Vui lòng kiểm tra lại thông tin.');
   } catch (apiErr) {
-    if (apiErr.message && !apiErr.message.includes('fetch')) {
-      throw apiErr;
-    }
-    console.warn('[VIVU Auth] Backend login error, fallback to local:', apiErr.message);
+    throw apiErr;
   }
-
-  // Dự phòng Offline
-  let registeredUsers = [];
-  try {
-    registeredUsers = JSON.parse(localStorage.getItem(LOCAL_REGISTERED_USERS_KEY) || '[]');
-  } catch {
-    registeredUsers = [];
-  }
-
-  const matchedUser = registeredUsers.find(u => u.email === normalizedEmail);
-  if (matchedUser) {
-    if (matchedUser.password && matchedUser.password !== password) {
-      throw new Error('Mật khẩu không chính xác. Vui lòng kiểm tra lại.');
-    }
-    const localSession = {
-      user: {
-        id: matchedUser.id,
-        email: matchedUser.email,
-        user_metadata: matchedUser.user_metadata
-      },
-      access_token: `vivu-local-token-${Date.now()}`,
-      expires_at: Date.now() + 86400 * 1000
-    };
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(localSession));
-    return { user: localSession.user, session: localSession };
-  }
-
-  throw new Error('Tài khoản chưa được đăng ký. Bạn vui lòng chọn Đăng ký trước.');
 }
 
 /** Đồng bộ danh tính Supabase đã xác minh vào hồ sơ VIVU dùng bởi backend. */
@@ -259,7 +260,7 @@ export async function signInWithGoogleDirect(googleData) {
       auth_provider: 'google',
       user_metadata: {
         full_name: name,
-        avatar_url: googleData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        avatar_url: googleData.avatarUrl || null,
         user_code: `VU-${Math.floor(1000 + Math.random() * 9000)}`
       }
     };
@@ -374,7 +375,7 @@ export async function signInWithFacebookDirect(facebookData) {
       auth_provider: 'facebook',
       user_metadata: {
         full_name: name,
-        avatar_url: facebookData.avatarUrl || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+        avatar_url: facebookData.avatarUrl || null,
         user_code: `VU-${Math.floor(1000 + Math.random() * 9000)}`
       }
     };
@@ -603,7 +604,56 @@ export async function updatePassword(newPassword) {
  * @param {object} profileData { fullName, avatarUrl, customStatus, phone, tags }
  */
 export async function updateUserProfile(profileData) {
-  const { fullName, avatarUrl, customStatus, phone, tags } = profileData;
+  const { 
+    fullName, 
+    avatarUrl, 
+    customStatus, 
+    phone, 
+    age, 
+    job, 
+    bio, 
+    tags, 
+    favorite_song, 
+    privacy_age, 
+    privacy_phone, 
+    privacy_tags,
+    photos 
+  } = profileData;
+
+  // Luôn lưu bền vững vào standalone cache profile (cả global và scoped theo user)
+  const scopedUserId = profileData.userId || (() => {
+    try {
+      const local = localStorage.getItem(LOCAL_SESSION_KEY);
+      if (local) return JSON.parse(local)?.user?.id;
+    } catch {}
+    try { return localStorage.getItem('vivu_client_user_id'); } catch {}
+    return null;
+  })();
+
+  try {
+    const existingRaw = localStorage.getItem('vivu_user_profile_data');
+    const existing = existingRaw ? JSON.parse(existingRaw) : {};
+    const updatedCache = {
+      ...existing,
+      ...profileData,
+      fullName: fullName || existing.fullName,
+      full_name: fullName || existing.fullName,
+      avatar_url: avatarUrl !== undefined ? avatarUrl : existing.avatar_url,
+      avatarUrl: avatarUrl !== undefined ? avatarUrl : existing.avatarUrl,
+      custom_status: customStatus || existing.custom_status,
+      customStatus: customStatus || existing.customStatus
+    };
+    localStorage.setItem('vivu_user_profile_data', JSON.stringify(updatedCache));
+    if (scopedUserId && scopedUserId !== 'guest') {
+      localStorage.setItem(`vivu_user_profile_data_${scopedUserId}`, JSON.stringify(updatedCache));
+      const targetAv = avatarUrl !== undefined ? avatarUrl : existing.avatarUrl;
+      if (targetAv) {
+        localStorage.setItem(`vivu_user_avatar_${scopedUserId}`, targetAv);
+      } else if (targetAv === null || targetAv === '') {
+        localStorage.removeItem(`vivu_user_avatar_${scopedUserId}`);
+      }
+    }
+  } catch {}
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -616,7 +666,14 @@ export async function updateUserProfile(profileData) {
             avatar_url: avatarUrl,
             custom_status: customStatus,
             phone: phone,
-            tags: tags
+            age: age,
+            job: job,
+            bio: bio,
+            tags: tags,
+            favorite_song: favorite_song,
+            privacy_age: privacy_age,
+            privacy_phone: privacy_phone,
+            privacy_tags: privacy_tags
           }
         });
 
@@ -626,6 +683,11 @@ export async function updateUserProfile(profileData) {
           full_name: fullName,
           avatar_url: avatarUrl,
           custom_status: customStatus,
+          phone: phone,
+          age: age,
+          job: job,
+          bio: bio,
+          tags: tags,
           last_seen_at: new Date().toISOString()
         });
       }
@@ -636,14 +698,7 @@ export async function updateUserProfile(profileData) {
   }
 
   // Dual-Mode: Đồng bộ trực tiếp lên Backend API Server (Lưu bền vững vào vivu_database.json)
-  let currentUserId = null;
-  try {
-    const local = localStorage.getItem(LOCAL_SESSION_KEY);
-    if (local) {
-      const s = JSON.parse(local);
-      currentUserId = s.user?.id;
-    }
-  } catch {}
+  const currentUserId = scopedUserId;
 
   if (currentUserId) {
     try {
@@ -662,6 +717,12 @@ export async function updateUserProfile(profileData) {
               avatar_url: apiRes.user.avatar_url || avatarUrl,
               custom_status: customStatus,
               phone: apiRes.user.phone || phone,
+              age: apiRes.user.age ?? profileData.age,
+              job: apiRes.user.job ?? profileData.job,
+              bio: apiRes.user.bio ?? profileData.bio,
+              privacy_age: apiRes.user.privacy_age ?? profileData.privacy_age,
+              privacy_phone: apiRes.user.privacy_phone ?? profileData.privacy_phone,
+              privacy_tags: apiRes.user.privacy_tags ?? profileData.privacy_tags,
               tags: apiRes.user.tags || tags
             }
           };
@@ -685,6 +746,12 @@ export async function updateUserProfile(profileData) {
         avatar_url: avatarUrl,
         custom_status: customStatus,
         phone: phone,
+        age: profileData.age,
+        job: profileData.job,
+        bio: profileData.bio,
+        privacy_age: profileData.privacy_age,
+        privacy_phone: profileData.privacy_phone,
+        privacy_tags: profileData.privacy_tags,
         tags: tags
       };
       localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
@@ -711,6 +778,11 @@ export async function signOut() {
   localStorage.removeItem('vivu_all_accounts_directory');
   localStorage.removeItem('vivu_shared_conversations_v2');
   localStorage.removeItem('vivu_shared_friendships');
+  localStorage.removeItem('vivu_user_profile_data');
+  localStorage.removeItem('vivu_user_name');
+  localStorage.removeItem('vivu_user_custom_status');
+  localStorage.removeItem('vivu_user_custom_song');
+  localStorage.removeItem('vivu_user_active_story');
 
   if (isSupabaseConfigured && supabase) {
     const { error } = await supabase.auth.signOut();

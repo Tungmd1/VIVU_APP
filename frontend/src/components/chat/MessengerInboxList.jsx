@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React from 'react';
 import { motion } from 'motion/react';
 import VivuButton from '../common/VivuButton';
@@ -19,12 +20,16 @@ export default function MessengerInboxList({
   groupCount = 0,
   spamCount = 0,
   userAvatar,
+  friends = [],
+  onOpenDirectChat,
   onBackToMap,
   onToggleRightFriendshipPanel,
   pendingFriendRequestsCount = 0,
   onOpenCreateCircle,
   setGroupToDelete
 }) {
+  const onlineFriends = (friends || []).filter(f => f && (f.isOnline === true || f.is_online === true));
+
   return (
     <aside
       className={`${
@@ -52,7 +57,7 @@ export default function MessengerInboxList({
 
             <div className="relative">
               <img 
-                src={userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'} 
+                src={userAvatar || DEFAULT_WHITE_PERSON_AVATAR} 
                 alt="" 
                 className="w-10 h-10 rounded-full object-cover border-2 border-[#FF2A85] shadow-sm"
               />
@@ -121,6 +126,53 @@ export default function MessengerInboxList({
 
       {/* Danh sách cuộn độc lập cho Hộp thư */}
       <div className="flex-1 overflow-y-auto no-scrollbar p-3.5 pb-28 space-y-3 bg-[#0a0e1c]">
+
+        {/* THANH BẠN BÈ ONLINE (ACTIVE FRIENDS BAR - CHUẨN MESSENGER CỔ ĐIỂN) */}
+        {onlineFriends.length > 0 && (
+          <div className="pb-3 border-b border-white/10 space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-bold text-white/70 uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#00FF66] animate-pulse"></span>
+                <span>Bạn bè online ({onlineFriends.length})</span>
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1 px-1">
+              {onlineFriends.map((friend) => {
+                const fId = friend.id || friend.user_id;
+                const fName = friend.name || friend.full_name || 'Bạn VIVU';
+                const fAvatar = friend.avatar || friend.avatar_url || DEFAULT_WHITE_PERSON_AVATAR;
+                return (
+                  <button
+                    key={fId}
+                    type="button"
+                    onClick={() => onOpenDirectChat && onOpenDirectChat(friend)}
+                    className="flex flex-col items-center shrink-0 cursor-pointer group active:scale-95 transition-transform"
+                    title={`Nhắn tin với ${fName}`}
+                  >
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/20 group-hover:border-[#00E5FF] transition-colors bg-white/5 shadow-md">
+                        <img
+                          src={fAvatar}
+                          alt={fName}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.currentTarget.src = DEFAULT_WHITE_PERSON_AVATAR; }}
+                        />
+                      </div>
+                      <span
+                        className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-[#00FF66] border-2 border-[#0a0e1c] shadow-[0_0_8px_#00FF66]"
+                        title="Đang hoạt động"
+                      />
+                    </div>
+                    <span className="text-[11px] font-medium text-white/80 group-hover:text-white max-w-[60px] truncate text-center mt-1">
+                      {fName}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Bộ lọc 3 tab: Tất cả, Nhóm, Người lạ */}
         <div className="flex items-center gap-2 border-b border-white/10 pb-2.5">

@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React from 'react';
 
 export default function HeaderCategoryBar({ 
@@ -113,7 +114,7 @@ export default function HeaderCategoryBar({
           title="Trang Cá Nhân Của Bạn"
         >
           <img 
-            src={userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'} 
+            src={userAvatar || DEFAULT_WHITE_PERSON_AVATAR} 
             alt="Profile" 
             className="w-full h-full object-cover" 
           />

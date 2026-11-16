@@ -7,6 +7,8 @@ router.get('/inbox/:userId', chatController.getInbox);
 router.get('/conversations/:userId', chatController.getUserConversations);
 router.get('/:conversationId/messages', chatController.getMessagesByConversation);
 router.post('/messages', chatController.sendMessage);
+router.post('/messages/stop-live-location', chatController.stopLiveLocation);
+router.post('/messages/:messageId/poll-vote', chatController.votePoll);
 router.post('/messages/read', chatController.markAsRead);
 
 export default router;

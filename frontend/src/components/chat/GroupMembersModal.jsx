@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState } from 'react';
 
 /**
@@ -15,6 +16,7 @@ export default function GroupMembersModal({
   currentUserAvatar,
   onViewOnMap,
   onOpenDirectChat,
+  onOpenUserProfile,
   onAddMembers,
   onInviteMembers,
   onLeaveGroup,
@@ -49,11 +51,7 @@ export default function GroupMembersModal({
   const inviteableFriends = allFriends.filter(f => !existingMemberAndPendingIds.has(f.id));
 
   const handleToggleNewFriend = (id) => {
-    if (selectedNewFriendIds.includes(id)) {
-      setSelectedNewFriendIds(selectedNewFriendIds.filter(fid => fid !== id));
-    } else {
-      setSelectedNewFriendIds([...selectedNewFriendIds, id]);
-    }
+    setSelectedNewFriendIds(prev => prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]);
   };
 
   const handleSendInvites = async () => {
@@ -108,7 +106,7 @@ export default function GroupMembersModal({
         <div className="flex items-center justify-between pb-3 border-b border-[#D2D9F4] shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <img 
-              src={group.avatar || group.image || `https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=150`} 
+              src={group.avatar || group.image || DEFAULT_WHITE_PERSON_AVATAR} 
               alt="" 
               className="w-12 h-12 rounded-2xl object-cover border-2 border-[#00E5FF] shadow-xs shrink-0"
             />
@@ -183,7 +181,7 @@ export default function GroupMembersModal({
                   <div className="flex items-center gap-2.5">
                     <div className="relative">
                       <img 
-                        src={currentUserAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'} 
+                        src={currentUserAvatar || DEFAULT_WHITE_PERSON_AVATAR} 
                         alt="" 
                         className="w-9 h-9 rounded-full object-cover border-2 border-[#10FFA0]"
                       />
@@ -218,14 +216,18 @@ export default function GroupMembersModal({
                   const isFriendOwner = group.owner_id === friend.id;
                   return (
                     <div key={friend.id} className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-[#D2D9F4] hover:border-[rgba(0,229,255,0.4)] transition-all shadow-xs">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <div 
+                        onClick={() => { if (onOpenUserProfile) onOpenUserProfile(friend); }}
+                        className="flex items-center gap-2.5 min-w-0 cursor-pointer group"
+                        title={`Xem hồ sơ của ${friend.name}`}
+                      >
                         <div className="relative shrink-0">
-                          <img src={friend.avatar} alt="" className="w-9 h-9 rounded-full object-cover border border-[#D2D9F4]" />
+                          <img src={friend.avatar} alt="" className="w-9 h-9 rounded-full object-cover border border-[#D2D9F4] group-hover:scale-105 transition-transform" />
                           <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#10FFA0] border border-white" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold text-xs text-[#131315] font-display truncate max-w-[120px]">{friend.name}</span>
+                            <span className="font-bold text-xs text-[#131315] font-display truncate max-w-[120px] group-hover:text-[#00838F] transition-colors">{friend.name}</span>
                             {isFriendOwner && (
                               <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-[rgba(255,170,0,0.15)] text-[#B06000] border border-[rgba(255,170,0,0.3)] shrink-0">
                                 Trưởng nhóm
@@ -241,6 +243,16 @@ export default function GroupMembersModal({
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
+                        {onOpenUserProfile && (
+                          <button 
+                            type="button"
+                            onClick={() => onOpenUserProfile(friend)}
+                            className="w-7 h-7 rounded-full bg-[#F2F3FF] hover:bg-[#E6E7F6] text-[#131315] border border-[#D2D9F4] flex items-center justify-center transition-colors cursor-pointer"
+                            title={`Xem trang cá nhân của ${friend.name}`}
+                          >
+                            <i className="bi bi-person-badge text-xs"></i>
+                          </button>
+                        )}
                         {onOpenDirectChat && (
                           <button 
                             type="button"
@@ -281,7 +293,7 @@ export default function GroupMembersModal({
                 pendingMembers.map((m, idx) => {
                   const friendInfo = allFriends.find(f => f.id === m.user_id);
                   const displayName = friendInfo?.name || m.name || `Thành viên (${m.user_id.slice(-4)})`;
-                  const displayAvatar = friendInfo?.avatar || m.avatar || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100`;
+                  const displayAvatar = friendInfo?.avatar || m.avatar || DEFAULT_WHITE_PERSON_AVATAR;
                   return (
                     <div 
                       key={m.user_id || idx}
@@ -373,38 +385,21 @@ export default function GroupMembersModal({
 
         </div>
 
-        {/* 4. MODAL XÁC NHẬN HÀNH ĐỘNG NGUY HIỂM */}
+        {/* 4. MODAL XÁC NHẬN */}
         {confirmAction && (
-          <div className="p-3 rounded-2xl bg-[#FEE2E2] border border-[#FCA5A5] text-[#131315] space-y-2 animate-in fade-in">
+          <div className="p-2.5 rounded-2xl bg-[#FEE2E2] border border-[#FCA5A5] text-[#131315] space-y-1.5 animate-in fade-in">
             <div className="text-xs font-bold flex items-center gap-1.5 text-[#EF4444] font-display">
               <i className="bi bi-exclamation-triangle-fill"></i>
-              <span>
-                {confirmAction === 'disband' 
-                  ? 'Bạn có chắc muốn GIẢI TÁN nhóm này?' 
-                  : confirmAction === 'leave'
-                    ? 'Bạn có chắc muốn RỜI KHỎI nhóm này?'
-                    : `Xóa "${confirmAction.targetName}" khỏi nhóm?`}
-              </span>
+              <span>{confirmAction === 'disband' ? 'Giải tán nhóm này?' : confirmAction === 'leave' ? 'Rời khỏi nhóm này?' : `Xóa "${confirmAction.targetName}"?`}</span>
             </div>
             <p className="text-[10px] text-[#70787E]">
-              {confirmAction === 'disband' 
-                ? 'Nhóm và toàn bộ lịch sử trò chuyện sẽ bị đóng cho tất cả thành viên.' 
-                : 'Bạn sẽ không còn xem được vị trí và tin nhắn của nhóm.'}
+              {confirmAction === 'disband' ? 'Nhóm và toàn bộ lịch sử sẽ bị đóng.' : 'Bạn sẽ không còn xem được vị trí và tin nhắn nhóm.'}
             </p>
-            <div className="flex gap-2 pt-1">
-              <button
-                type="button"
-                onClick={handleExecuteConfirm}
-                disabled={isSubmitting}
-                className="flex-1 py-1.5 bg-[#EF4444] hover:bg-[#DC2626] text-white text-xs font-bold rounded-xl transition-all cursor-pointer font-display"
-              >
+            <div className="flex gap-2 pt-0.5">
+              <button type="button" onClick={handleExecuteConfirm} disabled={isSubmitting} className="flex-1 py-1.5 bg-[#EF4444] hover:bg-[#DC2626] text-white text-xs font-bold rounded-xl transition-all cursor-pointer font-display">
                 {isSubmitting ? 'Đang xử lý...' : 'Xác nhận'}
               </button>
-              <button
-                type="button"
-                onClick={() => setConfirmAction(null)}
-                className="px-3 py-1.5 bg-white border border-[#D2D9F4] text-[#131315] hover:bg-[#F2F3FF] text-xs font-semibold rounded-xl transition-all cursor-pointer"
-              >
+              <button type="button" onClick={() => setConfirmAction(null)} className="px-3 py-1.5 bg-white border border-[#D2D9F4] text-[#131315] hover:bg-[#F2F3FF] text-xs font-semibold rounded-xl transition-all cursor-pointer">
                 Hủy
               </button>
             </div>

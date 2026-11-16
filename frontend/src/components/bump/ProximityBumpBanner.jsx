@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -15,7 +16,7 @@ export default function ProximityBumpBanner({
   if (!nearbyFriend) return null;
 
   const friendName = nearbyFriend.name || nearbyFriend.full_name || 'Bạn bè';
-  const friendAvatar = nearbyFriend.avatar || nearbyFriend.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+  const friendAvatar = nearbyFriend.avatar || nearbyFriend.avatar_url || DEFAULT_WHITE_PERSON_AVATAR;
 
   return (
     <AnimatePresence>

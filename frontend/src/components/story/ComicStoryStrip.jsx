@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useRef } from 'react';
 
 /**
@@ -78,7 +79,7 @@ export default function ComicStoryStrip({
           {/* Huy hiệu Góc Manga: BẠN */}
           <div className="relative z-10 flex items-center justify-between">
             <span className="comic-badge text-[9px] px-1.5 py-0.5 rounded-sm bg-accent text-black font-extrabold shadow-sm">
-              {myActiveStory ? 'LIVE' : 'YOU'}
+              BẠN
             </span>
 
             {/* Nút dấu cộng hoặc icon phát sóng */}
@@ -99,7 +100,7 @@ export default function ComicStoryStrip({
           <div className="relative z-10 space-y-1">
             <div className="relative w-8 h-8 rounded-full p-[1.5px] border-2 border-white bg-black">
               <img
-                src={userAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'}
+                src={userAvatar || DEFAULT_WHITE_PERSON_AVATAR}
                 alt={userName}
                 className="w-full h-full rounded-full object-cover"
               />
@@ -121,7 +122,7 @@ export default function ComicStoryStrip({
         {stories.map((story) => {
           const isViewed = viewedStoryIds.has(story.id);
           const authorName = story.hostName || story.name || 'Người dùng VIVU';
-          const authorAvatar = story.hostAvatar || story.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+          const authorAvatar = story.hostAvatar || story.avatar || DEFAULT_WHITE_PERSON_AVATAR;
           const storyTitle = story.title || 'Khoảnh khắc VIVU';
 
           return (

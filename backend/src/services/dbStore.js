@@ -6,6 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_DIR = path.resolve(__dirname, '..', '..', 'data');
 const DB_FILE = path.join(DATA_DIR, 'vivu_database.json');
+const DB_BAK_FILE = path.join(DATA_DIR, 'vivu_database.json.bak');
 
 const INITIAL_DB = {
   users: [],
@@ -25,31 +26,53 @@ class DatabaseStore {
     this.init();
   }
 
+  loadRawJson(filePath) {
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, 'utf-8');
+    if (!raw || !raw.trim() || raw.includes('\u0000')) {
+      console.warn(`[DB Engine] File ${filePath} rỗng hoặc chứa byte null, bỏ qua.`);
+      return null;
+    }
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      console.warn(`[DB Engine] Lỗi cú pháp JSON trong ${filePath}:`, e.message);
+      return null;
+    }
+  }
+
   init() {
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
 
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        if (raw.trim()) {
-          const parsed = JSON.parse(raw);
-          this.data = {
-            users: Array.isArray(parsed.users) ? parsed.users : [],
-            profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
-            stories: Array.isArray(parsed.stories) ? parsed.stories : [],
-            messages: Array.isArray(parsed.messages) ? parsed.messages : [],
-            circles: Array.isArray(parsed.circles) ? parsed.circles : [],
-            friendRequests: Array.isArray(parsed.friendRequests) ? parsed.friendRequests : [],
-            friendships: Array.isArray(parsed.friendships) ? parsed.friendships : [],
-            notifications: Array.isArray(parsed.notifications) ? parsed.notifications : []
-          };
-          this.isLoaded = true;
-          this.sanitize();
-          console.log(`[DB Engine] Đã nạp thành công Database từ đĩa: ${this.data.users.length} tài khoản, ${this.data.profiles.length} hồ sơ, ${this.data.messages.length} tin nhắn, ${this.data.friendships.length} quan hệ bạn bè.`);
-          return;
+      let parsed = this.loadRawJson(DB_FILE);
+      if (!parsed && fs.existsSync(DB_BAK_FILE)) {
+        console.warn('[DB Engine] Đang cố gắng phục hồi từ file sao lưu .bak...');
+        parsed = this.loadRawJson(DB_BAK_FILE);
+        if (parsed) {
+          console.log('[DB Engine] Phục hồi thành công từ file sao lưu .bak!');
         }
+      }
+
+      if (parsed) {
+        this.data = {
+          users: Array.isArray(parsed.users) ? parsed.users : [],
+          profiles: Array.isArray(parsed.profiles) ? parsed.profiles : [],
+          stories: Array.isArray(parsed.stories) ? parsed.stories : [],
+          messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+          circles: Array.isArray(parsed.circles) ? parsed.circles : [],
+          friendRequests: Array.isArray(parsed.friendRequests) ? parsed.friendRequests : [],
+          friendships: Array.isArray(parsed.friendships) ? parsed.friendships : [],
+          notifications: Array.isArray(parsed.notifications) ? parsed.notifications : []
+        };
+        this.isLoaded = true;
+        this.sanitize();
+        // Cập nhật lại bản sao lưu tin cậy
+        this.saveToDisk();
+        console.log(`[DB Engine] Đã nạp thành công Database: ${this.data.users.length} tài khoản, ${this.data.profiles.length} hồ sơ, ${this.data.messages.length} tin nhắn, ${this.data.friendships.length} quan hệ bạn bè.`);
+        return;
       }
 
       // Khởi tạo file mới nếu chưa có
@@ -91,10 +114,13 @@ class DatabaseStore {
         return false;
       });
 
-      // 5. Chỉ giữ stories của tài khoản đã đăng ký
+      // 5. Chỉ giữ stories còn hạn của tài khoản đã đăng ký hoặc khách còn thời hạn
+      const nowMs = Date.now();
       this.data.stories = this.data.stories.filter(s => {
         const creatorId = s.host_id || s.hostId || s.user_id;
-        return !creatorId || validUserIds.has(creatorId);
+        const expMs = s.expires_at ? new Date(s.expires_at).getTime() : 0;
+        if (expMs && expMs <= nowMs) return false;
+        return !creatorId || validUserIds.has(creatorId) || creatorId.startsWith('client-');
       });
 
       const removedProfiles = prevProfilesCount - this.data.profiles.length;
@@ -113,16 +139,44 @@ class DatabaseStore {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
+      if (!this.data || !Array.isArray(this.data.users)) {
+        console.warn('[DB Engine] Dữ liệu trong bộ nhớ không hợp lệ, hủy ghi đĩa để bảo vệ dữ liệu.');
+        return;
+      }
+
       const serialized = JSON.stringify(this.data, null, 2);
-      // Ghi nguyên tử qua file tạm duy nhất để tránh race condition trên Windows
+      // Ghi an toàn: ghi vào file tạm trước
       const tempFile = `${DB_FILE}.${process.pid}.${Date.now()}.${Math.random().toString(36).substring(2, 6)}.tmp`;
       fs.writeFileSync(tempFile, serialized, 'utf-8');
+
+      // Tạo bản sao lưu an toàn .bak trước khi ghi đè file chính
       try {
-        fs.renameSync(tempFile, DB_FILE);
-      } catch (renameErr) {
-        // Fallback ghi trực tiếp nếu Windows tạm thời khóa file đích
-        fs.writeFileSync(DB_FILE, serialized, 'utf-8');
-        try { fs.unlinkSync(tempFile); } catch (u) {}
+        if (fs.existsSync(DB_FILE)) {
+          fs.copyFileSync(DB_FILE, DB_BAK_FILE);
+        }
+      } catch (bakErr) {}
+
+      // Ghi đè file chính an toàn trên Windows kèm retry loop chống xung đột EBUSY
+      let retries = 3;
+      while (retries > 0) {
+        try {
+          fs.copyFileSync(tempFile, DB_FILE);
+          try { fs.unlinkSync(tempFile); } catch (u) {}
+          break;
+        } catch (copyErr) {
+          retries--;
+          if (retries === 0) {
+            try {
+              fs.writeFileSync(DB_FILE, serialized, 'utf-8');
+              try { fs.unlinkSync(tempFile); } catch (u) {}
+            } catch (writeErr) {
+              console.warn('[DB Engine] Warning write retry failed:', writeErr.message);
+            }
+          } else {
+            const end = Date.now() + 40;
+            while (Date.now() < end) {}
+          }
+        }
       }
     } catch (err) {
       console.error('[DB Engine] Lỗi khi ghi database xuống đĩa:', err.message);
@@ -131,22 +185,20 @@ class DatabaseStore {
 
   reloadFromDisk() {
     try {
-      if (fs.existsSync(DB_FILE)) {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        if (raw.trim()) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed.users)) {
-            // Giữ lại các user mới tạo trong memory và hợp nhất với trên đĩa
-            const diskUsers = parsed.users;
-            const diskUserMap = new Map(diskUsers.map(u => [u.id || u.email, u]));
-            this.data.users.forEach(u => {
-              if (!diskUserMap.has(u.id || u.email)) {
-                diskUsers.push(u);
-              }
-            });
-            this.data.users = diskUsers;
+      let parsed = this.loadRawJson(DB_FILE);
+      if (!parsed && fs.existsSync(DB_BAK_FILE)) {
+        parsed = this.loadRawJson(DB_BAK_FILE);
+      }
+      if (parsed && Array.isArray(parsed.users)) {
+        // Hợp nhất tài khoản giữa memory và đĩa (không bao giờ xóa mất user trong memory)
+        const diskUsers = parsed.users;
+        const diskUserMap = new Map(diskUsers.map(u => [u.id || u.email, u]));
+        this.data.users.forEach(u => {
+          if (!diskUserMap.has(u.id || u.email)) {
+            diskUsers.push(u);
           }
-        }
+        });
+        this.data.users = diskUsers;
       }
     } catch (e) {
       console.warn('[DB Engine] reloadFromDisk warning:', e.message);

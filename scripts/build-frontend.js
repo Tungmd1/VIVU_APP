@@ -40,18 +40,14 @@ async function build() {
     // 1. Compile Tailwind CSS
     console.log('[Build] Compiling Tailwind CSS utilities...');
     const tailwindOut = path.join(assetsDir, 'tailwind.css');
-    if (!fs.existsSync(tailwindOut)) {
-      try {
-        execSync('node_modules\\.bin\\tailwindcss.cmd -i src/index.css --config tailwind.config.cjs -o dist/assets/tailwind.css --minify', {
+    try {
+      execSync('npx.cmd -y tailwindcss@3.4.17 -i src/index.css --config tailwind.config.cjs -o dist/assets/tailwind.css --minify', {
         cwd: frontendDir,
         stdio: 'pipe'
       });
       console.log('[Build] Tailwind CSS compiled successfully!');
-      } catch (e) {
-        console.warn('[Build] Warning during Tailwind compilation:', e.message);
-      }
-    } else {
-      console.log('[Build] Reusing cached Tailwind CSS');
+    } catch (e) {
+      console.warn('[Build] Warning during Tailwind compilation:', e.message);
     }
 
     // 2. Assemble complete CSS bundle
@@ -73,11 +69,16 @@ async function build() {
     const mapboxCssPath = path.resolve(frontendDir, 'node_modules/mapbox-gl/dist/mapbox-gl.css');
     const mapboxCss = fs.existsSync(mapboxCssPath) ? fs.readFileSync(mapboxCssPath, 'utf8') : '';
 
+    const leafletCssPath = path.resolve(frontendDir, 'node_modules/leaflet/dist/leaflet.css');
+    const leafletCss = fs.existsSync(leafletCssPath) ? fs.readFileSync(leafletCssPath, 'utf8') : '';
+
     const assembledCss = [
       '/* Tailwind & F1 Hero Compiled Theme */',
       tailwindCss,
       '/* Mapbox GL CSS */',
       mapboxCss,
+      '/* Leaflet CSS */',
+      leafletCss,
       '/* Bootstrap Icons CSS */',
       bootstrapCss
     ].join('\n\n');

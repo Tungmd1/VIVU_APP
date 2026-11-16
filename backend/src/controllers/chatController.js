@@ -39,7 +39,7 @@ export const chatController = {
 
   async sendMessage(req, res, next) {
     try {
-      const { conversationId, conversation_id, text, image, video, isLocation, is_location, isHeart, is_heart, lat, lng, sender, sender_name, client_msg_id, clientMsgId } = req.body;
+      const { conversationId, conversation_id, text, image, video, isLocation, is_location, isLiveLocation, is_live_location, liveDurationMinutes, live_duration_minutes, liveExpiresAt, live_expires_at, speed, isHeart, is_heart, lat, lng, sender, sender_name, client_msg_id, clientMsgId, poll, isPoll, is_poll } = req.body;
       const targetConvId = conversationId || conversation_id;
       if (!targetConvId) {
         return res.status(400).json({ success: false, message: 'conversationId là bắt buộc' });
@@ -51,7 +51,13 @@ export const chatController = {
         image,
         video,
         is_location: Boolean(isLocation || is_location),
+        is_live_location: Boolean(isLiveLocation || is_live_location),
+        live_duration_minutes: liveDurationMinutes || live_duration_minutes || null,
+        live_expires_at: liveExpiresAt || live_expires_at || null,
+        speed: (speed != null && !isNaN(Number(speed))) ? Number(speed) : null,
         is_heart: Boolean(isHeart || is_heart || text === '❤️'),
+        is_poll: Boolean(isPoll || is_poll || poll),
+        poll: poll || null,
         lat: (lat != null && !isNaN(Number(lat))) ? Number(lat) : null,
         lng: (lng != null && !isNaN(Number(lng))) ? Number(lng) : null,
         sender,
@@ -106,6 +112,41 @@ export const chatController = {
       }
       res.json({ success: true, count });
     } catch (err) {
+      next(err);
+    }
+  },
+
+  async stopLiveLocation(req, res, next) {
+    try {
+      const { messageId, userId } = req.body;
+      const updatedMsg = await dbService.stopLiveLocation(messageId, userId);
+      res.json({ success: true, data: updatedMsg, message: updatedMsg });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async votePoll(req, res, next) {
+    try {
+      const { messageId } = req.params;
+      const { optionId, userId } = req.body;
+      const currentUserId = userId || req.headers['x-user-id'];
+      const updatedMsg = await dbService.voteMessagePoll(messageId, optionId, currentUserId);
+
+      // Phát realtime qua Socket.IO nếu có
+      if (updatedMsg.conversation_id?.startsWith('conv-direct-')) {
+        const parts = updatedMsg.conversation_id.replace('conv-direct-', '').split('--');
+        const recipientId = parts.find(p => p !== currentUserId);
+        if (recipientId) {
+          emitToUser(recipientId, 'chat:poll_updated', updatedMsg);
+        }
+      }
+
+      res.json({ success: true, data: updatedMsg });
+    } catch (err) {
+      if (err.statusCode === 403) {
+        return res.status(403).json({ success: false, message: err.message });
+      }
       next(err);
     }
   }

@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../utils/avatarUtils';
 /**
  * sharedStoreService - Quản lý tương tác chéo giữa các tài khoản (Cross-Account Store)
  * Lưu trữ danh sách tài khoản, quan hệ bạn bè, tin nhắn 2 chiều và stories dùng chung trong LocalStorage
@@ -48,7 +49,7 @@ class SharedStoreService {
       id: userId,
       email: user.email || `${userId}@vivu.vn`,
       name: meta.full_name || user.email?.split('@')[0] || 'Người dùng VIVU',
-      avatar: meta.avatar_url || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(userId)}`,
+      avatar: meta.avatar_url || DEFAULT_WHITE_PERSON_AVATAR,
       job: meta.job || 'Thành viên VIVU',
       age: meta.age || 22,
       bio: meta.bio || 'Thành viên mới gia nhập VIVU',

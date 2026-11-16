@@ -182,7 +182,7 @@ export function initSocketIO(httpServer) {
           jointStory = await dbService.createStory({
             host_id: userId,
             host_name: senderName || 'Tôi',
-            host_avatar: senderAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            host_avatar: senderAvatar || null,
             partner_id: targetUserId,
             partner_name: data.targetName || '',
             partner_avatar: data.targetAvatar || '',

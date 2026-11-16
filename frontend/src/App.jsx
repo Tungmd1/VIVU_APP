@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR, getSafeAvatar } from './utils/avatarUtils';
 import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import confetti from 'canvas-confetti';
 import { useGeolocation } from './hooks/useGeolocation';
@@ -11,12 +12,13 @@ import RadarDistanceSelector from './components/map/RadarDistanceSelector';
 import NavigationBanner from './components/map/NavigationBanner';
 import GpsStatusBanner from './components/map/GpsStatusBanner';
 import VivuBottomDock from './components/layout/VivuBottomDock';
-import CreateActionSheet from './components/story/CreateActionSheet';
+import UserLocationSheet from './components/layout/UserLocationSheet';
 import QuickStatusSheet from './components/story/QuickStatusSheet';
 import FriendDetailSheet from './components/layout/FriendDetailSheet';
 import StoryStudioModal from './components/story/StoryStudioModal';
 import StoryViewerModal from './components/story/StoryViewerModal';
 import GuestProfileModal from './components/profile/GuestProfileModal';
+import UserProfileViewModal from './components/profile/UserProfileViewModal';
 import CreateCircleModal from './components/circle/CreateCircleModal';
 import MessengerChatView from './components/chat/MessengerChatView';
 import CreatePollModal from './components/chat/CreatePollModal';
@@ -32,8 +34,10 @@ import MobileQrModal from './components/common/MobileQrModal';
 import FriendshipManagerModal from './components/friends/FriendshipManagerModal';
 import NotificationDrawer from './components/common/NotificationDrawer';
 import NotificationBellButton from './components/common/NotificationBellButton';
+import PinWardrobeModal from './components/profile/PinWardrobeModal';
 import { useSocket } from './hooks/useSocket';
-import { safeGetItem, safeSetItem } from './utils/safeStorage';
+import { safeGetItem, safeSetItem, safeRemoveItem } from './utils/safeStorage';
+import { storyAudioPlayer } from './data/trendingSongs';
 
 // Import Phân hệ Xác thực (Auth System)
 import { useAuth } from './hooks/useAuth';
@@ -125,6 +129,10 @@ export default function App() {
     cityName, 
     isFallback 
   } = useGeolocation();
+
+  // Rule 11: Đọc an toàn GPS thiết bị thực tế (Không dùng Đà Nẵng mặc định)
+  const userLng = location?.lng ?? location?.longitude ?? null;
+  const userLat = location?.lat ?? location?.latitude ?? null;
   
   // Trạng thái Xác thực & Phiên làm việc (Auth State)
   const {
@@ -144,9 +152,25 @@ export default function App() {
     logout
   } = useAuth();
 
+  // Định danh & thông tin người dùng cơ sở (khai báo sớm nhất tránh lỗi TDZ initialization)
+  const currentUserId = user?.id || null;
+
+  const currentUserCode = useMemo(() => {
+    if (user?.user_metadata?.user_code) return user.user_metadata.user_code;
+    if (user?.user_code) return user.user_code;
+    return null;
+  }, [user]);
+
+  const currentUserName = useMemo(() => {
+    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
+    if (user?.full_name) return user.full_name;
+    if (user?.email) return user.email.split('@')[0];
+    return 'Khách VIVU';
+  }, [user]);
+
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  // Rule 22: Vào thẳng bản đồ 3D tức thì, không hiển thị cổng chặn quyền làm chớp màn hình
+  // Cổng cấp quyền sử dụng: Rule 22 luôn vào thẳng bản đồ 3D không khóa màn hình
   const [isPermissionGateOpen, setIsPermissionGateOpen] = useState(false);
   // Khởi động Video Intro: Phát 1 lần đầu tiên mỗi phiên (sessionStorage) hoặc khi người dùng bấm xem lại
   const [isIntroPlaying, setIsIntroPlaying] = useState(() => {
@@ -261,7 +285,7 @@ export default function App() {
 
   // Tab điều hướng chính: 'social' (Xã Hội), 'friends' (Bạn Bè), 'chat' (Tin Nhắn), 'profile' (Tôi)
   const [activeTab, setActiveTab] = useState('social');
-  const [radarDistance, setRadarDistance] = useState(3); // km: 1, 3, 5, 10, 'all'
+  const [radarDistance, setRadarDistance] = useState(5); // Tự động quét bán kính 5km mặc định
   const [isAdjustingRadius, setIsAdjustingRadius] = useState(false);
   const [isRadarScanning, setIsRadarScanning] = useState(false);
   const [radarPingNotification, setRadarPingNotification] = useState(null);
@@ -302,20 +326,102 @@ export default function App() {
   const [selectedStoryInitialIndex, setSelectedStoryInitialIndex] = useState(0);
   const [selectedGuestProfile, setSelectedGuestProfile] = useState(null);
   const [selectedFriend, setSelectedFriend] = useState(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
+  const [userProfileOriginSource, setUserProfileOriginSource] = useState('map');
   const [myStoryReactions, setMyStoryReactions] = useState({});
 
   // Quản lý Modal Đăng Story khoảnh khắc
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [userCustomStatus, setUserCustomStatus] = useState('');
+  const [userCustomStatus, setUserCustomStatus] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vivu_user_custom_status');
+      if (saved === 'Khoảnh khắc mới' || saved === 'Tâm trạng') {
+        localStorage.removeItem('vivu_user_custom_status');
+        return '';
+      }
+      return saved || '';
+    } catch { return ''; }
+  });
   const [userCustomSong, setUserCustomSong] = useState(() => {
     try {
-      const saved = localStorage.getItem('vivu_user_custom_song');
+      const savedStatus = localStorage.getItem('vivu_user_custom_status');
+      if (savedStatus === 'Khoảnh khắc mới' || savedStatus === 'Tâm trạng') {
+        localStorage.removeItem('vivu_user_custom_song');
+        return null;
+      }
+      const scopedKey = Object.keys(localStorage).find(k => k.startsWith('vivu_user_custom_song_'));
+      const saved = scopedKey ? localStorage.getItem(scopedKey) : localStorage.getItem('vivu_user_custom_song');
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
+  const [userCustomChibiExpiresAt, setUserCustomChibiExpiresAt] = useState(() => {
+    try {
+      const scopedKey = currentUserId ? `vivu_user_custom_chibi_expires_${currentUserId}` : null;
+      const savedExp = scopedKey ? localStorage.getItem(scopedKey) : localStorage.getItem('vivu_user_custom_chibi_expires');
+      return savedExp ? Number(savedExp) : null;
+    } catch { return null; }
+  });
+  const [userCustomChibi, setUserCustomChibi] = useState(() => {
+    try {
+      const scopedExpKey = currentUserId ? `vivu_user_custom_chibi_expires_${currentUserId}` : null;
+      const savedExp = Number((scopedExpKey ? localStorage.getItem(scopedExpKey) : null) || localStorage.getItem('vivu_user_custom_chibi_expires'));
+      if (savedExp && Date.now() > savedExp) {
+        if (scopedExpKey) localStorage.removeItem(scopedExpKey);
+        localStorage.removeItem('vivu_user_custom_chibi_expires');
+        if (currentUserId) localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
+        localStorage.removeItem('vivu_user_custom_chibi');
+        return null;
+      }
+      const scopedKey = currentUserId ? `vivu_user_custom_chibi_${currentUserId}` : null;
+      return (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('vivu_user_custom_chibi') || null;
+    } catch { return null; }
+  });
+  const [userPinSkin, setUserPinSkin] = useState('auto');
+  const [userPinMascot, setUserPinMascot] = useState(null);
+  const [userPinAction, setUserPinAction] = useState(null);
+  const [isPinWardrobeOpen, setIsPinWardrobeOpen] = useState(false);
+
+  // Đồng bộ diện mạo ghim (Pin Skin, Chibi Mascot, Hành động, Bài hát) cô lập theo từng tài khoản (Rule 26)
+  useEffect(() => {
+    if (currentUserId && !currentUserId.startsWith('client-')) {
+      try {
+        const accSkin = user?.pin_skin || localStorage.getItem(`vivu_user_pin_skin_${currentUserId}`) || 'auto';
+        const accChibi = user?.custom_chibi || localStorage.getItem(`vivu_user_custom_chibi_${currentUserId}`) || null;
+        const accExp = Number(user?.chibi_expires_at || localStorage.getItem(`vivu_user_custom_chibi_expires_${currentUserId}`) || null);
+        const isExp = accExp && Date.now() > accExp;
+        const accMascot = user?.pin_mascot || localStorage.getItem(`vivu_user_pin_mascot_${currentUserId}`) || null;
+        const accAction = user?.pin_action || localStorage.getItem(`vivu_user_pin_action_${currentUserId}`) || null;
+        const accSongRaw = user?.custom_song || localStorage.getItem(`vivu_user_custom_song_${currentUserId}`) || null;
+        let accSong = null;
+        if (accSongRaw) {
+          accSong = typeof accSongRaw === 'object' ? accSongRaw : JSON.parse(accSongRaw);
+        }
+
+        setUserPinSkin(accSkin);
+        setUserCustomChibi(isExp ? null : accChibi);
+        setUserCustomChibiExpiresAt(isExp ? null : (accExp || null));
+        setUserPinMascot(accMascot);
+        setUserPinAction(accAction);
+        if (accSong) setUserCustomSong(accSong);
+      } catch {}
+    } else {
+      setUserPinSkin('auto');
+      try {
+        const genExp = Number(localStorage.getItem('vivu_user_custom_chibi_expires') || null);
+        const isExp = genExp && Date.now() > genExp;
+        const genChibi = isExp ? null : localStorage.getItem('vivu_user_custom_chibi');
+        setUserCustomChibi(genChibi || null);
+        setUserCustomChibiExpiresAt(isExp ? null : (genExp || null));
+      } catch {
+        setUserCustomChibi(null);
+        setUserCustomChibiExpiresAt(null);
+      }
+      setUserPinMascot(null);
+      setUserPinAction(null);
+    }
+  }, [currentUserId, user?.id, user?.pin_skin, user?.custom_chibi, user?.chibi_expires_at, user?.pin_mascot, user?.pin_action, user?.custom_song]);
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isCreateActionSheetOpen, setIsCreateActionSheetOpen] = useState(false);
   const [isQuickStatusSheetOpen, setIsQuickStatusSheetOpen] = useState(false);
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [isCreateCircleModalOpen, setIsCreateCircleModalOpen] = useState(false);
@@ -353,8 +459,7 @@ export default function App() {
     };
     window.addEventListener('touchstart', handleTouchStart, { passive: true });
     window.addEventListener('touchend', handleTouchEnd, { passive: true });
-
-  return () => {
+    return () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
     };
@@ -370,11 +475,12 @@ export default function App() {
   // Danh sách Stories thật từ người dùng (Khởi tạo từ cache an toàn nếu có)
   const [stories, setStories] = useState(() => {
     try {
-      const cached = localStorage.getItem('vivu_user_active_story');
+      const scopedKey = currentUserId ? `vivu_user_active_story_${currentUserId}` : null;
+      const cached = (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('vivu_user_active_story');
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && (!parsed.expires_at || new Date(parsed.expires_at).getTime() > Date.now())) {
-          return [parsed];
+          return [{ ...parsed, isOwnerStory: true, activeStory: parsed }];
         }
       }
     } catch {}
@@ -389,12 +495,39 @@ export default function App() {
   const [customCircles, setCustomCircles] = useState([]);
   const [activeCircleFilter, setActiveCircleFilter] = useState(null);
 
+  const handleSyncFromPhone = useCallback(() => {
+    if (!nearbyOnlinePeers || nearbyOnlinePeers.length === 0) {
+      setIncomingMessageToast({
+        id: 'sync-phone-empty-' + Date.now(),
+        senderName: 'VIVU GPS',
+        senderAvatar: DEFAULT_WHITE_PERSON_AVATAR,
+        text: 'Chưa phát hiện thiết bị điện thoại nào đang online gần bạn để đồng bộ.',
+        isFriendRequest: false
+      });
+      return;
+    }
+    const phonePeer = nearbyOnlinePeers[0];
+    const targetLat = Number(phonePeer.realLat ?? phonePeer.lat);
+    const targetLng = Number(phonePeer.realLng ?? phonePeer.lng);
+    if (isNaN(targetLat) || isNaN(targetLng)) return;
+    setManualCoords(targetLat, targetLng, 'Đồng bộ từ điện thoại (' + (phonePeer.full_name || phonePeer.name) + ')');
+    setIncomingMessageToast({
+      id: 'sync-phone-success-' + Date.now(),
+      senderName: 'VIVU GPS',
+      senderAvatar: phonePeer.avatar_url || phonePeer.avatar || DEFAULT_WHITE_PERSON_AVATAR,
+      text: 'Đã đồng bộ vị trí thành công theo ' + (phonePeer.full_name || phonePeer.name) + '!',
+      isFriendRequest: false
+    });
+    if (window.__vivu_map) {
+      try {
+        window.__vivu_map.flyTo([targetLat, targetLng], 16.5);
+      } catch {}
+    }
+  }, [nearbyOnlinePeers, setManualCoords]);
+
   // Hội thoại chat thật tải từ server
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
-
-  // Định danh người dùng: CHỈ lấy ID khi đã đăng nhập, KHÔNG tự tạo client-xxx ngẫu nhiên
-  const currentUserId = user?.id || null;
 
   // Tải danh sách hội thoại chuẩn từ database server
   const refreshConversations = useCallback(async () => {
@@ -423,28 +556,47 @@ export default function App() {
     }
   }, [currentUserId, refreshConversations]);
 
-  // Mã người dùng duy nhất (VU-XXXX): Đọc trực tiếp từ tài khoản đăng nhập
-  const currentUserCode = useMemo(() => {
-    if (user?.user_metadata?.user_code) return user.user_metadata.user_code;
-    if (user?.user_code) return user.user_code;
-    return null;
-  }, [user]);
-
-  const currentUserName = useMemo(() => {
-    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
-    if (user?.email) return user.email.split('@')[0];
-    return 'Khách VIVU';
-  }, [user]);
-
   // Quản lý Avatar hiện tại: Gắn chặt theo tài khoản đang đăng nhập, ổn định 100% không render lại ngẫu nhiên
-  const [customAvatar, setCustomAvatar] = useState(null);
+  const [customAvatar, setCustomAvatar] = useState(() => {
+    try {
+      if (currentUserId && !currentUserId.startsWith('client-')) {
+        return localStorage.getItem(`vivu_user_avatar_${currentUserId}`) || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
 
   const currentUserAvatar = useMemo(() => {
     if (customAvatar) return customAvatar;
-    if (user?.user_metadata?.avatar_url) return user.user_metadata.avatar_url;
     if (user?.avatar_url) return user.avatar_url;
+    if (user?.user_metadata?.avatar_url) return user.user_metadata.avatar_url;
+    if (currentUserId && !currentUserId.startsWith('client-')) {
+      try {
+        const scoped = localStorage.getItem(`vivu_user_avatar_${currentUserId}`);
+        if (scoped) return scoped;
+        const scopedProfileRaw = localStorage.getItem(`vivu_user_profile_data_${currentUserId}`);
+        if (scopedProfileRaw) {
+          const parsed = JSON.parse(scopedProfileRaw);
+          const av = parsed.avatarUrl || parsed.avatar_url;
+          if (av) return av;
+        }
+      } catch {}
+    }
+    try {
+      const globalProfileRaw = localStorage.getItem('vivu_user_profile_data');
+      if (globalProfileRaw) {
+        const parsed = JSON.parse(globalProfileRaw);
+        if ((!parsed.userId || parsed.userId === currentUserId) && (parsed.avatarUrl || parsed.avatar_url)) {
+          return parsed.avatarUrl || parsed.avatar_url;
+        }
+      }
+      const unscoped = localStorage.getItem('vivu_user_avatar');
+      if (unscoped) return unscoped;
+    } catch {}
     return null; // Không dùng ảnh mẫu Unsplash, để null để hiển thị avatar nền trắng icon người
-  }, [customAvatar, user]);
+  }, [customAvatar, user, currentUserId]);
 
   // Thông báo tổng hợp (Lời mời kết bạn, chấp nhận, tương tác)
   const [notifications, setNotifications] = useState([]);
@@ -468,7 +620,62 @@ export default function App() {
     lastSeenFriendRequestIdRef.current.clear();
     lastSeenNearbyPeerIdRef.current.clear();
     setNearbyOnlinePeers([]);
+
+    // CHỈ dọn sạch diện mạo ghim và cache toàn cục khi thực sự đăng xuất (!user?.id)
+    if (!user?.id) {
+      setUserPinSkin('auto');
+      setUserCustomChibi(null);
+      setUserCustomChibiExpiresAt(null);
+      setUserPinMascot(null);
+      setUserPinAction(null);
+      setUserCustomSong(null);
+      setUserCustomStatus('');
+      safeRemoveItem('vivu_user_name');
+      safeRemoveItem('vivu_user_profile_data');
+      safeRemoveItem('vivu_user_custom_status');
+      safeRemoveItem('vivu_user_custom_song');
+    }
   }, [user?.id]);
+
+  // TỰ ĐỘNG PHỤC HỒI (REHYDRATE) AVATAR & THÔNG TIN HỒ SƠ SAU KHI ĐĂNG NHẬP / TẢI LẠI TRANG
+  useEffect(() => {
+    if (!currentUserId || currentUserId.startsWith('client-')) return;
+    try {
+      const scopedAvatar = localStorage.getItem(`vivu_user_avatar_${currentUserId}`);
+      if (scopedAvatar) {
+        setCustomAvatar(scopedAvatar);
+        return;
+      }
+      const scopedProfileRaw = localStorage.getItem(`vivu_user_profile_data_${currentUserId}`);
+      if (scopedProfileRaw) {
+        const parsed = JSON.parse(scopedProfileRaw);
+        const av = parsed.avatarUrl || parsed.avatar_url;
+        if (av) {
+          setCustomAvatar(av);
+          try { localStorage.setItem(`vivu_user_avatar_${currentUserId}`, av); } catch {}
+          return;
+        }
+      }
+      const userAv = user?.avatar_url || user?.user_metadata?.avatar_url;
+      if (userAv) {
+        setCustomAvatar(userAv);
+        try { localStorage.setItem(`vivu_user_avatar_${currentUserId}`, userAv); } catch {}
+        return;
+      }
+      apiClient.getMe(currentUserId).then(serverUser => {
+        if (serverUser && (serverUser.avatar_url || serverUser.avatar)) {
+          const remoteAv = serverUser.avatar_url || serverUser.avatar;
+          setCustomAvatar(remoteAv);
+          try {
+            localStorage.setItem(`vivu_user_avatar_${currentUserId}`, remoteAv);
+            localStorage.setItem('vivu_user_avatar', remoteAv);
+          } catch {}
+        }
+      }).catch(() => {});
+    } catch (e) {
+      console.warn('[App] Lỗi rehydrate avatar:', e);
+    }
+  }, [currentUserId, user?.id, user?.avatar_url, user?.user_metadata?.avatar_url]);
 
   // Tải danh sách thông báo và nhóm riêng khi người dùng đăng nhập
   useEffect(() => {
@@ -490,6 +697,176 @@ export default function App() {
         setCustomCircles(circles);
       }
     });
+  }, [currentUserId]);
+
+  // TỰ ĐỘNG PHỤC HỒI (REHYDRATE) STORY CỦA TÀI KHOẢN SAU KHI ĐĂNG NHẬP
+  useEffect(() => {
+    if (!currentUserId || currentUserId.startsWith('client-')) return;
+
+    let isMounted = true;
+    const now = Date.now();
+
+    // Tầng 1: Phục hồi tức thì từ Scoped LocalStorage
+    try {
+      const scopedKey = `vivu_user_active_story_${currentUserId}`;
+      const savedRaw = localStorage.getItem(scopedKey) || localStorage.getItem('vivu_user_active_story');
+      if (savedRaw) {
+        const parsed = JSON.parse(savedRaw);
+        const expTime = parsed.expires_at ? new Date(parsed.expires_at).getTime() : (parsed.created_at ? new Date(parsed.created_at).getTime() + (parsed.expiry_hours || 24) * 3600000 : 0);
+        if (expTime > now && (parsed.hostId === currentUserId || parsed.host_id === currentUserId || parsed.isOwnerStory)) {
+          const ownerStory = { ...parsed, isOwnerStory: true, activeStory: parsed };
+          setStories(prev => {
+            if (prev.some(s => s.id === ownerStory.id)) return prev;
+            return [ownerStory, ...prev];
+          });
+          localStorage.setItem('vivu_user_active_story', JSON.stringify(ownerStory));
+        } else if (expTime && expTime <= now) {
+          localStorage.removeItem(scopedKey);
+          localStorage.removeItem('vivu_user_active_story');
+        }
+      }
+    } catch (e) {}
+
+    // Tầng 2: Đồng bộ trực tiếp từ Backend Server API
+    apiClient.getStories().then(remoteStories => {
+      if (!isMounted || !Array.isArray(remoteStories)) return;
+      const myStory = remoteStories.find(rs => 
+        (rs.host_id === currentUserId || rs.hostId === currentUserId) && 
+        (!rs.expires_at || new Date(rs.expires_at).getTime() > now)
+      );
+      if (myStory) {
+        const fullStory = {
+          ...myStory,
+          id: myStory.id,
+          hostId: currentUserId,
+          host_id: currentUserId,
+          isOwnerStory: true,
+          activeStory: myStory,
+          realLat: myStory.lat,
+          realLng: myStory.lng,
+          image: myStory.image || null,
+          dual_image: myStory.dual_image || null,
+          music: myStory.music || null,
+          expires_at: myStory.expires_at,
+          created_at: myStory.created_at,
+          expiry_hours: myStory.expiry_hours || 24
+        };
+        setStories(prev => {
+          const filtered = prev.filter(s => s.id !== fullStory.id && s.hostId !== currentUserId);
+          return [fullStory, ...filtered];
+        });
+        try {
+          localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(fullStory));
+          localStorage.setItem('vivu_user_active_story', JSON.stringify(fullStory));
+        } catch {}
+      }
+    }).catch(() => {});
+
+    return () => { isMounted = false; };
+  }, [currentUserId]);
+
+  // TỰ ĐỘNG PHỤC HỒI (REHYDRATE) STORY CHIBI, TÂM TRẠNG, BÀI HÁT & DIỆN MẠO GHIM SAU KHI ĐĂNG NHẬP (Rule 47 & 49)
+  useEffect(() => {
+    if (!currentUserId || currentUserId.startsWith('client-')) return;
+
+    let isMounted = true;
+    const now = Date.now();
+
+    // Tầng 1: Phục hồi tức thì từ Scoped LocalStorage (0ms latency, không chớp ghim)
+    try {
+      const scopedChibiKey = `vivu_user_custom_chibi_${currentUserId}`;
+      const scopedExpKey = `vivu_user_custom_chibi_expires_${currentUserId}`;
+      const scopedStatusKey = `vivu_user_custom_status_${currentUserId}`;
+      const scopedSongKey = `vivu_user_custom_song_${currentUserId}`;
+      const scopedSkinKey = `vivu_user_pin_skin_${currentUserId}`;
+      const scopedMascotKey = `vivu_user_pin_mascot_${currentUserId}`;
+      const scopedActionKey = `vivu_user_pin_action_${currentUserId}`;
+
+      const savedExp = Number(user?.chibi_expires_at || localStorage.getItem(scopedExpKey) || null);
+      const isExp = savedExp && savedExp <= now;
+      const savedChibi = isExp ? null : (user?.custom_chibi || localStorage.getItem(scopedChibiKey) || null);
+
+      if (isExp) {
+        localStorage.removeItem(scopedChibiKey);
+        localStorage.removeItem(scopedExpKey);
+        localStorage.removeItem('vivu_user_custom_chibi');
+        localStorage.removeItem('vivu_user_custom_chibi_expires');
+      }
+
+      const savedStatus = user?.custom_status || localStorage.getItem(scopedStatusKey) || '';
+      const savedSongRaw = user?.custom_song || localStorage.getItem(scopedSongKey) || null;
+      let savedSong = null;
+      if (savedSongRaw) {
+        savedSong = typeof savedSongRaw === 'object' ? savedSongRaw : JSON.parse(savedSongRaw);
+      }
+      const savedSkin = user?.pin_skin || localStorage.getItem(scopedSkinKey) || 'auto';
+      const savedMascot = user?.pin_mascot || localStorage.getItem(scopedMascotKey) || null;
+      const savedAction = user?.pin_action || localStorage.getItem(scopedActionKey) || null;
+
+      if (savedChibi) {
+        setUserCustomChibi(savedChibi);
+        setUserCustomChibiExpiresAt(savedExp || null);
+        try {
+          localStorage.setItem('vivu_user_custom_chibi', savedChibi);
+          if (savedExp) localStorage.setItem('vivu_user_custom_chibi_expires', String(savedExp));
+        } catch {}
+      }
+      if (savedStatus) {
+        setUserCustomStatus(savedStatus);
+        try { localStorage.setItem('vivu_user_custom_status', savedStatus); } catch {}
+      }
+      if (savedSong) {
+        setUserCustomSong(savedSong);
+        try { localStorage.setItem('vivu_user_custom_song', JSON.stringify(savedSong)); } catch {}
+      }
+      if (savedSkin) setUserPinSkin(savedSkin);
+      if (savedMascot) setUserPinMascot(savedMascot);
+      if (savedAction) setUserPinAction(savedAction);
+    } catch (e) {
+      console.warn('[App] Lỗi nạp nhanh Story Chibi từ cache:', e);
+    }
+
+    // Tầng 2: Đồng bộ từ Database Backend Server
+    apiClient.getMe(currentUserId).then(serverUser => {
+      if (!isMounted || !serverUser) return;
+      const expMs = serverUser.chibi_expires_at ? (typeof serverUser.chibi_expires_at === 'number' ? serverUser.chibi_expires_at : new Date(serverUser.chibi_expires_at).getTime()) : null;
+      const isExp = expMs && expMs <= Date.now();
+      const serverChibi = isExp ? null : (serverUser.custom_chibi || null);
+
+      if (serverChibi) {
+        setUserCustomChibi(serverChibi);
+        setUserCustomChibiExpiresAt(expMs);
+        try {
+          localStorage.setItem(`vivu_user_custom_chibi_${currentUserId}`, serverChibi);
+          localStorage.setItem('vivu_user_custom_chibi', serverChibi);
+          if (expMs) {
+            localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(expMs));
+            localStorage.setItem('vivu_user_custom_chibi_expires', String(expMs));
+          }
+        } catch {}
+      }
+      if (serverUser.custom_status) {
+        setUserCustomStatus(serverUser.custom_status);
+        try {
+          localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, serverUser.custom_status);
+          localStorage.setItem('vivu_user_custom_status', serverUser.custom_status);
+        } catch {}
+      }
+      if (serverUser.custom_song) {
+        setUserCustomSong(serverUser.custom_song);
+        try {
+          const songStr = typeof serverUser.custom_song === 'object' ? JSON.stringify(serverUser.custom_song) : String(serverUser.custom_song);
+          localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, songStr);
+          localStorage.setItem('vivu_user_custom_song', songStr);
+        } catch {}
+      }
+      if (serverUser.pin_skin) {
+        setUserPinSkin(serverUser.pin_skin);
+        try { localStorage.setItem(`vivu_user_pin_skin_${currentUserId}`, serverUser.pin_skin); } catch {}
+      }
+    }).catch(() => {});
+
+    return () => { isMounted = false; };
   }, [currentUserId]);
 
   // LẮNG NGHE SỰ KIỆN SOCKET.IO REALTIME
@@ -554,7 +931,7 @@ export default function App() {
       setIncomingMessageToast({
         id: notif.id,
         senderName: notif.title || 'Thông báo mới',
-        senderAvatar: notif.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100',
+        senderAvatar: notif.avatar || DEFAULT_WHITE_PERSON_AVATAR,
         text: notif.body,
         isNotification: true,
         action: () => {
@@ -831,11 +1208,6 @@ export default function App() {
     await apiClient.deleteNotification(notifId);
   };
 
-
-  // Rule 11: Đọc an toàn GPS thiết bị thực tế, fallback toạ độ Quy Nhơn nếu chưa có GPS
-  const userLng = location?.lng ?? location?.longitude ?? 109.2237;
-  const userLat = location?.lat ?? location?.latitude ?? 13.7765;
-
   // Tính tọa độ cho story & bạn bè (Tự động loại bỏ story đã hết hạn - Feature 3)
   const liveStories = useMemo(() => {
     const now = Date.now();
@@ -852,21 +1224,79 @@ export default function App() {
   }, [stories, userLat, userLng]);
 
   const myActiveStory = useMemo(() => {
-    return liveStories.find(s => {
+    const found = liveStories.find(s => {
       if (!s) return false;
       if (currentUserId && (s.hostId === currentUserId || s.id === currentUserId || s.host_id === currentUserId)) return true;
       if (s.isOwnerStory === true) return true;
       return false;
-    }) || null;
+    });
+    if (found) return found;
+    // Fallback tức thì từ Scoped LocalStorage nếu còn hạn
+    try {
+      const scopedKey = currentUserId ? `vivu_user_active_story_${currentUserId}` : null;
+      const cachedRaw = (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('vivu_user_active_story');
+      if (cachedRaw) {
+        const parsed = JSON.parse(cachedRaw);
+        const expTime = parsed.expires_at ? new Date(parsed.expires_at).getTime() : 0;
+        if (expTime > Date.now() && (!currentUserId || parsed.hostId === currentUserId || parsed.host_id === currentUserId || parsed.isOwnerStory)) {
+          return { ...parsed, isOwnerStory: true, activeStory: parsed };
+        }
+      }
+    } catch {}
+    return null;
   }, [liveStories, currentUserId]);
 
   const liveFriends = useMemo(() => {
-    return friends.map(f => ({
-      ...f,
-      realLat: f.realLat != null ? f.realLat : (userLat != null ? Number((userLat + (f.latOffset || 0)).toFixed(6)) : null),
-      realLng: f.realLng != null ? f.realLng : (userLng != null ? Number((userLng + (f.lngOffset || 0)).toFixed(6)) : null)
-    }));
+    return friends.map(f => {
+      const latVal = f.realLat != null ? Number(f.realLat) : (f.lat != null ? Number(f.lat) : (userLat != null ? Number((userLat + (f.latOffset || 0)).toFixed(6)) : 16.0387));
+      const lngVal = f.realLng != null ? Number(f.realLng) : (f.lng != null ? Number(f.lng) : (userLng != null ? Number((userLng + (f.lngOffset || 0)).toFixed(6)) : 108.2193));
+      const fName = f.hostName || f.name || f.full_name || 'Bạn bè VIVU';
+      const fAvatar = f.hostAvatar || f.avatar || f.avatar_url || null;
+      return {
+        ...f,
+        realLat: latVal,
+        realLng: lngVal,
+        lat: latVal,
+        lng: lngVal,
+        hostName: fName,
+        name: fName,
+        hostAvatar: fAvatar,
+        avatar: fAvatar,
+        isOnline: Boolean(f.isOnline || f.is_online)
+      };
+    });
   }, [friends, userLat, userLng]);
+
+  // Đếm số người lân cận trong bán kính Radar 5km (hoặc khoảng cách đang chọn)
+  const radarResultsCount = useMemo(() => {
+    const safeUserLat = userLat != null ? Number(userLat) : 10.7769;
+    const safeUserLng = userLng != null ? Number(userLng) : 106.7009;
+    const allItems = [...liveFriends, ...liveStories, ...nearbyOnlinePeers];
+    const uniqueIds = new Set();
+    let count = 0;
+    const R = 6371;
+
+    allItems.forEach(item => {
+      if (!item) return;
+      const itemId = item.id || item.hostId || item.host_id;
+      if (!itemId || itemId === currentUserId || uniqueIds.has(itemId)) return;
+      uniqueIds.add(itemId);
+      const lat = item.realLat ?? item.lat;
+      const lng = item.realLng ?? item.lng;
+      if (lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+        if (radarDistance === 'all') {
+          count++;
+        } else {
+          const dLat = (Number(lat) - safeUserLat) * (Math.PI / 180);
+          const dLon = (Number(lng) - safeUserLng) * (Math.PI / 180);
+          const a = Math.sin(dLat / 2) ** 2 + Math.cos(safeUserLat * Math.PI / 180) * Math.cos(Number(lat) * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+          const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          if (distKm <= Number(radarDistance)) count++;
+        }
+      }
+    });
+    return count;
+  }, [liveFriends, liveStories, nearbyOnlinePeers, userLat, userLng, currentUserId, radarDistance]);
 
   // Nhận diện tài khoản đối phương đang đứng cùng tọa độ (< 60m)
   const coLocatedPeer = useMemo(() => {
@@ -981,17 +1411,41 @@ export default function App() {
 
       try {
         // 1. CHỈ gửi toạ độ thực lên server khi đã đăng nhập (currentUserId hợp lệ)
-        if (currentUserId && currentUserId.startsWith('user-')) {
+        if (currentUserId && (currentUserId.startsWith('user-') || currentUserId.startsWith('client-'))) {
+          let safeChibi = userCustomChibi;
+          let safeChibiExp = userCustomChibiExpiresAt;
+          if (!safeChibi && currentUserId) {
+            try {
+              const expRaw = localStorage.getItem(`vivu_user_custom_chibi_expires_${currentUserId}`) || localStorage.getItem('vivu_user_custom_chibi_expires');
+              const expTime = expRaw ? Number(expRaw) : null;
+              if (expTime && expTime > Date.now()) {
+                safeChibi = localStorage.getItem(`vivu_user_custom_chibi_${currentUserId}`) || localStorage.getItem('vivu_user_custom_chibi') || null;
+                safeChibiExp = expTime;
+              }
+            } catch {}
+          }
+          let safeStatus = (userCustomStatus === 'Khoảnh khắc mới' || userCustomStatus === 'Tâm trạng') ? '' : userCustomStatus;
+          if (!safeStatus && currentUserId) {
+            try {
+              safeStatus = localStorage.getItem(`vivu_user_custom_status_${currentUserId}`) || localStorage.getItem('vivu_user_custom_status') || '';
+            } catch {}
+          }
+
           await apiClient.updateGps(
             currentUserId,
             userLat,
             userLng,
-            userCustomStatus,
+            safeStatus,
             currentUserName,
             currentUserAvatar,
             currentUserCode,
             user?.phone,
-            userCustomSong
+            userCustomSong,
+            safeChibi,
+            userPinSkin,
+            userPinMascot,
+            userPinAction,
+            safeChibiExp
           );
         }
 
@@ -1016,28 +1470,18 @@ export default function App() {
             setIncomingMessageToast({
               id: `peer-toast-${p.id}`,
               senderName: pName,
-              senderAvatar: p.avatar_url || p.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-              text: `Đang trực tuyến gần bạn (${p.user_code || ''})! Nhấn để xem vị trí & kết bạn.`,
+              senderAvatar: p.avatar_url || p.avatar || DEFAULT_WHITE_PERSON_AVATAR,
+              text: `Đang trực tuyến gần bạn (${p.user_code || ''})! Nhấn để xem vị trí.`,
               isFriendRequest: false,
               action: () => {
-                const targetLat = Number(p.realLat || p.lat);
-                const targetLng = Number(p.realLng || p.lng);
-                if (window.__vivu_map && !isNaN(targetLat) && !isNaN(targetLng)) {
-                  window.__vivu_map.flyTo([targetLat, targetLng], 16.5, { duration: 0.9 });
+                if (window.__vivu_map) {
+                  window.__vivu_map.flyTo({
+                    center: [Number(p.lng), Number(p.lat)],
+                    zoom: 16.5,
+                    pitch: 35,
+                    duration: 900
+                  });
                 }
-                setSelectedGuestProfile({
-                  ...p,
-                  id: p.id,
-                  hostId: p.id,
-                  hostName: pName,
-                  name: pName,
-                  hostAvatar: p.avatar_url || p.avatar,
-                  avatar: p.avatar_url || p.avatar,
-                  userCode: p.user_code || '',
-                  realLat: targetLat,
-                  realLng: targetLng,
-                  distanceText: 'Cách bạn vài mét'
-                });
               }
             });
           }
@@ -1051,15 +1495,29 @@ export default function App() {
               const mappedFriends = acceptedFriends.map(af => {
                 const livePeer = profiles.find(p => p.id === af.id);
                 const isPeerOnline = livePeer ? (livePeer.is_online === true) : false;
+                const fLat = livePeer?.lat != null ? Number(livePeer.lat) : (af.lat != null ? Number(af.lat) : 10.7769);
+                const fLng = livePeer?.lng != null ? Number(livePeer.lng) : (af.lng != null ? Number(af.lng) : 106.7009);
+                const fName = af.name || af.full_name || livePeer?.full_name || 'Bạn bè VIVU';
+                const fAvatar = getSafeAvatar(af.avatar || af.avatar_url || livePeer?.avatar_url);
                 return {
                   ...af,
-                  realLat: livePeer?.lat != null ? Number(livePeer.lat) : af.lat,
-                  realLng: livePeer?.lng != null ? Number(livePeer.lng) : af.lng,
+                  id: af.id,
+                  hostId: af.id,
+                  name: fName,
+                  hostName: fName,
+                  avatar: fAvatar,
+                  hostAvatar: fAvatar,
+                  realLat: fLat,
+                  realLng: fLng,
+                  lat: fLat,
+                  lng: fLng,
                   isOnline: isPeerOnline,
                   battery: livePeer?.battery || '95%',
-                  lastSeenLocation: livePeer?.custom_status || af.custom_status || (isPeerOnline ? 'Đang hoạt động' : 'Đã offline'),
-                  title: livePeer?.custom_status || af.custom_status || 'Bạn bè VIVU',
-                  userCode: livePeer?.user_code || af.user_code || ''
+                  lastSeenLocation: livePeer?.last_seen_text || (isPeerOnline ? 'Đang hoạt động' : 'Đã offline'),
+                  custom_status: livePeer?.custom_status || af.custom_status || '',
+                  title: livePeer?.custom_status || af.custom_status || (isPeerOnline ? 'Đang trực tuyến' : 'Đã offline'),
+                  userCode: livePeer?.user_code || af.user_code || '',
+                  isFriend: true
                 };
               });
               setFriends(mappedFriends);
@@ -1098,7 +1556,7 @@ export default function App() {
             const pLat = Number(p.lat);
             const pLng = Number(p.lng);
             const pName = p.full_name || p.name || 'Người dùng VIVU';
-            const pAvatar = p.avatar_url || p.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+            const pAvatar = p.avatar_url || p.avatar || DEFAULT_WHITE_PERSON_AVATAR;
             const pStatus = p.custom_status || 'Đang trực tuyến gần bạn';
             const sId = `live-peer-${p.id}`;
             const existingIdx = updated.findIndex(s => s.id === sId || s.hostId === p.id);
@@ -1147,7 +1605,7 @@ export default function App() {
 
             onlineOtherProfiles.forEach(p => {
               const pName = p.full_name || p.name || 'Người dùng VIVU';
-              const pAvatar = p.avatar_url || p.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+              const pAvatar = p.avatar_url || p.avatar || DEFAULT_WHITE_PERSON_AVATAR;
               const directConvId = apiClient.getDirectConversationId(currentUserId, p.id);
               const existingIdx = updatedConvs.findIndex(c => c.id === directConvId || c.friendId === p.id);
 
@@ -1195,7 +1653,7 @@ export default function App() {
               remoteStories.forEach(rs => {
                 // Kiểm tra xem bài Story này có thuộc về một tài khoản đã có giọt nước hay không
                 const peerIdx = updated.findIndex(s => 
-                  (rs.host_id && (s.hostId === rs.host_id || s.id === `live-peer-${rs.host_id}`)) ||
+                  (rs.host_id && (s.hostId === rs.host_id || s.host_id === rs.host_id || s.id === `live-peer-${rs.host_id}` || s.id === rs.host_id)) ||
                   (rs.user_code && s.userCode && s.userCode === rs.user_code) ||
                   (rs.host_name && (s.hostName === rs.host_name || s.name === rs.host_name))
                 );
@@ -1203,7 +1661,7 @@ export default function App() {
                 if (peerIdx >= 0) {
                   // ĐÃ TỒN TẠI GIỌT NƯỚC CỦA NGƯỜI NÀY -> HỢP NHẤT VÀO 1 GIỌT NƯỚC DUY NHẤT (Rule 30)
                   const cur = updated[peerIdx];
-                  const isCurOwner = cur.isOwnerStory || (currentUserId && cur.hostId === currentUserId);
+                  const isCurOwner = cur.isOwnerStory || (currentUserId && (cur.hostId === currentUserId || cur.host_id === currentUserId));
                   const curCreated = new Date(cur.created_at || cur.createdAt || 0).getTime();
                   const rsCreated = new Date(rs.created_at || rs.createdAt || 0).getTime();
 
@@ -1212,52 +1670,76 @@ export default function App() {
                     return;
                   }
 
-                  if (!cur.activeStory || cur.activeStory.id !== rs.id) {
+                  if (!cur.activeStory || cur.activeStory.id !== rs.id || cur.image !== rs.image) {
                     hasNew = true;
-                    updated[peerIdx] = {
+                    const mergedStory = {
                       ...cur,
+                      hostId: rs.host_id || cur.hostId,
+                      host_id: rs.host_id || cur.host_id,
+                      userCode: rs.user_code || cur.userCode,
                       activeStory: rs,
                       storyTitle: rs.title,
                       storyDescription: rs.description,
                       category: rs.category || cur.category || 'moment',
                       image: rs.image || cur.image || null,
+                      dual_image: rs.dual_image || cur.dual_image || null,
                       music: rs.music || cur.music || null,
                       video: rs.video || cur.video || null,
                       title: rs.title || cur.title,
+                      expires_at: rs.expires_at || cur.expires_at,
+                      created_at: rs.created_at || cur.created_at,
+                      expiry_hours: rs.expiry_hours || cur.expiry_hours || 24,
                       isOwnerStory: Boolean(isCurOwner || rs.host_id === currentUserId)
                     };
+                    updated[peerIdx] = mergedStory;
+                    if (isCurOwner && currentUserId) {
+                      try {
+                        localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(mergedStory));
+                        localStorage.setItem('vivu_user_active_story', JSON.stringify(mergedStory));
+                      } catch {}
+                    }
                   }
                 } else {
-                  // Nếu là bài story của chính mình HOẶC của người khác đang online
+                  // Đưa Story thực tế từ xa lên bản đồ (Bất kể thời điểm heartbeat, đảm bảo đồng bộ 100%)
                   const isOwnerStory = rs.host_id === currentUserId || (currentUserCode && rs.user_code === currentUserCode);
-                  const isHostOnline = isOwnerStory || (rs.host_id && activePeerIds.has(rs.host_id));
-                  if (isHostOnline) {
-                    const sId = rs.id || `remote-${rs.created_at}`;
-                    if (!updated.some(s => s.id === sId)) {
-                      hasNew = true;
-                      updated.unshift({
-                        id: sId,
-                        hostId: rs.host_id || null,
-                        userCode: rs.user_code || '',
-                        hostName: rs.host_name,
-                        hostAvatar: rs.host_avatar,
-                        activeStory: rs,
-                        isOwnerStory: isOwnerStory,
-                        category: rs.category || 'moment',
-                        title: rs.title,
-                        description: rs.description,
-                        address: rs.address || 'Quanh đây',
-                        realLat: rs.lat,
-                        realLng: rs.lng,
-                        image: rs.image || null,
-                        dual_image: rs.dual_image || null,
-                        texts: rs.texts || [],
-                        stickers: rs.stickers || [],
-                        music: rs.music || null,
-                        video: rs.video || null,
-                        privacy: rs.privacy || 'public',
-                        isOnline: true
-                      });
+                  const sId = rs.id || `remote-${rs.created_at}`;
+                  if (!updated.some(s => s.id === sId || s.hostId === rs.host_id || s.host_id === rs.host_id)) {
+                    hasNew = true;
+                    const unshiftedStory = {
+                      id: sId,
+                      hostId: rs.host_id || null,
+                      host_id: rs.host_id || null,
+                      userCode: rs.user_code || '',
+                      hostName: rs.host_name,
+                      hostAvatar: rs.host_avatar || (rs.user_code ? DEFAULT_WHITE_PERSON_AVATAR : null),
+                      activeStory: rs,
+                      isOwnerStory: isOwnerStory,
+                      category: rs.category || 'moment',
+                      title: rs.title,
+                      description: rs.description,
+                      address: rs.address || 'Quanh đây',
+                      realLat: rs.lat,
+                      realLng: rs.lng,
+                      lat: rs.lat,
+                      lng: rs.lng,
+                      image: rs.image || null,
+                      dual_image: rs.dual_image || null,
+                      texts: rs.texts || [],
+                      stickers: rs.stickers || [],
+                      music: rs.music || null,
+                      video: rs.video || null,
+                      privacy: rs.privacy || 'public',
+                      expires_at: rs.expires_at,
+                      created_at: rs.created_at,
+                      expiry_hours: rs.expiry_hours || 24,
+                      isOnline: true
+                    };
+                    updated.unshift(unshiftedStory);
+                    if (isOwnerStory && currentUserId) {
+                      try {
+                        localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(unshiftedStory));
+                        localStorage.setItem('vivu_user_active_story', JSON.stringify(unshiftedStory));
+                      } catch {}
                     }
                   }
                 }
@@ -1303,9 +1785,13 @@ export default function App() {
     // Vòng lặp định kỳ mỗi 3.5 giây
     const heartbeatTimer = setInterval(syncHeartbeat, 3500);
 
-    // Lắng nghe sự kiện người dùng mở lại tab để đồng bộ ngay lập tức (không ngắt offline vội vã khi chỉ ẩn tab)
+    // Lắng nghe sự kiện người dùng ẩn tab / khóa màn hình hoặc mở lại tab
     const handleVisibilityOrFocus = () => {
-      if (!document.hidden) {
+      if (document.hidden) {
+        if (currentUserId) {
+          apiClient.setOffline(currentUserId);
+        }
+      } else {
         syncHeartbeat();
       }
     };
@@ -1318,7 +1804,78 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [user?.id, user?.email, user?.user_metadata, userLat, userLng, userCustomStatus, currentUserId, currentUserName, currentUserAvatar]);
+  }, [user?.id, user?.email, user?.user_metadata, userLat, userLng, userCustomStatus, currentUserId, currentUserName, currentUserAvatar, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction]);
+
+  // Bộ đếm định kỳ tự động thu hồi Chibi khi hết thời gian tự hủy
+  useEffect(() => {
+    if (!userCustomChibiExpiresAt) return;
+    const interval = setInterval(() => {
+      if (Date.now() > userCustomChibiExpiresAt) {
+        setUserCustomChibi(null);
+        setUserCustomChibiExpiresAt(null);
+        try {
+          if (currentUserId) {
+            localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
+            localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
+          }
+          localStorage.removeItem('vivu_user_custom_chibi');
+          localStorage.removeItem('vivu_user_custom_chibi_expires');
+        } catch {}
+        if (currentUserId && userLat && userLng) {
+          apiClient.updateGps(currentUserId, userLat, userLng, userCustomStatus || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, userCustomSong, null, userPinSkin, userPinMascot, userPinAction, null);
+        }
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [userCustomChibiExpiresAt, currentUserId, userLat, userLng, userCustomStatus, currentUserName, currentUserAvatar, currentUserCode, user?.phone, userCustomSong, userPinSkin, userPinMascot, userPinAction]);
+
+  // Tự động dọn sạch bài hát & trạng thái mồ côi nếu người dùng không còn Story nào
+  useEffect(() => {
+    // 1. Nếu trạng thái đang là tiêu đề mặc định của Story cũ, dọn sạch ngay
+    if (userCustomStatus === 'Khoảnh khắc mới' || userCustomStatus === 'Tâm trạng') {
+      setUserCustomStatus('');
+      setUserCustomSong(null);
+      safeRemoveItem('vivu_user_custom_status');
+      safeRemoveItem('vivu_user_custom_song');
+      try {
+        localStorage.removeItem('vivu_user_custom_status');
+        localStorage.removeItem('vivu_user_custom_song');
+      } catch {}
+      if (currentUserId && userLat && userLng) {
+        apiClient.updateGps(
+          currentUserId,
+          userLat,
+          userLng,
+          '',
+          currentUserName,
+          currentUserAvatar,
+          currentUserCode,
+          user?.phone,
+          null,
+          userCustomChibi,
+          userPinSkin,
+          userPinMascot,
+          userPinAction
+        ).catch(() => {});
+      }
+      return;
+    }
+
+    // Chỉ dọn dẹp active story khi Story thực tế trong bộ nhớ đã hết hạn (expTime <= now)
+    try {
+      const scopedKey = currentUserId ? `vivu_user_active_story_${currentUserId}` : null;
+      const cached = (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('vivu_user_active_story');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const expTime = parsed.expires_at ? new Date(parsed.expires_at).getTime() : 0;
+        if (expTime && expTime <= Date.now()) {
+          safeRemoveItem('vivu_user_active_story');
+          localStorage.removeItem('vivu_user_active_story');
+          if (scopedKey) localStorage.removeItem(scopedKey);
+        }
+      }
+    } catch {}
+  }, [stories, currentUserId, userCustomSong, userCustomStatus, userCustomChibi, userPinSkin, userPinMascot, userPinAction, userLat, userLng]);
 
   // LẮNG NGHE & ĐỒNG BỘ TIN NHẮN THỜI GIAN THỰC (REALTIME CHAT POLLING)
   // Giúp 2 thiết bị (PC & Điện thoại) nhận tin nhắn tức thì của nhau trong phòng chat
@@ -1346,6 +1903,7 @@ export default function App() {
               hasNewIncoming = true;
             }
             return {
+              ...m,
               id: m.id || m.client_msg_id,
               client_msg_id: m.client_msg_id,
               sender: isMe ? 'me' : 'them',
@@ -1354,7 +1912,18 @@ export default function App() {
               image: m.image || null,
               video: m.video || null,
               isHeart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
+              is_heart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
               isLocation: Boolean(m.is_location || m.isLocation),
+              is_location: Boolean(m.is_location || m.isLocation),
+              isLiveLocation: Boolean(m.is_live_location || m.isLiveLocation),
+              is_live_location: Boolean(m.is_live_location || m.isLiveLocation),
+              live_status: m.live_status || (m.is_live_location ? 'active' : null),
+              live_duration_minutes: m.live_duration_minutes || null,
+              live_expires_at: m.live_expires_at || null,
+              speed: (m.speed != null && !isNaN(Number(m.speed))) ? Number(m.speed) : null,
+              isPoll: Boolean(m.is_poll || m.isPoll || m.poll),
+              is_poll: Boolean(m.is_poll || m.isPoll || m.poll),
+              poll: m.poll || null,
               lat: m.lat,
               lng: m.lng,
               time: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'
@@ -1460,7 +2029,7 @@ export default function App() {
                 const newConv = {
                   id: directConvId,
                   name: msg.sender_name || 'Người dùng VIVU',
-                  avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(msg.sender || 'user')}`,
+                  avatar: DEFAULT_WHITE_PERSON_AVATAR,
                   type: 'direct',
                   friendId: msg.sender,
                   online: true,
@@ -1483,7 +2052,7 @@ export default function App() {
                 id: msg.id,
                 conversationId: msg.conversation_id,
                 senderName: msg.sender_name || 'Bạn bè VIVU',
-                senderAvatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(msg.sender || 'user')}`,
+                senderAvatar: DEFAULT_WHITE_PERSON_AVATAR,
                 text: msg.text || (msg.is_location ? 'Đã chia sẻ vị trí GPS với bạn' : msg.image ? 'Đã gửi cho bạn một hình ảnh' : 'Đã gửi tin nhắn mới'),
                 time: 'Vừa xong'
               });
@@ -1518,20 +2087,35 @@ export default function App() {
         setConversations(prevConvs => {
           return prevConvs.map(c => {
             if (c.id === activeConversationId) {
-              const mapped = msgs.map(m => ({
-                id: m.id || m.client_msg_id,
-                client_msg_id: m.client_msg_id,
-                sender: (m.sender === currentUserId || m.sender === 'me') ? 'me' : 'them',
-                senderName: m.sender_name || (m.sender === currentUserId ? 'Bạn' : c.name),
-                text: m.text || '',
-                image: m.image,
-                video: m.video,
-                isHeart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
-                isLocation: Boolean(m.is_location || m.isLocation),
-                lat: m.lat,
-                lng: m.lng,
-                time: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'
-              }));
+              const mapped = msgs.map(m => {
+                const isMe = (m.sender === currentUserId || m.sender === 'me');
+                return {
+                  ...m,
+                  id: m.id || m.client_msg_id,
+                  client_msg_id: m.client_msg_id,
+                  sender: isMe ? 'me' : 'them',
+                  senderName: m.sender_name || (isMe ? 'Bạn' : c.name),
+                  text: m.text || '',
+                  image: m.image,
+                  video: m.video,
+                  isHeart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
+                  is_heart: Boolean(m.is_heart || m.isHeart || m.text === '❤️'),
+                  isLocation: Boolean(m.is_location || m.isLocation),
+                  is_location: Boolean(m.is_location || m.isLocation),
+                  isLiveLocation: Boolean(m.is_live_location || m.isLiveLocation),
+                  is_live_location: Boolean(m.is_live_location || m.isLiveLocation),
+                  live_status: m.live_status || (m.is_live_location ? 'active' : null),
+                  live_duration_minutes: m.live_duration_minutes || null,
+                  live_expires_at: m.live_expires_at || null,
+                  speed: (m.speed != null && !isNaN(Number(m.speed))) ? Number(m.speed) : null,
+                  isPoll: Boolean(m.is_poll || m.isPoll || m.poll),
+                  is_poll: Boolean(m.is_poll || m.isPoll || m.poll),
+                  poll: m.poll || null,
+                  lat: m.lat,
+                  lng: m.lng,
+                  time: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'
+                };
+              });
               const lastM = mapped[mapped.length - 1];
               return {
                 ...c,
@@ -1558,49 +2142,138 @@ export default function App() {
 
   // CẬP NHẬT ẢNH ĐẠI DIỆN HỒ SƠ & ĐỒNG BỘ TỨC THÌ LÊN GIỌT NƯỚC BẢN ĐỒ VÀ MÁY KHÁC
   const handleDirectUpdateAvatar = async (newAvatar, newPhotos) => {
+    const finalAvatar = newAvatar || null;
     // 1. Cập nhật state cục bộ ngay lập tức để giọt nước đổi avatar tức thì
-    setActiveUserAvatar(newAvatar);
-    safeSetItem('vivu_user_avatar', newAvatar);
+    setCustomAvatar(finalAvatar);
+    if (finalAvatar) {
+      safeSetItem('vivu_user_avatar', finalAvatar);
+      if (currentUserId) {
+        safeSetItem(`vivu_user_avatar_${currentUserId}`, finalAvatar);
+      }
+    } else {
+      safeRemoveItem('vivu_user_avatar');
+      if (currentUserId) {
+        safeRemoveItem(`vivu_user_avatar_${currentUserId}`);
+      }
+    }
 
     // Cập nhật ngay ảnh đại diện cho các Story chính chủ đang hiển thị
     setStories(prev => prev.map(s => {
       if (s.hostId === currentUserId || s.isOwnerStory) {
-        return { ...s, hostAvatar: newAvatar };
+        return { ...s, hostAvatar: finalAvatar || '' };
       }
       return s;
     }));
 
-    // 2. Cập nhật vào Auth Profile & Metadata
+    // 2. Cập nhật vào Auth Profile & Metadata (Giữ nguyên các trường thông tin cá nhân hiện có)
     try {
-      await updateProfile({
-        fullName: currentUserName,
-        avatarUrl: newAvatar,
-        customStatus: userCustomStatus,
-        photos: newPhotos
-      });
+      const scopedKey = currentUserId && !currentUserId.startsWith('client-') ? `vivu_user_profile_data_${currentUserId}` : null;
+      const existingRaw = (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('vivu_user_profile_data');
+      const existing = existingRaw ? JSON.parse(existingRaw) : {};
+      const updatedProfile = {
+        ...existing,
+        userId: currentUserId,
+        fullName: currentUserName || existing.fullName,
+        avatarUrl: finalAvatar || '',
+        avatar_url: finalAvatar || '',
+        customStatus: userCustomStatus || existing.customStatus,
+        photos: newPhotos || existing.photos
+      };
+      safeSetItem('vivu_user_profile_data', JSON.stringify(updatedProfile));
+      if (scopedKey) {
+        safeSetItem(scopedKey, JSON.stringify(updatedProfile));
+      }
+      await updateProfile(updatedProfile);
     } catch (e) {
       console.warn('Lỗi lưu auth profile:', e);
     }
 
     // 3. Phát sóng tức thì tọa độ kèm Avatar mới lên Backend Server
     try {
-      await apiClient.updateGps(
-        currentUserId,
-        userLat,
-        userLng,
-        userCustomStatus,
-        currentUserName,
-        newAvatar,
-        currentUserCode
-      );
+      if (currentUserId && userLat && userLng) {
+        await apiClient.updateGps(
+          currentUserId,
+          userLat,
+          userLng,
+          userCustomStatus,
+          currentUserName,
+          finalAvatar || '',
+          currentUserCode,
+          user?.phone,
+          userCustomSong,
+          userCustomChibi,
+          userPinSkin,
+          userPinMascot,
+          userPinAction
+        );
+      }
     } catch (e) {
       console.warn('Lỗi broadcast GPS avatar:', e);
     }
 
-    confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
+    if (finalAvatar) {
+      confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
+    }
   };
 
   // Quét Radar thủ công
+  // Cập nhật đầy đủ thông tin Hồ Sơ Cá Nhân (Họ tên, Bio, SĐT, Tuổi, Avatar, Trạng thái, Quyền riêng tư)
+  const handleUpdateFullProfile = async (profileData) => {
+    try {
+      if (profileData.avatarUrl !== undefined) {
+        const finalAvatar = profileData.avatarUrl || null;
+        setCustomAvatar(finalAvatar);
+        if (finalAvatar) {
+          safeSetItem('vivu_user_avatar', finalAvatar);
+          if (currentUserId) safeSetItem(`vivu_user_avatar_${currentUserId}`, finalAvatar);
+        } else {
+          safeRemoveItem('vivu_user_avatar');
+          if (currentUserId) safeRemoveItem(`vivu_user_avatar_${currentUserId}`);
+        }
+        setStories(prev => prev.map(s => {
+          if (s.hostId === currentUserId || s.isOwnerStory) {
+            return { ...s, hostAvatar: finalAvatar || '' };
+          }
+          return s;
+        }));
+      }
+      if (profileData.fullName) {
+        safeSetItem('vivu_user_name', profileData.fullName);
+      }
+      if (profileData.customStatus) {
+        setUserCustomStatus(profileData.customStatus);
+        safeSetItem('vivu_user_custom_status', profileData.customStatus);
+      }
+      // Lưu tức thì vào bộ nhớ độc lập để trang cá nhân hiển thị ngay lập tức
+      try {
+        const targetId = profileData.userId || currentUserId;
+        const scopedKey = targetId && targetId !== 'guest' ? `vivu_user_profile_data_${targetId}` : null;
+        const existingRaw = localStorage.getItem('vivu_user_profile_data');
+        const existing = existingRaw ? JSON.parse(existingRaw) : {};
+        const merged = {
+          ...existing,
+          ...profileData,
+          fullName: profileData.fullName || existing.fullName || currentUserName,
+          avatarUrl: profileData.avatarUrl !== undefined ? profileData.avatarUrl : (existing.avatarUrl || currentUserAvatar)
+        };
+        localStorage.setItem('vivu_user_profile_data', JSON.stringify(merged));
+        if (scopedKey) localStorage.setItem(scopedKey, JSON.stringify(merged));
+      } catch {}
+
+      const res = await updateProfile({ ...profileData, userId: profileData.userId || currentUserId });
+      if (res && res.success !== false) {
+        setRadarPingNotification('Đã lưu thông tin hồ sơ thành công!');
+        confetti({ particleCount: 30, spread: 50 });
+      } else {
+        setRadarPingNotification('Đã lưu thông tin hồ sơ!');
+      }
+    } catch (e) {
+      console.warn('Lỗi updateProfile:', e);
+      setRadarPingNotification('Đã lưu thông tin hồ sơ!');
+    }
+    syncHeartbeat();
+  };
+
   const handleTriggerRadarScan = () => {
     setIsRadarScanning(true);
     setTimeout(() => {
@@ -1750,24 +2423,63 @@ export default function App() {
     }
 
     // Gỡ khỏi danh sách Story hiển thị trên bản đồ 3D
-    setStories(prev => prev.filter(s => s.id !== storyId && s.activeStory?.id !== storyId));
+    setStories(prev => prev.filter(s => s.id !== storyId && s.activeStory?.id !== storyId && s.hostId !== currentUserId && !s.isOwnerStory));
     
     // Gỡ khỏi bộ nhớ tạm active story
     try {
-      const cached = localStorage.getItem('vivu_user_active_story');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (parsed.id === storyId || parsed.activeStory?.id === storyId) {
-          localStorage.removeItem('vivu_user_active_story');
-        }
+      localStorage.removeItem('vivu_user_active_story');
+      safeRemoveItem('vivu_user_active_story');
+      if (currentUserId) {
+        localStorage.removeItem(`vivu_user_active_story_${currentUserId}`);
       }
     } catch {}
+
+    // Dừng phát nhạc ngay lập tức khi xóa Story
+    try {
+      storyAudioPlayer.stop();
+    } catch {}
+
+    // Dọn sạch hoàn toàn bài hát & trạng thái mồ côi trên ghim và local storage
+    setUserCustomSong(null);
+    setUserCustomStatus('');
+    safeRemoveItem('vivu_user_custom_song');
+    safeRemoveItem('vivu_user_custom_status');
+    try {
+      localStorage.removeItem('vivu_user_custom_song');
+      localStorage.removeItem('vivu_user_custom_status');
+    } catch {}
+
+    try {
+      await apiClient.updateGps(
+        currentUserId,
+        userLat,
+        userLng,
+        '',
+        currentUserName,
+        currentUserAvatar,
+        currentUserCode,
+        user?.phone,
+        null,
+        userCustomChibi,
+        userPinSkin,
+        userPinMascot,
+        userPinAction
+      );
+    } catch (e) {
+      console.warn('Lỗi dọn sạch nhạc story GPS:', e);
+    }
 
     // Gửi request DELETE lên backend server
     await apiClient.deleteStory(storyId, currentUserId, currentUserCode);
   };
 
   // Nhắn tin trực tiếp từ Story hoặc Hồ sơ khách
+  // Mở hồ sơ người dùng toàn màn hình với nhận diện nguồn gốc (Origin-Aware)
+  const handleOpenUserProfile = (profile, originSource = 'map') => {
+    setUserProfileOriginSource(originSource);
+    setSelectedUserProfile(profile);
+  };
+
   const handleStoryDirectChat = (story, replyText = null) => {
     setSelectedInteractiveStory(null);
     setSelectedGuestProfile(null);
@@ -1828,6 +2540,7 @@ export default function App() {
         }
       }
       setFriends(prev => prev.filter(f => f.name !== hostName && f.id !== targetUserId));
+      setRadarPingNotification(`Đã hủy kết bạn với ${hostName}`);
     } else {
       if (targetUserId && currentUserId && targetUserId !== currentUserId) {
         try {
@@ -1836,18 +2549,9 @@ export default function App() {
           console.warn('sendFriendRequest error:', e);
         }
       }
-      const newFriend = {
-        id: targetUserId || `friend-${Date.now()}`,
-        name: hostName,
-        avatar: story.hostAvatar || story.host_avatar || story.avatar,
-        battery: '98%',
-        realLat: story.realLat,
-        realLng: story.realLng,
-        latOffset: story.latOffset || 0.002,
-        lngOffset: story.lngOffset || 0.002
-      };
-      setFriends(prev => [...prev, newFriend]);
-      confetti({ particleCount: 45, spread: 60 });
+      // Không tự ý add vào friends khi mới chỉ gửi lời mời kết bạn!
+      setRadarPingNotification(`Đã gửi lời mời kết bạn đến ${hostName}`);
+      confetti({ particleCount: 30, spread: 50 });
     }
   };
 
@@ -1890,6 +2594,9 @@ export default function App() {
     setStories(prev => [newStory, ...prev.filter(s => s.id !== newStory.id)]);
     try {
       localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
+      if (currentUserId && !currentUserId.startsWith('client-')) {
+        localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(newStory));
+      }
       const archiveKey = `vivu_user_story_archive_${currentUserId || 'guest'}`;
       const savedArch = localStorage.getItem(archiveKey);
       let archList = savedArch ? JSON.parse(savedArch) : [];
@@ -1904,6 +2611,43 @@ export default function App() {
       archList = [itemToArchive, ...archList.filter(item => item.id !== itemToArchive.id)];
       localStorage.setItem(archiveKey, JSON.stringify(archList));
     } catch {}
+    // Đồng bộ suy nghĩ và bài hát nhạc nền vào ghim giọt nước của BẠN (Chỉ lưu nếu có nội dung thực, không lưu tiêu đề mặc định)
+    const rawNote = (storyData.texts && storyData.texts[0]?.text) || storyData.description || '';
+    const statusNote = (rawNote && rawNote !== 'Khoảnh khắc mới' && rawNote !== 'Tâm trạng') ? rawNote : '';
+    if (statusNote) {
+      setUserCustomStatus(statusNote);
+      try {
+        localStorage.setItem("vivu_user_custom_status", statusNote);
+        if (currentUserId) localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, statusNote);
+      } catch {}
+    }
+    if (storyData.music) {
+      setUserCustomSong(storyData.music);
+      try {
+        const songStr = JSON.stringify(storyData.music);
+        localStorage.setItem("vivu_user_custom_song", songStr);
+        if (currentUserId) localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, songStr);
+      } catch {}
+    }
+    if (currentUserId && userLat && userLng) {
+      apiClient.updateGps(
+        currentUserId,
+        userLat,
+        userLng,
+        statusNote || userCustomStatus,
+        currentUserName,
+        currentUserAvatar,
+        currentUserCode,
+        user?.phone,
+        storyData.music || userCustomSong,
+        userCustomChibi,
+        userPinSkin,
+        userPinMascot,
+        userPinAction,
+        userCustomChibiExpiresAt
+      );
+    }
+
     setIsCreateModalOpen(false);
     confetti({ particleCount: 70, spread: 65, origin: { y: 0.6 } });
     setActiveTab(isFriendsOnly ? 'friends' : 'social');
@@ -1969,6 +2713,9 @@ export default function App() {
     setStories(prev => [newStory, ...prev.filter(s => s.id !== newStory.id)]);
     try {
       localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
+      if (currentUserId && !currentUserId.startsWith('client-')) {
+        localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(newStory));
+      }
     } catch {}
     setIsQuickSnapOpen(false);
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.5 } });
@@ -1995,7 +2742,27 @@ export default function App() {
   };
 
   // Gửi tin nhắn trong Chat (Đồng bộ tức thì lên Backend để thiết bị kia nhận được)
-  const handleSendMessage = ({ conversationId, text, image, video, isLocation, lat, lng }) => {
+  const handleSendMessage = ({ 
+    conversationId, 
+    text, 
+    image, 
+    video, 
+    isLocation, 
+    is_location, 
+    isLiveLocation, 
+    is_live_location, 
+    liveDurationMinutes, 
+    live_duration_minutes, 
+    isPoll, 
+    is_poll, 
+    poll, 
+    lat, 
+    lng 
+  }) => {
+    const isLive = Boolean(isLiveLocation || is_live_location);
+    const hasPoll = Boolean(isPoll || is_poll || poll);
+    const now = new Date().toISOString();
+    const duration = Number(liveDurationMinutes || live_duration_minutes || 15);
     const newMsg = {
       id: `msg-${Date.now()}`,
       sender: 'me',
@@ -2003,9 +2770,18 @@ export default function App() {
       text,
       image,
       video,
-      isLocation,
+      isLocation: Boolean(isLocation || is_location),
+      is_location: Boolean(isLocation || is_location),
+      isLiveLocation: isLive,
+      is_live_location: isLive,
+      live_duration_minutes: isLive ? duration : null,
+      live_status: isLive ? 'active' : null,
+      live_expires_at: isLive ? new Date(Date.now() + duration * 60000).toISOString() : null,
+      is_poll: hasPoll,
+      poll: poll || null,
       lat,
       lng,
+      created_at: now,
       time: 'Vừa xong'
     };
 
@@ -2015,9 +2791,9 @@ export default function App() {
           ...c,
           isStranger: false,
           hasReplied: true,
-          lastMessage: text || (image ? 'Đã gửi hình ảnh' : video ? 'Đã gửi video' : isLocation ? 'Đã chia sẻ vị trí GPS' : 'Đã gửi tin nhắn'),
+          lastMessage: hasPoll ? `Bình chọn: ${poll?.title || text}` : isLive ? 'Đã chia sẻ vị trí trực tiếp' : text || (image ? 'Đã gửi hình ảnh' : video ? 'Đã gửi video' : isLocation ? 'Đã chia sẻ vị trí GPS' : 'Đã gửi tin nhắn'),
           time: 'Vừa xong',
-          messages: [...c.messages, newMsg]
+          messages: [...(c.messages || []), newMsg]
         };
       }
       return c;
@@ -2029,7 +2805,12 @@ export default function App() {
       text,
       image,
       video,
-      isLocation,
+      isLocation: Boolean(isLocation || is_location),
+      isLiveLocation: isLive,
+      liveDurationMinutes: isLive ? duration : null,
+      liveExpiresAt: newMsg.live_expires_at,
+      isPoll: hasPoll,
+      poll: poll || null,
       lat,
       lng,
       sender: currentUserId,
@@ -2090,9 +2871,10 @@ export default function App() {
   // ==================== CÁC HÀM XỬ LÝ NHÓM (CUSTOM CIRCLES) ĐỒNG BỘ ====================
   const handleCreateCircle = async (circlePayload) => {
     try {
+      const effectiveOwnerId = currentUserId || user?.id || 'user-me';
       const created = await apiClient.createCircle({
         ...circlePayload,
-        ownerId: currentUserId,
+        ownerId: effectiveOwnerId,
         creatorName: currentUserName,
         creatorAvatar: currentUserAvatar
       });
@@ -2100,28 +2882,38 @@ export default function App() {
         setCustomCircles(prev => [created, ...prev.filter(c => c.id !== created.id)]);
         setIsCreateCircleModalOpen(false);
         // Thêm vào danh sách cuộc trò chuyện ngay để hiển thị trong Chat
-        setConversations(prev => {
-          if (prev.some(conv => conv.id === created.id)) return prev;
-          return [
-            {
-              id: created.id,
-              type: 'group',
-              circleId: created.id,
-              name: created.name,
-              avatar: created.image || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(created.name)}`,
-              memberCount: (created.member_ids || []).length,
-              memberIds: created.member_ids || [],
-              online: true,
-              lastMessage: `Bạn đã tạo nhóm "${created.name}"`,
-              time: created.created_at || new Date().toISOString(),
-              unread: false,
-              unreadCount: 0,
-              messages: []
-            },
-            ...prev
-          ];
-        });
+        const welcomeText = (created.member_ids || []).length > 1
+          ? `Bạn đã tạo nhóm "${created.name}" và mời ${(created.member_ids || []).length - 1} bạn bè`
+          : `Bạn đã tạo nhóm "${created.name}"`;
+        const initialMsg = {
+          id: `msg-sys-${Date.now()}`,
+          sender: 'system',
+          senderName: 'Hệ thống',
+          text: welcomeText,
+          is_system: true,
+          created_at: created.created_at || new Date().toISOString(),
+          time: 'Vừa xong'
+        };
+        const newGroupConv = {
+          id: created.id,
+          type: 'group',
+          circleId: created.id,
+          name: created.name,
+          avatar: created.image || DEFAULT_WHITE_PERSON_AVATAR,
+          memberCount: (created.member_ids || []).length,
+          memberIds: created.member_ids || [],
+          online: true,
+          lastMessage: welcomeText,
+          time: created.created_at || new Date().toISOString(),
+          unread: false,
+          unreadCount: 0,
+          messages: [initialMsg]
+        };
+        setConversations(prev => [newGroupConv, ...prev.filter(conv => conv.id !== created.id)]);
+        setActiveTab('chat');
+        setActiveConversationId(created.id);
         confetti({ particleCount: 45, spread: 60 });
+        setRadarPingNotification(`Đã tạo nhóm "${created.name}" thành công!`);
       }
     } catch (err) {
       console.warn('Lỗi tạo nhóm:', err);
@@ -2179,7 +2971,7 @@ export default function App() {
               type: 'group',
               circleId: circleId,
               name: updatedCircle.name,
-              avatar: updatedCircle.image || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(updatedCircle.name)}`,
+              avatar: updatedCircle.image || DEFAULT_WHITE_PERSON_AVATAR,
               memberCount: (updatedCircle.member_ids || []).length,
               memberIds: updatedCircle.member_ids || [],
               online: true,
@@ -2253,8 +3045,13 @@ export default function App() {
       setCustomCircles(prev => prev.filter(c => c.id !== circleId));
       setConversations(prev => prev.filter(c => c.id !== circleId && c.circleId !== circleId));
       setActiveCircleFilter(prev => prev?.id === circleId ? null : prev);
+      if (activeConversationId === circleId) {
+        setActiveConversationId(null);
+      }
+      setRadarPingNotification('Đã xóa nhóm thành công!');
     } catch (e) {
       console.warn('Lỗi giải tán nhóm:', e);
+      setRadarPingNotification('Không thể xóa nhóm');
     }
   };
 
@@ -2335,8 +3132,8 @@ export default function App() {
   return (
     <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden overscroll-none select-none font-sans text-white bg-[#07090E]">
       
-      {/* 0.1 LOGO VIVU ĐỘC LẬP Ở GÓC TRÁI TRÊN CÙNG */}
-      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && (
+      {/* 0.1 LOGO VIVU ĐỘC LẬP Ở GÓC TRÁI TRÊN CÙNG (Ẩn khi đang xem hồ sơ người khác) */}
+      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && !selectedUserProfile && !selectedGuestProfile && (
         <TopAppLogo 
           onClick={handleRecenterMap} 
         />
@@ -2350,6 +3147,7 @@ export default function App() {
           onAdjustingRadius={setIsAdjustingRadius}
           isScanning={isRadarScanning}
           onTriggerScan={handleTriggerRadarScan}
+          resultsCount={radarResultsCount}
           unreadNotificationsCount={unreadNotificationsCount}
           onOpenNotifications={() => setIsNotificationsDrawerOpen(true)}
           friendsCount={friends.length}
@@ -2363,8 +3161,8 @@ export default function App() {
         />
       )}
 
-      {/* 0.3 ẢNH ĐẠI DIỆN ĐỘC LẬP PHONG CÁCH BUMP Ở GÓC PHẢI TRÊN CÙNG */}
-      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && (
+      {/* 0.3 ẢNH ĐẠI DIỆN ĐỘC LẬP Ở GÓC PHẢI TRÊN CÙNG: Nhấn chuyển hướng thẳng đến trang cá nhân của bạn */}
+      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && !selectedUserProfile && !selectedGuestProfile && (
         <BumpUserAvatar
           userAvatar={currentUserAvatar}
           userName={currentUserName}
@@ -2398,7 +3196,7 @@ export default function App() {
         }}
       />
 
-      {/* 1. BẢN ĐỒ MAPBOX STREETS-V12 TRUNG TÂM (SỐNG ĐỘNG ĐẦY MÀU SẮC) */}
+      {/* 1. BẢN ĐỒ GOOGLE MAPS ĐƯỜNG PHỐ & VỆ TINH HYBRID (ZERO-CRASH, 2D SỐNG ĐỘNG) */}
       <GoogleMapView
         currentUserId={currentUserId}
         currentUserName={currentUserName}
@@ -2406,6 +3204,11 @@ export default function App() {
         userLng={userLng}
         userCustomStatus={userCustomStatus}
         userCustomSong={userCustomSong}
+        userCustomChibi={userCustomChibi}
+        userCustomChibiExpiresAt={userCustomChibiExpiresAt}
+        userPinSkin={userPinSkin}
+        userPinMascot={userPinMascot}
+        userPinAction={userPinAction}
         userAvatar={currentUserAvatar}
         gpsLoading={gpsLoading}
         location={location}
@@ -2422,15 +3225,14 @@ export default function App() {
         navTarget={navTarget}
         activeCircleFilter={activeCircleFilter}
         onClearCircleFilter={() => setActiveCircleFilter(null)}
-        isPickingLocation={isPickingLocation}
-        setIsPickingLocation={setIsPickingLocation}
         onOpenStoryDetail={handleOpenStoryViewer}
         onOpenStoryChat={handleStoryDirectChat}
+        onOpenUserProfile={(profile) => handleOpenUserProfile(profile, 'map')}
         onOpenFriendDetail={setSelectedFriend}
         onOpenGuestProfile={(profile) => setSelectedGuestProfile(profile)}
-        onOpenUserMenu={() => setIsCreateActionSheetOpen(true)}
-        onOpenCreateStory={() => setIsCreateActionSheetOpen(true)}
-        onOpenQuickSnap={() => setIsQuickSnapOpen(true)}
+        onOpenUserMenu={() => setIsUserMenuOpen(true)}
+        onOpenProfile={() => setActiveTab('profile')}
+        onOpenCreateStory={() => setIsCreateModalOpen(true)}
         onOpenMemeTroll={(target) => setTrollTargetUser(target)}
         onSetManualLocation={setManualCoords}
       />
@@ -2565,9 +3367,9 @@ export default function App() {
             setActiveConversationId(null);
           }
         }}
-        onOpenCreateStory={() => setIsCreateActionSheetOpen(true)}
+        onOpenCreateStory={() => setIsCreateModalOpen(true)}
         unreadCount={conversations.filter(c => c.unread).length}
-        className={activeTab === 'chat' && activeConversationId ? 'hidden' : ''}
+        className={((activeTab === 'chat' && activeConversationId) || isQuickStatusSheetOpen || isPinWardrobeOpen || isUserMenuOpen) ? 'hidden' : ''}
       />
 
       {/* 6. TRÌNH XEM STORY TOÀN MÀN HÌNH TƯƠNG TÁC CAO CẤP (MULTI-STORY & DELETE) */}
@@ -2581,6 +3383,7 @@ export default function App() {
             setSelectedInteractiveStoryList([]);
           }}
           onOpenStoryChat={handleStoryDirectChat}
+          onOpenUserProfile={(p) => handleOpenUserProfile(p, 'story')}
           onVotePoll={handleVoteStoryPoll}
           onReplyQA={handleReplyStoryQA}
           onReact={handleStoryReaction}
@@ -2589,6 +3392,36 @@ export default function App() {
           userLng={userLng}
           currentUserId={currentUserId}
           currentUserCode={currentUserCode}
+        />
+      )}
+
+      {/* 6.9 MODAL XEM HỒ SƠ TOÀN MÀN HÌNH BẠN BÈ HOẶC NGƯỜI LẠ TRÊN BẢN ĐỒ */}
+      {selectedUserProfile && (
+        <UserProfileViewModal
+          isOpen={Boolean(selectedUserProfile)}
+          profile={selectedUserProfile}
+          originSource={userProfileOriginSource}
+          allFriends={friends}
+          onClose={() => setSelectedUserProfile(null)}
+          isFriend={friends.some(f => (selectedUserProfile.id && f.id === selectedUserProfile.id) || (selectedUserProfile.hostId && f.id === selectedUserProfile.hostId) || (selectedUserProfile.userId && f.id === selectedUserProfile.userId) || f.name === (selectedUserProfile.hostName || selectedUserProfile.name || selectedUserProfile.fullName))}
+          onDirectChat={(profile) => {
+            setSelectedUserProfile(null);
+            handleStoryDirectChat(profile);
+          }}
+          onToggleFriend={(profile) => {
+            handleStoryToggleFriend(profile);
+          }}
+          onOpenMemeTroll={(profile) => {
+            setSelectedUserProfile(null);
+            setTrollTargetUser(profile);
+          }}
+          onStartNavigation={(profile) => {
+            setSelectedUserProfile(null);
+            setNavTarget(profile);
+            setIsNavigationActive(true);
+            setActiveTab('social');
+          }}
+          onOpenStoryDetail={handleOpenStoryViewer}
         />
       )}
 
@@ -2631,6 +3464,7 @@ export default function App() {
           setIsFriendshipManagerOpen(false);
           handleStoryDirectChat(targetUser);
         }}
+        onOpenUserProfile={(p) => handleOpenUserProfile(p, 'friends')}
         onRequestHandled={() => {
           refreshConversations();
           apiClient.getFriendsList(currentUserId).then(list => {
@@ -2685,6 +3519,11 @@ export default function App() {
           userLat={userLat}
           userLng={userLng}
           onClose={() => setSelectedFriend(null)}
+          onOpenStoryDetail={handleOpenStoryViewer}
+          onOpenUserProfile={(p) => {
+            setSelectedFriend(null);
+            handleOpenUserProfile(p, 'map');
+          }}
           onOpenDirectChat={(f) => {
             setSelectedFriend(null);
             handleStoryDirectChat(f);
@@ -2693,7 +3532,6 @@ export default function App() {
             setSelectedFriend(null);
             setTrollTargetUser(f);
           }}
-          onOpenStoryDetail={handleOpenStoryViewer}
           onStartNavigation={(f) => {
             setNavTarget(f);
             setSelectedFriend(null);
@@ -2703,13 +3541,6 @@ export default function App() {
         />
       )}
 
-      {/* 9. ACTION SHEET TẠO MỚI TÍCH HỢP VÀO NÚT (+) TRUNG TÂM */}
-      <CreateActionSheet
-        isOpen={isCreateActionSheetOpen}
-        onClose={() => setIsCreateActionSheetOpen(false)}
-        onSelectStory={() => setIsCreateModalOpen(true)}
-        onSelectStatus={() => setIsQuickStatusSheetOpen(true)}
-      />
 
       {/* 10. BOTTOM SHEET CẬP NHẬT TRẠNG THÁI SUY NGHĨ (APPLE MUSIC STREAM) */}
       <QuickStatusSheet
@@ -2717,18 +3548,140 @@ export default function App() {
         onClose={() => setIsQuickStatusSheetOpen(false)}
         userCustomStatus={userCustomStatus}
         userCustomSong={userCustomSong}
+        userCustomChibi={userCustomChibi}
+        userCustomChibiExpiresAt={userCustomChibiExpiresAt}
+        userPinSkin={userPinSkin}
+        userPinMascot={userPinMascot}
+        userPinAction={userPinAction}
         userAvatar={currentUserAvatar}
-        onSelectStatus={(status, song) => {
-          setUserCustomStatus(status);
-          setUserCustomSong(song);
+        onOpenPinWardrobe={() => {
+          setIsQuickStatusSheetOpen(false);
+          setIsPinWardrobeOpen(true);
+        }}
+        onSelectStatus={(status, song, chibiId, expiresAt, expiryHours) => {
+          setUserCustomStatus(status || '');
+          setUserCustomSong(song || null);
+          setUserCustomChibi(chibiId || null);
+          setUserCustomChibiExpiresAt(expiresAt || null);
           try {
-            if (song) localStorage.setItem("vivu_user_custom_song", JSON.stringify(song));
-            else localStorage.removeItem("vivu_user_custom_song");
+            if (status) localStorage.setItem(currentUserId ? `vivu_user_custom_status_${currentUserId}` : "vivu_user_custom_status", status);
+            else localStorage.removeItem(currentUserId ? `vivu_user_custom_status_${currentUserId}` : "vivu_user_custom_status");
+            if (song) localStorage.setItem(currentUserId ? `vivu_user_custom_song_${currentUserId}` : "vivu_user_custom_song", JSON.stringify(song));
+            else localStorage.removeItem(currentUserId ? `vivu_user_custom_song_${currentUserId}` : "vivu_user_custom_song");
+            if (chibiId) localStorage.setItem(currentUserId ? `vivu_user_custom_chibi_${currentUserId}` : "vivu_user_custom_chibi", chibiId);
+            else localStorage.removeItem(currentUserId ? `vivu_user_custom_chibi_${currentUserId}` : "vivu_user_custom_chibi");
+            if (expiresAt) {
+              if (currentUserId) localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(expiresAt));
+              localStorage.setItem("vivu_user_custom_chibi_expires", String(expiresAt));
+            } else {
+              if (currentUserId) localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
+              localStorage.removeItem("vivu_user_custom_chibi_expires");
+            }
           } catch {}
-          if (currentUserId && currentUserId.startsWith('user-') && userLat && userLng) {
-            apiClient.updateGps(currentUserId, userLat, userLng, status, currentUserName, currentUserAvatar, currentUserCode, user?.phone, song);
+          if (currentUserId && userLat && userLng) {
+            apiClient.updateGps(currentUserId, userLat, userLng, status || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, chibiId || null, userPinSkin, userPinMascot, userPinAction, expiresAt || null);
+            updateProfile({ customStatus: status || '', customChibi: chibiId || null, chibi_expires_at: expiresAt || null }).catch(() => {});
           }
           confetti({ particleCount: 25, spread: 40 });
+        }}
+      />
+
+      {/* 11. BOTTOM SHEET VỊ TRÍ CỦA BẠN */}
+      <UserLocationSheet
+        isOpen={isUserMenuOpen}
+        userLat={userLat}
+        userLng={userLng}
+        locationAccuracy={location?.accuracy}
+        userCustomStatus={userCustomStatus}
+        userCustomSong={userCustomSong}
+        userCustomChibi={userCustomChibi}
+        userCustomChibiExpiresAt={userCustomChibiExpiresAt}
+        userPinSkin={userPinSkin}
+        userPinMascot={userPinMascot}
+        userPinAction={userPinAction}
+        userAvatar={currentUserAvatar}
+        userName={currentUserName}
+        userCode={currentUserCode}
+        onClose={() => setIsUserMenuOpen(false)}
+        onOpenCreateStory={() => setIsCreateModalOpen(true)}
+        onOpenEditProfile={() => setIsEditProfileOpen(true)}
+        onOpenQuickStatus={() => {
+          setIsUserMenuOpen(false);
+          setIsQuickStatusSheetOpen(true);
+        }}
+        onOpenPinWardrobe={() => {
+          setIsUserMenuOpen(false);
+          setIsPinWardrobeOpen(true);
+        }}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onLogout={logout}
+        onSelectStatus={(status) => {
+          setUserCustomStatus(status);
+          confetti({ particleCount: 25, spread: 40 });
+        }}
+        onClearSong={() => {
+          storyAudioPlayer.stop();
+          setUserCustomSong(null);
+          safeRemoveItem('vivu_user_custom_song');
+          try { localStorage.removeItem('vivu_user_custom_song'); } catch {}
+          if (currentUserId && userLat && userLng) {
+            apiClient.updateGps(currentUserId, userLat, userLng, userCustomStatus, currentUserName, currentUserAvatar, currentUserCode, user?.phone, null, userCustomChibi, userPinSkin, userPinMascot, userPinAction);
+          }
+          confetti({ particleCount: 20, spread: 35 });
+        }}
+        onRequestLocation={requestLocation}
+      />
+
+      {/* 11.2 TỦ ĐỒ GHIM BẢN ĐỒ & BỘ CHIBI FB/ZALO (ZENLY 3D) */}
+      <PinWardrobeModal
+        isOpen={isPinWardrobeOpen}
+        onClose={() => setIsPinWardrobeOpen(false)}
+        currentPinSkin={userPinSkin}
+        currentMascot={userPinMascot}
+        currentAction={userPinAction}
+        userAvatar={currentUserAvatar}
+        userName={currentUserName}
+        onSavePinConfig={(config) => {
+          const nextSkin = config.pinSkin || 'auto';
+          const nextMascot = config.pinMascot || null;
+          const nextAction = config.pinAction || null;
+          setUserPinSkin(nextSkin);
+          setUserPinMascot(nextMascot);
+          setUserPinAction(nextAction);
+          try {
+            if (currentUserId && !currentUserId.startsWith('client-')) {
+              localStorage.setItem(`vivu_user_pin_skin_${currentUserId}`, nextSkin);
+              if (nextMascot) localStorage.setItem(`vivu_user_pin_mascot_${currentUserId}`, nextMascot);
+              else localStorage.removeItem(`vivu_user_pin_mascot_${currentUserId}`);
+              if (nextAction) localStorage.setItem(`vivu_user_pin_action_${currentUserId}`, nextAction);
+              else localStorage.removeItem(`vivu_user_pin_action_${currentUserId}`);
+            }
+          } catch {}
+
+          if (currentUserId) {
+            updateProfile({ pinSkin: nextSkin, pinMascot: nextMascot, pinAction: nextAction }).catch(() => {});
+            if (userLat && userLng) {
+              apiClient.updateGps(
+                currentUserId,
+                userLat,
+                userLng,
+                userCustomStatus,
+                currentUserName,
+                currentUserAvatar,
+                currentUserCode,
+                user?.phone,
+                userCustomSong,
+                userCustomChibi,
+                nextSkin,
+                nextMascot,
+                nextAction
+              ).catch(() => {});
+            }
+          }
+
+          try {
+            confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
+          } catch {}
         }}
       />
 
@@ -2744,48 +3697,6 @@ export default function App() {
         userLat={userLat}
         userLng={userLng}
         friends={friends}
-      />
-
-      {/* 12. MODAL TẠO NHÓM MỚI */}
-      <CreateCircleModal
-        isOpen={isCreateCircleModalOpen}
-        onClose={() => setIsCreateCircleModalOpen(false)}
-        friends={friends}
-        onCreateCircle={handleCreateCircle}
-      />
-
-      {/* 13. MODAL TẠO BÌNH CHỌN LỊCH HẸN */}
-      <CreatePollModal
-        isOpen={isCreatePollModalOpen}
-        onClose={() => setIsCreatePollModalOpen(false)}
-        onCreatePoll={({ title, options }) => {
-          if (!activeConversationId) return;
-          const newMsg = {
-            id: `msg-poll-${Date.now()}`,
-            sender: 'me',
-            senderName: 'Bạn',
-            text: `Đã mở bình chọn: "${title}"`,
-            hasPoll: true,
-            customPoll: {
-              id: `poll-${Date.now()}`,
-              title,
-              isClosed: false,
-              options,
-              userVoted: null
-            }
-          };
-          setConversations(prev => prev.map(c => {
-            if (c.id === activeConversationId) {
-              return {
-                ...c,
-                lastMessage: `Bình chọn: ${title}`,
-                messages: [...c.messages, newMsg]
-              };
-            }
-            return c;
-          }));
-          setIsCreatePollModalOpen(false);
-        }}
       />
 
       {/* 14. GIẢ LẬP CUỘC GỌI */}
@@ -2822,6 +3733,7 @@ export default function App() {
           myActiveStory={myActiveStory}
           onOpenCreateStory={() => setIsCreateModalOpen(true)}
           onOpenStoryDetail={handleOpenStoryViewer}
+          onOpenUserProfile={(p, src) => handleOpenUserProfile(p, src || 'chat')}
           onToggleRightFriendshipPanel={() => setIsRightFriendshipPanelOpen(prev => !prev)}
           pendingFriendRequestsCount={pendingFriendRequests.length}
           userLat={userLat}
@@ -2879,19 +3791,23 @@ export default function App() {
             }
           }}
           onOpenDirectChat={handleStoryDirectChat}
+          onOpenMemeTroll={(target) => setTrollTargetUser(target)}
+          onOpenTakeoverMeme={(takeoverData) => setActiveTakeoverMeme(takeoverData)}
         />
       )}
 
-      {/* 16. TAB TÔI (PROFILE TINDER CARD) */}
+            {/* 16. TAB TÔI (PROFILE TINDER CARD) */}
       {activeTab === 'profile' && (
         <ProfilePageView
+          key={currentUserId || 'guest'}
           user={{
             ...user,
             id: currentUserId,
             user_metadata: {
+              ...user,
               ...user?.user_metadata,
-              full_name: currentUserName,
-              avatar_url: currentUserAvatar
+              full_name: currentUserName || user?.user_metadata?.full_name || user?.full_name,
+              avatar_url: currentUserAvatar || user?.user_metadata?.avatar_url || user?.avatar_url
             }
           }}
           isAuthenticated={isAuthenticated}
@@ -2911,6 +3827,7 @@ export default function App() {
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenAccountSwitcher={() => setIsAccountSwitcherOpen(true)}
           onUpdateAvatar={handleDirectUpdateAvatar}
+          onUpdateProfile={handleUpdateFullProfile}
           onOpenRightFriendshipPanel={() => setIsRightFriendshipPanelOpen(true)}
           onDirectChat={handleStoryDirectChat}
           onStartCall={(target) => handleStartCall('voice', target)}
@@ -2989,14 +3906,7 @@ export default function App() {
         onClose={() => setIsEditProfileOpen(false)}
         currentUser={user}
         currentStatus={userCustomStatus}
-        onSaveProfile={async (profileData) => {
-          const res = await updateProfile(profileData);
-          if (res?.success) {
-            if (profileData.customStatus) setUserCustomStatus(profileData.customStatus);
-            if (profileData.avatarUrl) setCustomAvatar(profileData.avatarUrl);
-            confetti({ particleCount: 40, spread: 60 });
-          }
-        }}
+        onSaveProfile={handleUpdateFullProfile}
         isSubmitting={isAuthSubmitting}
       />
 
@@ -3088,11 +3998,43 @@ export default function App() {
             initiatorName={activeBumpData?.initiatorName || currentUserName}
             initiatorAvatar={activeBumpData?.initiatorAvatar || currentUserAvatar}
             targetName={activeBumpData?.targetName || 'Bạn bè'}
-            targetAvatar={activeBumpData?.targetAvatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150'}
+            targetAvatar={activeBumpData?.targetAvatar || DEFAULT_WHITE_PERSON_AVATAR}
             isInitiator={activeBumpData?.initiatorId === currentUserId}
           />
         )}
       </Suspense>
+
+      {/* 24.1 MODAL TẠO NHÓM MỚI (TOP LAYER z-[100]) */}
+      <CreateCircleModal
+        isOpen={isCreateCircleModalOpen}
+        onClose={() => setIsCreateCircleModalOpen(false)}
+        friends={friends}
+        onCreateCircle={handleCreateCircle}
+      />
+
+      {/* 24.2 MODAL TẠO BÌNH CHỌN LỊCH HẸN (TOP LAYER) */}
+      <CreatePollModal
+        isOpen={isCreatePollModalOpen}
+        onClose={() => setIsCreatePollModalOpen(false)}
+        onCreatePoll={({ title, options }) => {
+          if (!activeConversationId) return;
+          handleSendMessage({
+            conversationId: activeConversationId,
+            text: `[BÌNH CHỌN]: ${title}`,
+            isPoll: true,
+            poll: {
+              id: `poll-${Date.now()}`,
+              title,
+              options: (options || []).map((opt, i) => ({
+                id: opt.id || `opt-${i + 1}`,
+                text: typeof opt === 'string' ? opt : opt.text,
+                votes: []
+              }))
+            }
+          });
+          setIsCreatePollModalOpen(false);
+        }}
+      />
 
       {/* 25. Rule 22: Cổng cấp quyền tự động tắt, vào thẳng bản đồ 3D */}
       {isPermissionGateOpen && (
@@ -3111,19 +4053,38 @@ export default function App() {
           targetUser={trollTargetUser}
           currentUserId={currentUserId}
           onClose={() => setTrollTargetUser(null)}
-          onMemeSent={({ meme, targetUser }) => {
+          onMemeSent={({ meme, targetUser, quote }) => {
             setActiveTakeoverMeme({
               meme,
-              senderName: currentUserName || 'Bạn'
+              quote,
+              senderName: currentUserName || 'Bạn',
+              targetUser
             });
+
+            // Gửi tin nhắn Troll vào phòng chat 1-1 nếu có targetUser
+            const targetId = targetUser?.id || targetUser?.hostId;
+            if (targetId && handleSendMessage) {
+              const trollPayload = {
+                type: 'troll',
+                memeId: meme.id,
+                memeName: meme.name,
+                memeIcon: meme.icon,
+                soundType: meme.soundType,
+                caption: quote || meme.caption,
+                sender: 'me'
+              };
+              handleSendMessage(quote || meme.name, null, null, null, trollPayload);
+            }
+
             // Gửi thông báo thời gian thực qua socket
             try {
               if (socketRef.current?.connected) {
                 socketRef.current.emit('meme_troll', {
                   senderId: currentUserId,
                   senderName: currentUserName,
-                  targetId: targetUser.id || targetUser.hostId,
-                  meme
+                  targetId: targetUser?.id || targetUser?.hostId,
+                  meme,
+                  quote
                 });
               }
             } catch {}
@@ -3136,7 +4097,12 @@ export default function App() {
         <MemeScreenTakeover
           meme={activeTakeoverMeme.meme}
           senderName={activeTakeoverMeme.senderName}
+          quote={activeTakeoverMeme.quote}
           onDismiss={() => setActiveTakeoverMeme(null)}
+          onCounterAttack={(sender) => {
+            setActiveTakeoverMeme(null);
+            setTrollTargetUser(activeTakeoverMeme.targetUser || sender);
+          }}
         />
       )}
 

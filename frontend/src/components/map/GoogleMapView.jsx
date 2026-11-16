@@ -1,9 +1,13 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import RightActionStack from './RightActionStack';
 import { storyAudioPlayer } from '../../data/trendingSongs';
-import { getOwnerBubbleHtml, getPeerBubbleHtml } from './mapMarkerHelpers';
+import { getOwnerBubbleHtml, getPeerBubbleHtml, getMarkerBodyHtml, resolveMarkerSkin } from './mapMarkerHelpers';
+import { bindOwnerMarkerEvents, bindPeerMarkerEvents } from './mapMarkerEvents';
+import { playChibiSound, getChibiMascotById, getChibiDataUrl } from '../../data/chibiMascotData';
+import { getMascotActionDataUrl } from '../../data/messengerZaloMascotData';
 
 /**
  * GoogleMapView - Bản Đồ Google Maps Chuẩn VIVU (Zero-WebGL Crash)
@@ -32,6 +36,11 @@ export default function GoogleMapView({
   userLng,
   userCustomStatus,
   userCustomSong,
+  userCustomChibi = null,
+  userCustomChibiExpiresAt = null,
+  userPinSkin = 'auto',
+  userPinMascot = null,
+  userPinAction = null,
   userAvatar,
   gpsLoading,
   location,
@@ -44,12 +53,16 @@ export default function GoogleMapView({
   activeCircleFilter = null,
   isPickingLocation = false,
   setIsPickingLocation,
+  onSyncFromPhone,
   onOpenStoryDetail,
+  onOpenStoryChat,
+  onOpenUserProfile,
   onOpenFriendDetail,
   onOpenGuestProfile,
   onOpenUserMenu,
   onOpenCreateStory,
   onOpenQuickSnap,
+  onOpenMemeTroll,
   onSetManualLocation
 }) {
   const mapContainerRef = useRef(null);
@@ -64,22 +77,17 @@ export default function GoogleMapView({
   const safeLat = Number(userLat ?? location?.lat ?? location?.latitude ?? 10.7769);
   const safeLng = Number(userLng ?? location?.lng ?? location?.longitude ?? 106.7009);
 
-  const onOpenStoryDetailRef = useRef(onOpenStoryDetail);
-  onOpenStoryDetailRef.current = onOpenStoryDetail;
-  const onOpenFriendDetailRef = useRef(onOpenFriendDetail);
-  onOpenFriendDetailRef.current = onOpenFriendDetail;
-  const onOpenGuestProfileRef = useRef(onOpenGuestProfile);
-  onOpenGuestProfileRef.current = onOpenGuestProfile;
-  const onOpenUserMenuRef = useRef(onOpenUserMenu);
-  onOpenUserMenuRef.current = onOpenUserMenu;
-  const onOpenCreateStoryRef = useRef(onOpenCreateStory);
-  onOpenCreateStoryRef.current = onOpenCreateStory;
-  const onSetManualLocationRef = useRef(onSetManualLocation);
-  onSetManualLocationRef.current = onSetManualLocation;
-  const isPickingLocationRef = useRef(isPickingLocation);
-  isPickingLocationRef.current = isPickingLocation;
-  const setIsPickingLocationRef = useRef(setIsPickingLocation);
-  setIsPickingLocationRef.current = setIsPickingLocation;
+  const onOpenStoryDetailRef = useRef(onOpenStoryDetail); onOpenStoryDetailRef.current = onOpenStoryDetail;
+  const onOpenStoryChatRef = useRef(onOpenStoryChat); onOpenStoryChatRef.current = onOpenStoryChat;
+  const onOpenUserProfileRef = useRef(onOpenUserProfile); onOpenUserProfileRef.current = onOpenUserProfile;
+  const onOpenFriendDetailRef = useRef(onOpenFriendDetail); onOpenFriendDetailRef.current = onOpenFriendDetail;
+  const onOpenGuestProfileRef = useRef(onOpenGuestProfile); onOpenGuestProfileRef.current = onOpenGuestProfile;
+  const onOpenUserMenuRef = useRef(onOpenUserMenu); onOpenUserMenuRef.current = onOpenUserMenu;
+  const onOpenCreateStoryRef = useRef(onOpenCreateStory); onOpenCreateStoryRef.current = onOpenCreateStory;
+  const onSetManualLocationRef = useRef(onSetManualLocation); onSetManualLocationRef.current = onSetManualLocation;
+  const onOpenMemeTrollRef = useRef(onOpenMemeTroll); onOpenMemeTrollRef.current = onOpenMemeTroll;
+  const isPickingLocationRef = useRef(isPickingLocation); isPickingLocationRef.current = isPickingLocation;
+  const setIsPickingLocationRef = useRef(setIsPickingLocation); setIsPickingLocationRef.current = setIsPickingLocation;
 
   const isOwnerItem = (item) => Boolean(item && (item.id === currentUserId || item.hostId === currentUserId || item.user_id === currentUserId));
   const myActiveStory = useMemo(() => stories.find(s => isOwnerItem(s)) || null, [stories, currentUserId]);
@@ -159,74 +167,90 @@ export default function GoogleMapView({
     const statusText = userCustomStatus || '';
     const song = userCustomSong || null;
 
-    const ownerHtml = getOwnerBubbleHtml({ myActiveStory, song, statusText });
+    const ownerSkin = resolveMarkerSkin({
+      manualSkin: userPinSkin,
+      hasStory: Boolean(myActiveStory),
+      hasChibi: Boolean(userCustomChibi),
+      hasAction: Boolean(userPinMascot && userPinAction)
+    });
+
+    const ownerHtml = getOwnerBubbleHtml({ 
+      myActiveStory, song, statusText, 
+      chibiId: userCustomChibi,
+      actionMascot: userPinMascot,
+      actionId: userPinAction,
+      chibiExpiresAt: userCustomChibiExpiresAt
+    });
+
+    const bodyHtml = getMarkerBodyHtml({
+      skinMode: ownerSkin,
+      avatar: safeAvatar,
+      name: 'BẠN',
+      isOwner: true,
+      hasStory: Boolean(myActiveStory),
+      actionDataUrl: userPinMascot && userPinAction ? getMascotActionDataUrl(userPinMascot, userPinAction) : null,
+      chibiDataUrl: userCustomChibi ? getChibiDataUrl(userCustomChibi) : null,
+      actionSound: userPinAction || (userCustomChibi ? getChibiMascotById(userCustomChibi)?.soundType : null)
+    });
 
     if (!userMarkerRef.current) {
       const el = document.createElement('div');
       el.className = 'vivu-user-marker-container flex flex-col items-center select-none relative';
-      el.style.cssText = 'overflow: visible; width: 44px; height: 44px; pointer-events: auto;';
+      el.style.cssText = 'overflow: visible; width: 56px; height: 56px; pointer-events: auto;';
       el.innerHTML = `
-        <div class="user-bubble-slot absolute bottom-[46px] left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto">
+        <div class="user-bubble-slot absolute bottom-[56px] left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto">
           ${ownerHtml}
         </div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 pointer-events-none flex items-center justify-center -z-10">
-          <div class="absolute inset-0 rounded-full bg-[rgba(0,229,255,0.2)] animate-ping"></div>
-          <div class="absolute w-14 h-14 rounded-full border border-[rgba(0,229,255,0.45)] bg-[rgba(0,229,255,0.1)]"></div>
+        <div class="user-body-slot pointer-events-auto">
+          ${bodyHtml}
         </div>
-        <div class="vivu-user-avatar-ring relative w-11 h-11 rounded-full p-[2px] ${myActiveStory ? 'bg-gradient-to-tr from-[#FF2A85] via-purple-500 to-[#7928CA] shadow-[0_0_16px_rgba(255,42,133,0.7)] animate-pulse' : 'bg-white border-2 border-[#10FFA0] shadow-[0_0_14px_rgba(16,255,160,0.65)]'} flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer">
-          <div class="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
-            ${safeAvatar ? `<img src="${safeAvatar}" alt="BẠN" class="user-pin-avatar w-full h-full object-cover" />` : `<div class="w-full h-full bg-white flex items-center justify-center text-neutral-400"><i class="bi bi-person-fill text-lg"></i></div>`}
-          </div>
-          <button id="btn-quick-create-story" type="button" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_8px_#FF2A85] flex items-center justify-center z-20 hover:scale-110 active:scale-90 transition-transform cursor-pointer" title="Đăng Story">
-            <i class="bi bi-plus-lg text-[10px] font-bold"></i>
-          </button>
-        </div>
-        <div class="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-white -mt-0.5 filter drop-shadow-[0_2px_4px_rgba(0,229,255,0.4)]"></div>
       `;
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (e.target.closest('#btn-play-owner-song')) {
-          const curSong = userCustomSongRef.current;
-          if (curSong) {
-            const isPlaying = storyAudioPlayer.togglePlay(curSong);
-            const playIcon = el.querySelector('#btn-play-owner-song i');
-            if (playIcon) playIcon.className = isPlaying ? 'bi bi-pause-fill text-xs' : 'bi bi-play-fill text-xs';
-          }
-          return;
-        }
-        if (e.target.closest('#btn-quick-create-story')) {
-          if (onOpenCreateStoryRef.current) onOpenCreateStoryRef.current();
-          return;
-        }
-        if (myActiveStoryRef.current && (e.target.closest('#btn-view-owner-story') || e.target.closest('.user-bubble-slot') || e.target.closest('.user-pin-avatar'))) {
-          if (onOpenStoryDetailRef.current) {
-            onOpenStoryDetailRef.current(myActiveStoryRef.current);
-            return;
-          }
-        }
-        if (onOpenUserMenuRef.current) {
-          onOpenUserMenuRef.current();
-        }
+      bindOwnerMarkerEvents(el, {
+        userCustomSongRef,
+        myActiveStoryRef,
+        onOpenCreateStoryRef,
+        onOpenStoryDetailRef,
+        onOpenUserMenuRef,
+        storyAudioPlayer
       });
 
-      const icon = L.divIcon({ html: el, className: 'vivu-custom-div-icon', iconSize: [44, 44], iconAnchor: [22, 44] });
+      const icon = L.divIcon({ html: el, className: 'vivu-custom-div-icon', iconSize: [56, 56], iconAnchor: [28, 56] });
       userMarkerRef.current = L.marker([safeLat, safeLng], { icon, zIndexOffset: 1000 }).addTo(mapRef.current);
+      userMarkerRef.current.on('click', (e) => {
+        if (e.originalEvent) {
+          const target = e.originalEvent.target;
+          if (target && target.closest) {
+            if (target.closest('#btn-quick-create-story')) {
+              if (onOpenCreateStoryRef.current) onOpenCreateStoryRef.current();
+              return;
+            }
+            if (target.closest('#btn-play-owner-song') || target.closest('.owner-bubble-wrapper') || target.closest('[data-chibi-sound]')) {
+              return;
+            }
+          }
+        }
+        if (onOpenUserMenuRef.current) onOpenUserMenuRef.current();
+      });
     } else {
       userMarkerRef.current.setLatLng([safeLat, safeLng]);
       const el = userMarkerRef.current.getElement();
       if (el) {
         const bubbleSlot = el.querySelector('.user-bubble-slot');
         if (bubbleSlot) bubbleSlot.innerHTML = ownerHtml;
-        const avatarImg = el.querySelector('.user-pin-avatar');
-        if (avatarImg && safeAvatar && avatarImg.src !== safeAvatar) avatarImg.src = safeAvatar;
-        const ringEl = el.querySelector('.vivu-user-avatar-ring');
-        if (ringEl) {
-          ringEl.className = `vivu-user-avatar-ring relative w-11 h-11 rounded-full p-[2px] ${myActiveStory ? 'bg-gradient-to-tr from-[#FF2A85] via-purple-500 to-[#7928CA] shadow-[0_0_16px_rgba(255,42,133,0.7)] animate-pulse' : 'bg-white border-2 border-[#10FFA0] shadow-[0_0_14px_rgba(16,255,160,0.65)]'} flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer`;
-        }
+        const bodySlot = el.querySelector('.user-body-slot');
+        if (bodySlot) bodySlot.innerHTML = bodyHtml;
+        bindOwnerMarkerEvents(el, {
+          userCustomSongRef,
+          myActiveStoryRef,
+          onOpenCreateStoryRef,
+          onOpenStoryDetailRef,
+          onOpenUserMenuRef,
+          storyAudioPlayer
+        });
       }
     }
-  }, [safeLat, safeLng, userAvatar, userCustomStatus, userCustomSong, myActiveStory]);
+  }, [safeLat, safeLng, userAvatar, userCustomStatus, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction, myActiveStory]);
 
   // 5. Vòng Tròn Radar Quét Không Gian
   useEffect(() => {
@@ -249,6 +273,30 @@ export default function GoogleMapView({
     }
   }, [safeLat, safeLng, radarDistance]);
 
+  // 5.1 Tự động điều chỉnh góc nhìn bản đồ (fitBounds) bao quát toàn bộ bạn bè (Rule 24)
+  const prevActiveTabRef = useRef(activeTab);
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const isFriendsTab = activeTab === 'friends' || Boolean(activeCircleFilter);
+    const tabJustChanged = prevActiveTabRef.current !== activeTab;
+    prevActiveTabRef.current = activeTab;
+
+    if (isFriendsTab && tabJustChanged) {
+      const validPoints = [L.latLng(safeLat, safeLng)];
+      (friends || []).forEach(f => {
+        const lat = Number(f.realLat ?? f.lat);
+        const lng = Number(f.realLng ?? f.lng);
+        if (!isNaN(lat) && !isNaN(lng)) validPoints.push(L.latLng(lat, lng));
+      });
+      if (validPoints.length > 1) {
+        mapRef.current.fitBounds(L.latLngBounds(validPoints), { padding: [50, 50], maxZoom: 16.5 });
+        if (mapRef.current.getZoom() < 14.8) mapRef.current.setZoom(14.8);
+      } else {
+        mapRef.current.flyTo([safeLat, safeLng], 16.2, { duration: 0.8 });
+      }
+    }
+  }, [activeTab, activeCircleFilter, friends, safeLat, safeLng]);
+
   // 6. Ghim Bạn Bè & Stories (Phân tán <60m - Rule 16)
   useEffect(() => {
     if (!mapRef.current) return;
@@ -256,30 +304,12 @@ export default function GoogleMapView({
     let rawItems = [];
 
     if (isFriendsMode) {
-      rawItems = (friends || []).filter(f => f && (f.isOnline === true || f.is_online === true));
+      rawItems = (friends || []).filter(f => f && !isOwnerItem(f));
     } else {
       const peerStories = (stories || []).filter(s => s && !isOwnerItem(s));
       const activePeerIdsWithStory = new Set(peerStories.map(s => s.hostId || s.id));
-
-      const peersWithoutStory = (onlinePeers || [])
-        .filter(p => p && p.id && !isOwnerItem(p) && !activePeerIdsWithStory.has(p.id))
-        .map(p => ({
-          id: `online-peer-${p.id}`,
-          user_id: p.id,
-          hostId: p.id,
-          hostName: p.full_name || p.name || 'Người dùng VIVU',
-          hostAvatar: p.avatar_url || p.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-          title: p.custom_status || 'Đang trực tuyến',
-          custom_status: p.custom_status || 'Đang trực tuyến',
-          realLat: Number(p.lat),
-          realLng: Number(p.lng),
-          user_code: p.user_code || '',
-          isOnline: true,
-          custom_song: p.custom_song || null,
-          activeStory: p.active_story || p.activeStory || null
-        }));
-
-      rawItems = [...peerStories, ...peersWithoutStory];
+      const nonStoryOnlinePeers = (onlinePeers || []).filter(p => p && !isOwnerItem(p) && !activePeerIdsWithStory.has(p.id));
+      rawItems = [...peerStories, ...nonStoryOnlinePeers];
     }
 
     const usedKeys = new Set();
@@ -304,9 +334,29 @@ export default function GoogleMapView({
       usedKeys.add(markerKey);
 
       const isOffline = item.isOnline === false;
-      const hostAvatar = item.hostAvatar || item.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+      const hostAvatar = item.hostAvatar || item.avatar || DEFAULT_WHITE_PERSON_AVATAR;
       const displayName = item.hostName || item.name || 'Bạn VIVU';
       const hasStory = Boolean(item.activeStory || item.image || item.bg_gradient);
+
+      const peerSkin = resolveMarkerSkin({
+        manualSkin: item.pin_skin,
+        hasStory: Boolean(hasStory),
+        hasChibi: Boolean(item.custom_chibi || item.chibiId),
+        hasAction: Boolean(item.pin_mascot && item.pin_action)
+      });
+      const peerActionDataUrl = item.pin_mascot && item.pin_action ? getMascotActionDataUrl(item.pin_mascot, item.pin_action) : null;
+      const peerChibiDataUrl = (item.custom_chibi || item.chibiId) ? getChibiDataUrl(item.custom_chibi || item.chibiId) : null;
+      const peerBodyHtml = getMarkerBodyHtml({
+        skinMode: peerSkin,
+        avatar: hostAvatar,
+        name: displayName,
+        isOwner: false,
+        hasStory: Boolean(hasStory),
+        isOffline,
+        actionDataUrl: peerActionDataUrl,
+        chibiDataUrl: peerChibiDataUrl,
+        actionSound: item.pin_action
+      });
 
       const cached = itemMarkersMapRef.current.get(markerKey);
       if (cached) {
@@ -314,55 +364,32 @@ export default function GoogleMapView({
         if (cached.el) {
           const bubbleSlot = cached.el.querySelector('.peer-bubble-slot');
           if (bubbleSlot) bubbleSlot.innerHTML = getPeerBubbleHtml(item, isCoLocated);
-          const img = cached.el.querySelector('img');
-          if (img && img.src !== hostAvatar) img.src = hostAvatar;
-          const ring = cached.el.querySelector('.vivu-peer-avatar-ring');
-          if (ring) {
-            ring.className = `vivu-peer-avatar-ring relative w-11 h-11 rounded-full p-[2px] ${hasStory ? 'bg-gradient-to-tr from-[#FF2A85] via-purple-500 to-[#7928CA] shadow-[0_0_16px_rgba(255,42,133,0.7)] animate-pulse' : (isOffline ? 'bg-white border-2 border-neutral-400' : 'bg-white border-2 border-[#00E5FF] shadow-[0_0_14px_rgba(0,229,255,0.75)]')} flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer`;
-          }
+          const bodySlot = cached.el.querySelector('.peer-body-slot');
+          if (bodySlot) bodySlot.innerHTML = peerBodyHtml;
         }
         cached.item = item;
       } else {
         const el = document.createElement('div');
         el.className = 'vivu-peer-marker-container flex flex-col items-center select-none relative';
-        el.style.cssText = 'overflow: visible; width: 44px; height: 44px; pointer-events: auto;';
+        el.style.cssText = 'overflow: visible; width: 56px; height: 56px; pointer-events: auto;';
         el.innerHTML = `
-          <div class="peer-bubble-slot absolute bottom-[46px] left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto">
+          <div class="peer-bubble-slot absolute bottom-[54px] left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto">
             ${getPeerBubbleHtml(item, isCoLocated)}
           </div>
-          <div class="vivu-peer-avatar-ring relative w-11 h-11 rounded-full p-[2px] ${hasStory ? 'bg-gradient-to-tr from-[#FF2A85] via-purple-500 to-[#7928CA] shadow-[0_0_16px_rgba(255,42,133,0.7)] animate-pulse' : (isOffline ? 'bg-white border-2 border-neutral-400' : 'bg-white border-2 border-[#00E5FF] shadow-[0_0_14px_rgba(0,229,255,0.75)]')} flex items-center justify-center hover:scale-110 active:scale-95 transition-transform cursor-pointer">
-            <div class="w-full h-full rounded-full overflow-hidden bg-[#151619]">
-              <img src="${hostAvatar}" alt="${displayName}" class="w-full h-full object-cover" />
-            </div>
-            <div class="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white text-[9px] flex items-center justify-center shadow-xs border border-neutral-200">
-              <i class="bi ${hasStory ? 'bi-camera-fill text-[#FF2A85]' : 'bi-person-fill text-[#00838F]'}"></i>
-            </div>
+          <div class="peer-body-slot">
+            ${peerBodyHtml}
           </div>
-          <div class="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-white -mt-0.5 filter drop-shadow-[0_2px_4px_rgba(0,229,255,0.4)]"></div>
         `;
 
-        el.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const curItem = itemMarkersMapRef.current.get(markerKey)?.item || item;
-          const curSong = curItem.custom_song || curItem.songData || curItem.music || null;
-          if (e.target.closest('#btn-play-peer-song') && curSong) {
-            const isPlaying = storyAudioPlayer.togglePlay(curSong);
-            const playIcon = el.querySelector('#btn-play-peer-song i');
-            if (playIcon) playIcon.className = isPlaying ? 'bi bi-pause-fill text-xs' : 'bi bi-play-fill text-xs';
-            return;
-          }
-          const targetStory = curItem.activeStory || (curItem.category === 'moment' || curItem.image || curItem.bg_gradient ? curItem : null);
-          if (targetStory && (e.target.closest('#btn-view-peer-story') || e.target.closest('.vivu-story-gif-box'))) {
-            if (onOpenStoryDetailRef.current) {
-              onOpenStoryDetailRef.current(targetStory);
-              return;
-            }
-          }
-          if (isFriendsMode || curItem.isFriend) {
-            if (onOpenFriendDetailRef.current) onOpenFriendDetailRef.current(curItem);
-          } else {
-            if (onOpenGuestProfileRef.current) onOpenGuestProfileRef.current(curItem);
-          }
+        bindPeerMarkerEvents(el, {
+          getItem: () => itemMarkersMapRef.current.get(markerKey)?.item || item,
+          isFriendsMode,
+          storyAudioPlayer,
+          onOpenStoryDetailRef,
+          onOpenMemeTrollRef,
+          onOpenUserProfileRef,
+          onOpenFriendDetailRef,
+          onOpenGuestProfileRef
         });
 
         const icon = L.divIcon({ html: el, className: 'vivu-peer-div-icon', iconSize: [44, 44], iconAnchor: [22, 44] });
@@ -403,29 +430,11 @@ export default function GoogleMapView({
     <div className="absolute inset-0 w-full h-full overflow-hidden select-none font-sans">
       <div ref={mapContainerRef} className="absolute inset-0 z-0 w-full h-full bg-[#E8ECEF]" />
 
-      {/* Banner Hướng Dẫn Khi Bật Chế Độ Cắm Ghim Định Vị Máy Tính */}
-      {isPickingLocation && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-[#0F121C]/95 border border-[#00E5FF]/60 text-white px-4 py-2.5 rounded-2xl shadow-[0_8px_32px_rgba(0,229,255,0.4)] backdrop-blur-xl flex items-center gap-3 animate-in slide-in-from-top-4 duration-200">
-          <i className="bi bi-geo-alt-fill text-[#00E5FF] text-lg animate-bounce"></i>
-          <span className="text-xs font-semibold">Nhấp vào bất kỳ điểm nào trên bản đồ để đặt vị trí máy tính</span>
-          <button
-            type="button"
-            onClick={() => setIsPickingLocation && setIsPickingLocation(false)}
-            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors cursor-pointer"
-          >
-            Hủy
-          </button>
-        </div>
-      )}
-
       <RightActionStack
         onResetCompass={handleResetCompass}
         onFitPeers={handleFitPeers}
-        onQuickSnap={onOpenQuickSnap}
         onRecenterGps={handleRecenterGps}
         onToggleMapStyle={handleToggleMapStyle}
-        isPickingLocation={isPickingLocation}
-        onTogglePickLocation={() => setIsPickingLocation && setIsPickingLocation(!isPickingLocation)}
         mapStyleType={mapStyleType}
         hasPeers={itemMarkersMapRef.current.size > 0 || (onlinePeers && onlinePeers.length > 0)}
         isGpsLoading={gpsLoading}

@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import CameraViewfinder from './camera/CameraViewfinder';
@@ -11,23 +12,24 @@ import { storyAudioPlayer } from '../../data/trendingSongs';
 import { playStoryBeaconChime, playTactileClickSound, GRADIENT_PRESETS } from './storyAudioEffects';
 
 /**
- * StoryStudioModal - Shell Điều Phối Toàn Diện: Camera Pro -> Edit Studio -> Publish
- * Tuân thủ Rule 5 (100% Bootstrap Icons), Rule 7 (< 400 dòng), Rule 8 (Ghim GPS)
+ * StoryStudioModal - Trình Sáng Tạo Story Đa Năng Chuẩn Instagram (All-in-One Studio)
+ * - Tích hợp đầy đủ: Chụp ảnh, Thư viện, Viết tâm trạng/văn bản, Gắn nhạc MP3, Dán Meme
+ * - Trực tiếp mở toàn màn hình, không qua popup hỏi chọn rườm rà
+ * - Đồng bộ kép: Đăng Story lên Bản đồ GPS + Cập nhật Tâm trạng và Nhạc vào giọt nước
+ * - 100% Bootstrap Icons (Rule 5), Rule 7 (< 400 dòng)
  */
 export default function StoryStudioModal({
   isOpen,
   onClose,
   onSubmitStory,
-  userLocationName = 'Vị trí GPS thật của bạn',
+  userLocationName = 'Vị trí GPS của Bạn',
   userLat = 10.7769,
   userLng = 106.7009,
   friends = []
 }) {
-  // Trạng thái luồng
   const [phase, setPhase] = useState('CAMERA'); // 'CAMERA' | 'EDIT'
   const [mode, setMode] = useState('PHOTO'); // 'PHOTO' | 'TEXT'
 
-  // Dữ liệu nội dung Story
   const [image, setImage] = useState(null);
   const [dualImage, setDualImage] = useState(null);
   const [isDualCam, setIsDualCam] = useState(false);
@@ -44,13 +46,11 @@ export default function StoryStudioModal({
   const [selectedSong, setSelectedSong] = useState(null);
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
-  // Cấu hình xuất bản
   const [privacy, setPrivacy] = useState('public');
   const [expiryHours, setExpiryHours] = useState(24);
   const [taggedFriends, setTaggedFriends] = useState([]);
   const [isPublishing, setIsPublishing] = useState(false);
 
-  // Trạng thái mở các Sub-modal
   const [isTextEditorOpen, setIsTextEditorOpen] = useState(false);
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false);
   const [isFilterAdjusterOpen, setIsFilterAdjusterOpen] = useState(false);
@@ -58,7 +58,6 @@ export default function StoryStudioModal({
   const [isTagFriendsOpen, setIsTagFriendsOpen] = useState(false);
   const galleryInputRef = useRef(null);
 
-  // Reset khi đóng mở
   useEffect(() => {
     if (!isOpen) {
       storyAudioPlayer.stop();
@@ -83,7 +82,6 @@ export default function StoryStudioModal({
 
   if (!isOpen) return null;
 
-  // Chọn ảnh trực tiếp từ bộ nhớ máy / Thư viện
   const handleGalleryFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -100,7 +98,6 @@ export default function StoryStudioModal({
     e.target.value = '';
   };
 
-  // Khi chụp xong ảnh từ Camera
   const handlePhotoCaptured = (captureData) => {
     setImage(captureData.mainImage);
     setDualImage(captureData.dualImage);
@@ -110,7 +107,6 @@ export default function StoryStudioModal({
     setPhase('EDIT');
   };
 
-  // Chuyển sang chế độ Text/Gradient
   const handleSwitchToTextMode = () => {
     setImage(null);
     setDualImage(null);
@@ -119,7 +115,6 @@ export default function StoryStudioModal({
     setIsTextEditorOpen(true);
   };
 
-  // Hoán đổi ảnh Dual Camera
   const handleSwapDual = () => {
     setImage(prevMain => {
       const temp = prevMain;
@@ -128,7 +123,6 @@ export default function StoryStudioModal({
     });
   };
 
-  // Thêm Text
   const handleSaveText = (textData) => {
     setTexts(prev => [...prev, textData]);
     setIsTextEditorOpen(false);
@@ -139,7 +133,6 @@ export default function StoryStudioModal({
     setTexts(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Thêm Stickers
   const handleAddSticker = (stickerData) => {
     setStickers(prev => [...prev, stickerData]);
   };
@@ -149,7 +142,6 @@ export default function StoryStudioModal({
     setStickers(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Bật tắt nhạc
   const handleTogglePlaySong = () => {
     if (!selectedSong) return;
     if (isPlayingMusic) {
@@ -161,7 +153,6 @@ export default function StoryStudioModal({
     }
   };
 
-  // Đăng Story hoàn chỉnh
   const handlePublish = async () => {
     setIsPublishing(true);
     playStoryBeaconChime();
@@ -191,7 +182,7 @@ export default function StoryStudioModal({
         title: selectedSong.title,
         artist: selectedSong.artist,
         audio_url: selectedSong.audioUrl || selectedSong.audio_url,
-        cover_url: selectedSong.coverUrl || selectedSong.cover_url
+        cover_url: selectedSong.coverUrl || selectedSong.cover_url || selectedSong.cover
       } : null,
       tagged_friends: taggedFriends,
       privacy,
@@ -214,67 +205,13 @@ export default function StoryStudioModal({
   return (
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden animate-fadeIn">
       <div className="relative w-full h-full max-w-md bg-black flex flex-col justify-between overflow-hidden shadow-2xl">
-        {/* THANH CHỌN CHẾ ĐỘ STORY */}
-        <div className="absolute top-3 left-3 right-3 z-40 flex items-center justify-center gap-1.5 pointer-events-auto">
-          <button
-            type="button"
-            onClick={() => galleryInputRef.current?.click()}
-            className="px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border border-pink-400 bg-gradient-to-r from-pink-500/80 to-purple-600/80 hover:from-pink-500 hover:to-purple-600 text-white shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-            title="Chọn ảnh từ thiết bị"
-          >
-            <i className="bi bi-images text-xs"></i>
-            <span>Chọn Ảnh</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMode('PHOTO');
-              setPhase('CAMERA');
-            }}
-            className={`px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border transition-all flex items-center gap-1.5 cursor-pointer ${
-              mode === 'PHOTO' && phase === 'CAMERA'
-                ? 'bg-white text-black border-white shadow-lg'
-                : 'bg-black/50 text-white/80 border-white/20 hover:bg-black/70'
-            }`}
-          >
-            <i className="bi bi-camera-fill text-xs"></i>
-            <span>Camera</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleSwitchToTextMode}
-            className={`px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border transition-all flex items-center gap-1.5 cursor-pointer ${
-              mode === 'TEXT'
-                ? 'bg-white text-black border-white shadow-lg'
-                : 'bg-black/50 text-white/80 border-white/20 hover:bg-black/70'
-            }`}
-          >
-            <i className="bi bi-fonts text-xs"></i>
-            <span>Văn Bản</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setIsMusicPickerOpen(true);
-            }}
-            className={`px-2.5 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border transition-all flex items-center gap-1.5 cursor-pointer ${
-              selectedSong
-                ? 'bg-[#FF2A85] text-white border-[#FF2A85] shadow-lg'
-                : 'bg-black/50 text-white/80 border-white/20 hover:bg-black/70'
-            }`}
-          >
-            <i className="bi bi-music-note-beamed text-xs"></i>
-            <span>{selectedSong ? 'Đã Gắn Nhạc' : 'Nhạc'}</span>
-          </button>
-        </div>
-
         {phase === 'CAMERA' ? (
           <CameraViewfinder
             onPhotoCaptured={handlePhotoCaptured}
             onSwitchToTextMode={handleSwitchToTextMode}
+            onOpenMusicPicker={() => setIsMusicPickerOpen(true)}
+            onOpenStickerPicker={() => setIsStickerPickerOpen(true)}
+            selectedSong={selectedSong}
             onClose={onClose}
           />
         ) : (
@@ -300,6 +237,11 @@ export default function StoryStudioModal({
               onRetakePhoto={() => setPhase('CAMERA')}
               onRemoveText={handleRemoveText}
               onRemoveSticker={handleRemoveSticker}
+              onRemoveSong={() => {
+                storyAudioPlayer.stop();
+                setIsPlayingMusic(false);
+                setSelectedSong(null);
+              }}
             />
 
             {/* Thanh Footer xuất bản */}
@@ -356,7 +298,13 @@ export default function StoryStudioModal({
             onClose={() => setIsMusicPickerOpen(false)}
             onSelectSong={(song) => {
               setSelectedSong(song);
-              setIsPlayingMusic(true);
+              if (song) {
+                storyAudioPlayer.playSong(song, { loop: true });
+                setIsPlayingMusic(true);
+              } else {
+                storyAudioPlayer.stop();
+                setIsPlayingMusic(false);
+              }
             }}
             currentSong={selectedSong}
           />
@@ -368,60 +316,62 @@ export default function StoryStudioModal({
             <div className="flex-1" onClick={() => setIsTagFriendsOpen(false)} />
             <div className="bg-[#151619] rounded-3xl border border-white/10 p-5 space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar shadow-2xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-white font-bold text-sm tracking-wide font-display">Gắn Thẻ Bạn Bè Vào Story</h3>
+                <h3 className="text-white font-bold text-sm">Gắn thẻ bạn bè</h3>
                 <button
                   type="button"
                   onClick={() => setIsTagFriendsOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/10 text-white/70 hover:text-white flex items-center justify-center"
+                  className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white"
                 >
-                  <i className="bi bi-x-lg text-sm"></i>
+                  <i className="bi bi-x-lg text-xs"></i>
                 </button>
               </div>
-
               <div className="space-y-2">
                 {friends.length === 0 ? (
-                  <p className="text-xs text-white/50 text-center py-4">Chưa có bạn bè nào để gắn thẻ.</p>
+                  <p className="text-white/40 text-xs py-4 text-center">Chưa có bạn bè để gắn thẻ</p>
                 ) : (
-                  friends.map(f => {
-                    const isTagged = taggedFriends.includes(f.id);
+                  friends.map(friend => {
+                    const isTagged = taggedFriends.some(f => f.id === friend.id);
                     return (
                       <div
-                        key={f.id}
+                        key={friend.id}
                         onClick={() => {
                           playTactileClickSound();
                           setTaggedFriends(prev =>
-                            isTagged ? prev.filter(id => id !== f.id) : [...prev, f.id]
+                            isTagged ? prev.filter(f => f.id !== friend.id) : [...prev, friend]
                           );
                         }}
-                        className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer ${
-                          isTagged ? 'bg-purple-600/20 border-purple-500' : 'bg-[#1A1A1E] border-white/5 hover:border-white/20'
+                        className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition-all ${
+                          isTagged ? 'bg-[#FF2A85]/20 border border-[#FF2A85]/40' : 'bg-white/5 border border-white/5 hover:bg-white/10'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <img src={f.avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={friend.avatar || DEFAULT_WHITE_PERSON_AVATAR}
+                            alt=""
+                            className="w-10 h-10 rounded-full object-cover border border-white/20"
+                          />
                           <div>
-                            <p className="text-xs font-bold text-white">{f.name}</p>
-                            <span className="text-[10px] text-white/50 font-mono">{f.user_code || 'VU-Friend'}</span>
+                            <p className="text-white text-xs font-bold">{friend.name}</p>
+                            <p className="text-white/50 text-[10px]">{friend.user_code || ''}</p>
                           </div>
                         </div>
-                        <i className={`bi ${isTagged ? 'bi-check-circle-fill text-purple-400' : 'bi-circle text-white/30'} text-lg`}></i>
+                        <i className={`bi ${isTagged ? 'bi-check-circle-fill text-[#FF2A85]' : 'bi-circle text-white/30'} text-base`}></i>
                       </div>
                     );
                   })
                 )}
               </div>
-
               <button
                 type="button"
                 onClick={() => setIsTagFriendsOpen(false)}
-                className="w-full py-2.5 rounded-xl bg-purple-600 text-white font-bold text-xs shadow-lg active:scale-98"
+                className="w-full py-3 rounded-2xl bg-[#FF2A85] text-white text-xs font-bold shadow-lg"
               >
-                Xong ({taggedFriends.length} bạn bè)
+                Xác nhận ({taggedFriends.length})
               </button>
             </div>
           </div>
         )}
-        {/* Thẻ input chọn ảnh từ thiết bị */}
+
         <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleGalleryFileSelect} />
       </div>
     </div>

@@ -120,7 +120,7 @@ export default function ProfilePlaceMapWidget({
       category: newPlaceCategory,
       categoryLabel: categoryMap[newPlaceCategory].label,
       icon: categoryMap[newPlaceCategory].icon,
-      photo: newPlacePhoto.trim() || 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600',
+      photo: newPlacePhoto.trim() || '',
       rating: newPlaceRating,
       review: newPlaceReview.trim() || 'Một địa điểm tuyệt vời đậm chất gu cá nhân.',
       visited: true,

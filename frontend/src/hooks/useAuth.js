@@ -27,6 +27,71 @@ export function useAuth() {
       }
 
       const userId = nextSession.user.id;
+
+      // Đồng bộ thông tin hồ sơ mới nhất từ Database Server
+      if (userId && (userId.startsWith('user-') || userId.startsWith('client-'))) {
+        try {
+          const freshUser = await apiClient.getMe(userId);
+          if (isMounted && freshUser) {
+            setUser(current => {
+              const base = current || nextSession.user;
+              return {
+                ...base,
+                ...freshUser,
+                id: userId,
+                user_metadata: {
+                  ...base.user_metadata,
+                  ...freshUser,
+                  full_name: freshUser.full_name || base.user_metadata?.full_name,
+                  avatar_url: freshUser.avatar_url || base.user_metadata?.avatar_url,
+                  user_code: freshUser.user_code || base.user_metadata?.user_code,
+                  phone: freshUser.phone,
+                  bio: freshUser.bio,
+                  age: freshUser.age,
+                  job: freshUser.job,
+                  tags: freshUser.tags,
+                  favorite_song: freshUser.favorite_song,
+                  privacy_age: freshUser.privacy_age,
+                  privacy_phone: freshUser.privacy_phone,
+                  privacy_tags: freshUser.privacy_tags
+                }
+              };
+            });
+            // Đồng bộ bộ nhớ cục bộ theo scoped user id (Rule 26)
+            try {
+              const scopedKey = `vivu_user_profile_data_${freshUser.id}`;
+              let localData = {};
+              const localRaw = localStorage.getItem(scopedKey);
+              if (localRaw) {
+                const parsed = JSON.parse(localRaw);
+                if (parsed.id === freshUser.id || parsed.userId === freshUser.id) {
+                  localData = parsed;
+                }
+              }
+              const merged = {
+                ...localData,
+                ...freshUser,
+                userId: freshUser.id,
+                id: freshUser.id,
+                fullName: freshUser.full_name || localData.fullName || freshUser.name || '',
+                avatarUrl: freshUser.avatar_url || localData.avatarUrl || null,
+                avatar_url: freshUser.avatar_url || localData.avatar_url || null
+              };
+              const targetAv = freshUser.avatar_url || localData.avatarUrl || localData.avatar_url;
+              if (targetAv) {
+                merged.avatarUrl = targetAv;
+                merged.avatar_url = targetAv;
+                localStorage.setItem(`vivu_user_avatar_${freshUser.id}`, targetAv);
+                localStorage.setItem('vivu_user_avatar', targetAv);
+              }
+              localStorage.setItem(scopedKey, JSON.stringify(merged));
+            } catch {}
+          }
+        } catch (meErr) {
+          console.warn('[useAuth] Lỗi nạp hồ sơ mới nhất:', meErr);
+        }
+      }
+
       const shouldSync = ['INITIAL_SESSION', 'SIGNED_IN'].includes(event);
       if (!shouldSync || syncedAccountIdsRef.current.has(userId)) {
         setIsLoading(false);
@@ -49,6 +114,7 @@ export function useAuth() {
             id: userId,
             user_metadata: {
               ...current.user_metadata,
+              ...account,
               full_name: account.full_name || current.user_metadata?.full_name,
               avatar_url: account.avatar_url || current.user_metadata?.avatar_url,
               user_code: account.user_code
@@ -202,16 +268,27 @@ export function useAuth() {
     try {
       const res = await authService.updateUserProfile(profileData);
       setUser(prev => {
-        if (!prev) return prev;
+        const base = prev || { id: 'guest', is_guest: true, user_metadata: {} };
         return {
-          ...prev,
+          ...base,
+          ...profileData,
+          full_name: profileData.fullName || base.full_name,
+          avatar_url: profileData.avatarUrl !== undefined ? profileData.avatarUrl : base.avatar_url,
+          custom_status: profileData.customStatus || base.custom_status,
           user_metadata: {
-            ...prev.user_metadata,
-            full_name: profileData.fullName,
-            avatar_url: profileData.avatarUrl,
-            custom_status: profileData.customStatus,
+            ...base.user_metadata,
+            full_name: profileData.fullName || base.user_metadata?.full_name,
+            avatar_url: profileData.avatarUrl !== undefined ? profileData.avatarUrl : base.user_metadata?.avatar_url,
+            custom_status: profileData.customStatus || base.user_metadata?.custom_status,
             phone: profileData.phone,
-            tags: profileData.tags
+            age: profileData.age,
+            job: profileData.job,
+            bio: profileData.bio,
+            tags: profileData.tags,
+            favorite_song: profileData.favorite_song,
+            privacy_age: profileData.privacy_age,
+            privacy_phone: profileData.privacy_phone,
+            privacy_tags: profileData.privacy_tags
           }
         };
       });

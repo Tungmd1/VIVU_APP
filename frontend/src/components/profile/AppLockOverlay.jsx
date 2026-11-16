@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState } from 'react';
 
 /**
@@ -16,7 +17,7 @@ export default function AppLockOverlay({
   if (!isLocked) return null;
 
   const userFullName = user?.user_metadata?.full_name || 'Bạn (Tôi)';
-  const userAvatar = user?.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+  const userAvatar = user?.user_metadata?.avatar_url || DEFAULT_WHITE_PERSON_AVATAR;
 
   const handleUnlock = (e) => {
     e.preventDefault();

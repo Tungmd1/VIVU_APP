@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { getPersonalityRadar } from '../../utils/personalityAnalytics';
+import { DEFAULT_WHITE_PERSON_AVATAR, getSafeAvatar } from '../../utils/avatarUtils';
 
 /**
  * CinematicPersonaDeck - Giao diện Hồ Sơ Cá Nhân Thế Hệ Mới
  * Tập trung 100% vào Ngoại hình & Tính cách đo từ hành vi thực tế
- * Không dùng emoji, 100% Bootstrap Icons
+ * Không dùng emoji, 100% Bootstrap Icons, Không ảnh mockup Unsplash (Rule 45)
  */
 export default function CinematicPersonaDeck({
   user,
@@ -24,23 +25,21 @@ export default function CinematicPersonaDeck({
   const [showSheet, setShowSheet] = useState(false);
   const [activeTab, setActiveTab] = useState('radar'); // 'radar' | 'bio'
 
-  // Thu thập danh sách ảnh profile
+  // Thu thập danh sách ảnh profile thực tế (Rule 45: Zero mockup)
   const photoGallery = useMemo(() => {
     const list = [];
-    if (user?.avatar) list.push(user.avatar);
+    const safeAva = getSafeAvatar(user?.avatar);
+    if (safeAva && safeAva !== DEFAULT_WHITE_PERSON_AVATAR) {
+      list.push(safeAva);
+    }
     if (Array.isArray(user?.photos) && user.photos.length > 0) {
       user.photos.forEach(p => {
-        if (p && !list.includes(p)) list.push(p);
+        if (p && typeof p === 'string' && !p.includes('unsplash.com') && !p.includes('dicebear.com') && !list.includes(p)) {
+          list.push(p);
+        }
       });
     }
-    // Nếu chưa có ảnh phụ, bổ sung ảnh outfit chất lượng cao mẫu
-    if (list.length === 1) {
-      list.push(
-        'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600',
-        'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=600'
-      );
-    }
-    return list.length > 0 ? list : ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600'];
+    return list.length > 0 ? list : [DEFAULT_WHITE_PERSON_AVATAR];
   }, [user]);
 
   // Lấy dữ liệu phân tích tính cách thực tế

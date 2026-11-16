@@ -277,7 +277,7 @@ export const notificationService = {
       to_user_id: toUserId,
       title: 'Lời mời tham gia nhóm',
       body: `${inviterName || 'Một người bạn'} đã mời bạn tham gia nhóm "${circleName}"`,
-      avatar: circleAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(circleName || 'group')}`,
+      avatar: circleAvatar || null,
       read: false,
       status: 'pending',
       action_data: {

@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR, getSafeAvatar } from '../../utils/avatarUtils';
 import React, { useEffect, useRef, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -61,7 +62,7 @@ export default function MapboxCanvas({
   currentUserId,
   currentUserName,
   userCustomStatus = '',
-  userAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+  userAvatar = '',
   gpsLoading = false,
   location,
   onRequestLocation,
@@ -133,8 +134,6 @@ export default function MapboxCanvas({
   const [mapStyleType, setMapStyleType] = React.useState('streets'); // 'streets' (Google Streets) | 'satellite' (Google Satellite)
   const mapStyleTypeRef = useRef(mapStyleType);
   mapStyleTypeRef.current = mapStyleType;
-  const [webGlError, setWebGlError] = React.useState(false);
-  const [retryCount, setRetryCount] = React.useState(0);
 
   // Thiết lập các layer tuyến đường và bán kính radar
   const setupMapLayers = (map) => {
@@ -226,39 +225,22 @@ export default function MapboxCanvas({
     mapRef.current.setStyle(styleUrl);
   };
 
-  // 1. Khởi tạo Mapbox GL JS - BỌC AN TOÀN WEBGL & PHỤC HỒI TỰ ĐỘNG
+  // 1. Khởi tạo Mapbox GL JS - PHONG CÁCH GOOGLE MAPS STREETS VECTOR
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-
-    // Kiểm tra khả năng hỗ trợ WebGL hoặc GPU tạm thời cạn kiệt context
-    if (typeof mapboxgl.supported === 'function' && !mapboxgl.supported({ failIfMajorPerformanceCaveat: false })) {
-      console.warn('[Mapbox] WebGL hiện không khả dụng hoặc bị chiếm dụng bởi tab khác.');
-      setWebGlError(true);
-      return;
-    }
 
     const safeLng = userLng ?? 106.7009;
     const safeLat = userLat ?? 10.7769;
 
-    let map = null;
-    try {
-      map = new mapboxgl.Map({
-        container: mapContainerRef.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [safeLng, safeLat],
-        zoom: 15.6,
-        pitch: 32,
-        bearing: -5,
-        attributionControl: false,
-        failIfMajorPerformanceCaveat: false
-      });
-      setWebGlError(false);
-    } catch (err) {
-      console.error('[Mapbox] Bắt lỗi WebGL khởi tạo:', err);
-      setWebGlError(true);
-      return;
-    }
-
+    const map = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/streets-v12', // Bản đồ chuẩn Google Maps (Đường sá, công viên, sông hồ)
+      center: [safeLng, safeLat],
+      zoom: 15.6,
+      pitch: 32,
+      bearing: -5,
+      attributionControl: false
+    });
     window.__vivu_map = map;
 
     map.on('load', () => {
@@ -268,24 +250,6 @@ export default function MapboxCanvas({
     map.on('style.load', () => {
       setupMapLayers(map);
     });
-
-    // Bắt sự kiện mất context WebGL khi GPU bị giải phóng bởi hệ điều hành
-    const canvas = mapContainerRef.current?.querySelector('canvas');
-    const handleContextLost = (e) => {
-      e.preventDefault();
-      console.warn('[Mapbox] Sự kiện WebGL context lost!');
-      setWebGlError(true);
-    };
-    const handleContextRestored = () => {
-      console.log('[Mapbox] WebGL context restored! Khôi phục bản đồ...');
-      setWebGlError(false);
-      setRetryCount(prev => prev + 1);
-    };
-
-    if (canvas) {
-      canvas.addEventListener('webglcontextlost', handleContextLost, false);
-      canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
-    }
 
     // Chuột phải vào bản đồ để chọn vị trí thủ công (hữu ích cho PC/Laptop)
     map.on('contextmenu', (e) => {
@@ -297,10 +261,6 @@ export default function MapboxCanvas({
     mapRef.current = map;
 
     return () => {
-      if (canvas) {
-        canvas.removeEventListener('webglcontextlost', handleContextLost);
-        canvas.removeEventListener('webglcontextrestored', handleContextRestored);
-      }
       if (userMarkerRef.current) {
         userMarkerRef.current.remove();
         userMarkerRef.current = null;
@@ -309,14 +269,10 @@ export default function MapboxCanvas({
         cached.marker.remove();
       }
       itemMarkersMapRef.current.clear();
-      try {
-        map.remove();
-      } catch (e) {
-        console.warn('Map remove warning:', e.message);
-      }
+      map.remove();
       mapRef.current = null;
     };
-  }, [retryCount]);
+  }, []);
 
   // 2. Resize bản đồ khi chuyển tab
   useEffect(() => {
@@ -677,7 +633,7 @@ export default function MapboxCanvas({
       usedKeys.add(markerKey);
 
       const isOffline = item.isOnline === false;
-      const hostAvatar = item.hostAvatar || item.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+      const hostAvatar = getSafeAvatar(item.hostAvatar || item.avatar || item.avatar_url);
       const displayName = item.hostName || item.name || 'Người dùng VIVU';
       const userCodeBadge = item.userCode ? `<span class="text-[9px] ${isOffline ? 'text-neutral-500' : 'text-[#00F0FF]/80'} font-mono">(${item.userCode})</span>` : '';
       const musicPreview = item.music ? `<i class="bi bi-music-note-beamed text-[#FF2A85]"></i>` : '';
@@ -1255,36 +1211,6 @@ export default function MapboxCanvas({
       {/* Container bản đồ toàn màn hình Google Maps Streets Vector */}
       <div ref={mapContainerRef} className="absolute inset-0 z-0 w-full h-full bg-[#E8ECEF]" />
 
-      {/* MÀN HÌNH PHỤC HỒI CỤC BỘ KHI WEBGL BỊ CHIẾM DỤNG (CHỐNG SẬP TOÀN ỨNG DỤNG) */}
-      {webGlError && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center p-4 bg-[#0a0e1c]/90 backdrop-blur-md text-white font-sans select-none">
-          <div className="max-w-sm w-full bg-[#14141e] border border-cyan-500/30 rounded-3xl p-6 text-center space-y-4 shadow-[0_20px_50px_rgba(0,0,0,0.8)] animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 text-[#00E5FF] border border-cyan-500/40 flex items-center justify-center mx-auto text-2xl shadow-[0_0_20px_rgba(0,229,255,0.25)]">
-              <i className="bi bi-gpu-card"></i>
-            </div>
-            <div className="space-y-1.5">
-              <h3 className="text-base font-bold text-white tracking-tight">
-                Bộ Nhớ Đồ Họa 3D Đang Bận
-              </h3>
-              <p className="text-xs text-[#8E8E93] leading-relaxed">
-                Trình duyệt tạm cạn tài nguyên WebGL do tab khác. Vui lòng đóng bớt tab nặng hoặc bấm nút để khởi động lại 3D.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setWebGlError(false);
-                setRetryCount(prev => prev + 1);
-              }}
-              className="w-full py-3 px-4 rounded-full bg-gradient-to-r from-[#00E5FF] to-[#0A8395] hover:opacity-95 text-[#071227] text-xs font-bold flex items-center justify-center gap-2 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,229,255,0.3)] cursor-pointer"
-            >
-              <i className="bi bi-arrow-clockwise text-sm"></i>
-              <span>Khôi phục Bản đồ 3D ngay</span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Banner Lọc Theo Nhóm Phong Cách Cyber HUD Glass (Rule 9 GEMINI.md) */}
       {activeCircleFilter && (
         <div className="fixed top-18 left-1/2 -translate-x-1/2 z-30 max-w-[92vw] animate-in slide-in-from-top-3 duration-300 pointer-events-auto font-sans select-none">
@@ -1317,7 +1243,7 @@ export default function MapboxCanvas({
         <RightActionStack
           onResetCompass={() => mapRef.current?.resetNorthPitch()}
           onFitPeers={handleFitAllPeers}
-          onQuickSnap={onOpenQuickSnap}
+          
           onRecenterGps={handleFlyToUserGPS}
           hasPeers={friends.length > 0 || stories.length > 0}
           isGpsLoading={gpsLoading}

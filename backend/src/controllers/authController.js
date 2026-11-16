@@ -213,21 +213,68 @@ export const authController = {
 
   async updateProfile(req, res, next) {
     try {
-      const { userId, fullName, avatarUrl, customStatus, age, job, phone, bio, tags, photos, favorite_song } = req.body;
+      const { 
+        userId, 
+        fullName, 
+        avatarUrl, 
+        avatar_url, 
+        customStatus, 
+        custom_status,
+        age, 
+        job, 
+        phone, 
+        bio, 
+        tags, 
+        photos, 
+        favorite_song, 
+        privacy_age, 
+        privacy_phone, 
+        privacy_tags, 
+        pinSkin, 
+        pin_skin,
+        customChibi, 
+        custom_chibi,
+        chibiExpiresAt,
+        chibi_expires_at,
+        customSong,
+        custom_song,
+        pinMascot, 
+        pin_mascot,
+        pinAction,
+        pin_action 
+      } = req.body;
       if (!userId) {
         return res.status(400).json({ success: false, message: 'userId là bắt buộc' });
       }
+      const targetAvatar = avatarUrl !== undefined ? avatarUrl : avatar_url;
+      const targetStatus = customStatus !== undefined ? customStatus : custom_status;
+      const targetChibi = customChibi !== undefined ? customChibi : custom_chibi;
+      const targetChibiExp = chibiExpiresAt !== undefined ? chibiExpiresAt : chibi_expires_at;
+      const targetSong = customSong !== undefined ? customSong : custom_song;
+      const targetSkin = pinSkin !== undefined ? pinSkin : pin_skin;
+      const targetMascot = pinMascot !== undefined ? pinMascot : pin_mascot;
+      const targetAction = pinAction !== undefined ? pinAction : pin_action;
+
       const updatedUser = await dbService.updateUserProfile(userId, {
         fullName,
-        avatarUrl,
-        customStatus,
+        avatarUrl: targetAvatar,
+        customStatus: targetStatus,
         age,
         job,
         phone,
         bio,
         tags,
         photos,
-        favorite_song
+        favorite_song,
+        privacy_age,
+        privacy_phone,
+        privacy_tags,
+        pinSkin: targetSkin,
+        customChibi: targetChibi,
+        chibiExpiresAt: targetChibiExp,
+        customSong: targetSong,
+        pinMascot: targetMascot,
+        pinAction: targetAction
       });
       res.json({ success: true, user: updatedUser });
     } catch (err) {

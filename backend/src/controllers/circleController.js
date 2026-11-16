@@ -41,7 +41,7 @@ export const circleController = {
         return {
           ...m,
           name: prof.full_name || prof.name || 'Người dùng VIVU',
-          avatar: prof.avatar_url || prof.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(m.user_id)}`,
+          avatar: prof.avatar_url || prof.avatar || null,
           userCode: prof.user_code || prof.userCode || '',
           online: prof.is_online || false
         };
@@ -464,6 +464,12 @@ export const circleController = {
       const circle = await dbService.getCircleById(id);
       if (!circle) {
         return res.json({ success: true, message: 'Nhóm đã được xóa trước đó' });
+      }
+
+      // Nếu requester là thành viên nhưng không phải chủ nhóm -> rời nhóm thay vì lỗi
+      if (requesterId && circle.owner_id && circle.owner_id !== requesterId && circle.member_ids?.includes(requesterId)) {
+        const leaveResult = await dbService.leaveCircle(id, requesterId);
+        return res.json({ success: true, data: { id, left: true, deleted: false } });
       }
 
       const result = await dbService.deleteCircle(id, requesterId);

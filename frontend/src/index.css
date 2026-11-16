@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Albert+Sans:wght@300;400;500;600;700;800&display=swap');
 
-@import "tailwindcss";
-@config "../tailwind.config.cjs";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /**
  * ========================================================
@@ -315,7 +316,6 @@ body {
   display: none !important;
 }
 
-
 /* 6. HIỆU ỨNG STORY Ô NHỎ GIỐNG GIF (GIF-LIKE LIVE ANIMATION) */
 @keyframes vivuGifBreath {
   0% { transform: scale(1); }
@@ -325,4 +325,19 @@ body {
 
 .animate-gif-breath {
   animation: vivuGifBreath 2.8s ease-in-out infinite;
+}
+
+/* LEAFLET CUSTOM MARKER & CHIBI EVENT FIX */
+.vivu-custom-div-icon {
+  overflow: visible !important;
+  pointer-events: auto !important;
+}
+
+.vivu-user-marker-container {
+  overflow: visible !important;
+  pointer-events: auto !important;
+}
+
+.vivu-zenly-marker, .vivu-teardrop-marker, .vivu-aura-marker, .vivu-polaroid-marker {
+  pointer-events: auto !important;
 }

@@ -48,7 +48,7 @@ export default function CreatePollModal({
       options: validOptions.map((text, idx) => ({
         id: `opt-${idx + 1}`,
         text,
-        votes: 0
+        votes: []
       }))
     });
     setPollTitle('');
@@ -57,7 +57,10 @@ export default function CreatePollModal({
   };
 
   return (
-    <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex justify-center items-center p-4 animate-in fade-in select-none font-sans">
+    <div 
+      style={{ zIndex: 99999 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-md flex justify-center items-center p-4 animate-in fade-in select-none font-sans"
+    >
       <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-[0_25px_60px_rgba(0,0,0,0.15)] border border-[#D2D9F4] text-[#131315] space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#D2D9F4]">

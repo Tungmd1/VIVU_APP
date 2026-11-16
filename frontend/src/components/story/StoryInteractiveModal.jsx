@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState, useEffect } from 'react';
 import { storyAudioPlayer, TRENDING_SONGS } from '../../data/trendingSongs';
 
@@ -92,7 +93,7 @@ export default function StoryInteractiveModal({
         <div className="flex items-center gap-3 pr-8">
           <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-white/20 p-0.5">
             <img
-              src={story.hostAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={story.hostAvatar || DEFAULT_WHITE_PERSON_AVATAR}
               alt={story.hostName}
               className="w-full h-full object-cover rounded-full"
             />

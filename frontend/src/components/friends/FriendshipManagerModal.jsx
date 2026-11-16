@@ -1,3 +1,4 @@
+import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../services/apiClient';
 
@@ -14,6 +15,7 @@ export default function FriendshipManagerModal({
   currentUserAvatar,
   currentUserCode,
   onStartChatWithUser,
+  onOpenUserProfile,
   onRequestHandled
 }) {
   const [activeTab, setActiveTab] = useState('search'); // 'search' | 'requests' | 'friends'
@@ -212,7 +214,7 @@ export default function FriendshipManagerModal({
           <div className="flex items-center gap-3">
             <div className="relative">
               <img
-                src={currentUserAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                src={currentUserAvatar || DEFAULT_WHITE_PERSON_AVATAR}
                 alt=""
                 className="w-10 h-10 rounded-full object-cover border-2 border-[#10FFA0]"
               />
@@ -348,12 +350,16 @@ export default function FriendshipManagerModal({
                         key={user.id}
                         className="p-3 rounded-2xl bg-white border border-[#D8E3E7] flex items-center justify-between hover:border-[rgba(10,131,149,0.25)] transition-all shadow-xs"
                       >
-                        <div className="flex items-center gap-3">
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer group"
+                          onClick={() => { if (onOpenUserProfile) onOpenUserProfile(user, 'friends'); }}
+                          title={`Xem trang cá nhân của ${user.name || user.full_name || 'người dùng'}`}
+                        >
                           <div className="relative">
                             <img
-                              src={user.avatar || user.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                              src={user.avatar || user.avatar_url || DEFAULT_WHITE_PERSON_AVATAR}
                               alt=""
-                              className="w-10 h-10 rounded-full object-cover border border-[#D8E3E7]"
+                              className="w-10 h-10 rounded-full object-cover border border-[#D8E3E7] group-hover:scale-105 transition-transform"
                             />
                             {user.isOnline && (
                               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#10FFA0] border-2 border-white shadow-[0_0_6px_#10FFA0]" />
@@ -489,7 +495,7 @@ export default function FriendshipManagerModal({
                       >
                         <div className="flex items-center gap-3">
                           <img
-                            src={req.senderAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                            src={req.senderAvatar || DEFAULT_WHITE_PERSON_AVATAR}
                             alt=""
                             className="w-11 h-11 rounded-full object-cover border-2 border-[#10FFA0]"
                           />
@@ -546,7 +552,7 @@ export default function FriendshipManagerModal({
                       >
                         <div className="flex items-center gap-3">
                           <img
-                            src={req.receiverAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                            src={req.receiverAvatar || DEFAULT_WHITE_PERSON_AVATAR}
                             alt=""
                             className="w-10 h-10 rounded-full object-cover border border-[#D8E3E7]"
                           />
@@ -589,22 +595,34 @@ export default function FriendshipManagerModal({
                     key={friend.id}
                     className="p-3 rounded-2xl bg-white border border-[#D8E3E7] flex items-center justify-between hover:border-[rgba(10,131,149,0.25)] transition-all shadow-xs"
                   >
-                    <div className="flex items-center gap-3">
+                    <div 
+                      className="flex items-center gap-3 cursor-pointer group"
+                      onClick={() => { if (onOpenUserProfile) onOpenUserProfile(friend, 'friends'); }}
+                      title={`Xem trang cá nhân của ${friend.name || 'bạn bè'}`}
+                    >
                       <div className="relative">
                         <img
-                          src={friend.avatar || friend.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                          src={friend.avatar || friend.avatar_url || DEFAULT_WHITE_PERSON_AVATAR}
                           alt=""
-                          className="w-10 h-10 rounded-full object-cover border-2 border-[#10FFA0]"
+                          className={`w-10 h-10 rounded-full object-cover border-2 group-hover:scale-105 transition-transform ${
+                            friend.isOnline ? 'border-[#10FFA0]' : 'border-neutral-300 opacity-80'
+                          }`}
                         />
-                        {friend.isOnline && (
-                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#10FFA0] border-2 border-white shadow-[0_0_6px_#10FFA0]" />
-                        )}
+                        <span
+                          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                            friend.isOnline
+                              ? 'bg-[#10FFA0] shadow-[0_0_6px_#10FFA0]'
+                              : 'bg-neutral-400'
+                          }`}
+                        />
                       </div>
                       <div>
                         <div className="text-xs font-bold text-[#14252E] font-display flex items-center gap-1.5">
                           <span>{friend.name || friend.full_name || 'Người dùng VIVU'}</span>
-                          {friend.isOnline && (
-                            <span className="text-[10px] text-[#0A8395] font-normal">• Trực tuyến</span>
+                          {friend.isOnline ? (
+                            <span className="text-[10px] text-[#0A8395] font-semibold">• Trực tuyến</span>
+                          ) : (
+                            <span className="text-[10px] text-[#70787E] font-medium">• Ngoại tuyến</span>
                           )}
                         </div>
                         <div className="text-[11px] text-[#52646D] font-mono mt-0.5">
@@ -614,6 +632,15 @@ export default function FriendshipManagerModal({
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      {onOpenUserProfile && (
+                        <button
+                          onClick={() => onOpenUserProfile(friend, 'friends')}
+                          className="w-8 h-8 rounded-xl bg-[#F3F7F8] border border-[#D8E3E7] text-[#52646D] hover:text-[#0A8395] hover:bg-[#EAF6F8] active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                          title="Xem trang cá nhân"
+                        >
+                          <i className="bi bi-person-badge text-xs"></i>
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           onClose();

@@ -1,10 +1,10 @@
 import confetti from 'canvas-confetti';
+import { getSharedAudioContext } from '../../utils/audioContextManager';
 
 export function playProfileChime() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     const freqs = [587.33, 880, 1174.66, 1760];
@@ -31,9 +31,8 @@ export function playProfileChime() {
 
 export function playTactileClickSound() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();

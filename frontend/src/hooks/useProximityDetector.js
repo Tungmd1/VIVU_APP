@@ -69,13 +69,19 @@ export function useProximityDetector({
     }
   }, [userLat, userLng, friends]);
 
-  // 2. Lắng nghe cảm biến Lắc Điện Thoại (Shake Detection)
+  // 2. Lắng nghe cảm biến Lắc Điện Thoại (Shake Detection) - Throttle 10Hz chống tràn CPU di động
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     let lastX = 0, lastY = 0, lastZ = 0;
+    let lastMotionSampleTime = 0;
 
     const handleDeviceMotion = (event) => {
+      // Throttle 100ms (tối đa 10 mẫu/giây thay vì 120Hz trên màn hình ProMotion)
+      const now = Date.now();
+      if (now - lastMotionSampleTime < 100) return;
+      lastMotionSampleTime = now;
+
       const acc = event.accelerationIncludingGravity || event.acceleration;
       if (!acc) return;
 
@@ -87,9 +93,8 @@ export function useProximityDetector({
       lastY = acc.y;
       lastZ = acc.z;
 
-      // Gia tốc lắc mạnh vượt ngưỡng 22 m/s²
+      // Gia tốc lắc mạnh vượt ngưỡng 24 m/s²
       if (deltaX + deltaY + deltaZ > 24) {
-        const now = Date.now();
         // Chống spam: cách nhau ít nhất 3.5s
         if (now - lastShakeTimeRef.current > 3500) {
           lastShakeTimeRef.current = now;

@@ -258,7 +258,9 @@ export default function NotificationDrawer({
                           {formatTime(notif.created_at)}
                         </span>
                       </div>
-                      <p className="text-xs text-[#40484D] leading-relaxed break-words">{notif.body}</p>
+                      <p className="text-xs text-[#40484D] leading-relaxed break-words">
+                        {notif.body ? notif.body.replace(/^undefined\s+/i, 'Người dùng VIVU ') : 'Thông báo mới'}
+                      </p>
 
                       {/* Interactive Buttons for Friend Request */}
                       {notif.type === 'friend_request' && (

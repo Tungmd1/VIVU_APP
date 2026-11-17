@@ -812,10 +812,15 @@ export function onAuthStateChange(callback) {
     return () => subscription?.unsubscribe();
   }
 
-  // Local listener
-  const handler = () => {
-    const session = getSession();
-    callback('LOCAL_STORAGE_CHANGE', session);
+  // Local listener (chỉ phản ứng khi session key thay đổi và đảm bảo await session object)
+  const handler = async (e) => {
+    if (e && e.key && e.key !== LOCAL_SESSION_KEY) return;
+    try {
+      const session = await getSession();
+      callback('LOCAL_STORAGE_CHANGE', session);
+    } catch (err) {
+      console.warn('[onAuthStateChange] Handler error:', err);
+    }
   };
   window.addEventListener('storage', handler);
   return () => window.removeEventListener('storage', handler);

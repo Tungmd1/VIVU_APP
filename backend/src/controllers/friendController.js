@@ -32,13 +32,14 @@ export const friendController = {
       const result = await dbService.sendFriendRequest(senderId, receiverId);
 
       // Tạo thông báo cho người nhận (sẽ tự động emitToUser qua notificationService)
+      const senderDisplayName = result.sender_name || 'Người dùng VIVU';
       notificationService.createNotification({
         type: 'friend_request',
         fromUserId: senderId,
         toUserId: receiverId,
         title: 'Lời mời kết bạn',
-        body: `${result.sender_name} muốn kết bạn với bạn`,
-        avatar: result.sender_avatar,
+        body: `${senderDisplayName} muốn kết bạn với bạn`,
+        avatar: result.sender_avatar || '',
         actionData: { requestId: result.id }
       });
       emitToUser(receiverId, 'friend-request:incoming', result);
@@ -57,13 +58,14 @@ export const friendController = {
       const friendReq = result.request;
 
       // Thông báo cho người gửi lời mời
+      const receiverDisplayName = friendReq.receiver_name || 'Người dùng VIVU';
       notificationService.createNotification({
         type: 'friend_accepted',
         fromUserId: currentUserId,
         toUserId: friendReq.sender_id,
         title: 'Kết bạn thành công!',
-        body: `${friendReq.receiver_name} đã chấp nhận lời mời kết bạn của bạn`,
-        avatar: friendReq.receiver_avatar,
+        body: `${receiverDisplayName} đã chấp nhận lời mời kết bạn của bạn`,
+        avatar: friendReq.receiver_avatar || '',
         actionData: { friendshipId: result.friendshipId }
       });
       emitToUser(friendReq.sender_id, 'friend:accepted', { request: friendReq, friendshipId: result.friendshipId });

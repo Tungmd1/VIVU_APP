@@ -19,7 +19,13 @@ if (!fs.existsSync(cloudflaredPath)) {
 const tunnelProcess = spawn(cloudflaredPath, [
   'tunnel',
   '--url',
-  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  '--protocol',
+  'http2',
+  '--edge-ip-version',
+  '4',
+  '--retries',
+  '10',
   '--no-autoupdate'
 ], {
   windowsHide: true

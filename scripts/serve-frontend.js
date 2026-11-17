@@ -93,6 +93,15 @@ const server = http.createServer((req, res) => {
       }
     });
 
+    req.on('aborted', () => {
+      proxyReq.destroy();
+    });
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        proxyReq.destroy();
+      }
+    });
+
     req.pipe(proxyReq);
     return;
   }
@@ -166,7 +175,13 @@ server.on('upgrade', (req, socket, head) => {
         console.warn('[Backend Socket Warning]', err.message);
         socket.destroy();
       });
+      backendSocket.on('close', () => {
+        socket.destroy();
+      });
       socket.on('error', () => {
+        backendSocket.destroy();
+      });
+      socket.on('close', () => {
         backendSocket.destroy();
       });
       socket.write(`HTTP/1.1 101 Switching Protocols\r\n` +

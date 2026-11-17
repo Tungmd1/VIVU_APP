@@ -1,13 +1,14 @@
 /**
  * storyAudioEffects.js
  * Hiệu ứng âm thanh Web Audio API & Cấu hình 10 Meme thịnh hành cho VIVU Story
+ * Sử dụng Singleton getSharedAudioContext để triệt tiêu hoàn toàn lỗi rò rỉ AudioContext trên iOS/Android
  */
+import { getSharedAudioContext } from '../../utils/audioContextManager';
 
 export function playStoryBeaconChime() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     const freqs = [659.25, 880, 1318.5];
@@ -34,9 +35,8 @@ export function playStoryBeaconChime() {
 
 export function playTactileClickSound() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -54,9 +54,8 @@ export function playTactileClickSound() {
 
 export function playShutterSound() {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     // First click: mirror up
@@ -89,9 +88,8 @@ export function playShutterSound() {
 
 export function playCountdownBeep(isFinal = false) {
   try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();

@@ -53,12 +53,13 @@ const SpatialBumpModal3D = lazy(() => import('./components/bump/SpatialBumpModal
 import ProximityBumpBanner from './components/bump/ProximityBumpBanner';
 import { useProximityDetector } from './hooks/useProximityDetector';
 
-// Hàm phát chuông thông báo ding-dong vui tai qua Web Audio API (Yêu cầu 5)
+import { getSharedAudioContext } from './utils/audioContextManager';
+
+// Hàm phát chuông thông báo ding-dong vui tai qua Web Audio API (Dùng Singleton AudioContext để chống crash thiết bị di động)
 const playDingDongSound = () => {
   try {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
     
     // Nốt 1: Re (D5 - 587.33 Hz)
@@ -78,13 +79,12 @@ const playDingDongSound = () => {
   }
 };
 
-// Hàm phát âm thanh tin nhắn đến chuyên biệt "Ting-Ting" (Pop Chime) qua Web Audio API
+// Hàm phát âm thanh tin nhắn đến chuyên biệt "Ting-Ting" (Pop Chime) qua Web Audio API (Dùng Singleton AudioContext)
 // Âm sắc bổng trong trẻo, êm dịu, ngắn gọn (0.2s), hoàn toàn phân biệt với tiếng chuông radar Ding-dong
 const playMessageNotificationSound = () => {
   try {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
     const now = ctx.currentTime;
 
     // Nốt 1: Mi (E6 - 1318.5 Hz)
@@ -1866,8 +1866,8 @@ export default function App() {
     // Chạy đồng bộ ngay lập tức
     syncHeartbeat();
 
-    // Vòng lặp định kỳ mỗi 3.5 giây
-    const heartbeatTimer = setInterval(syncHeartbeat, 3500);
+    // Vòng lặp định kỳ (Giãn chu kỳ khi có Socket.IO để bảo vệ pin và chống crash RAM thiết bị di động)
+    const heartbeatTimer = setInterval(syncHeartbeat, isSocketConnected ? 8000 : 4000);
 
     // Lắng nghe sự kiện người dùng ẩn tab / khóa màn hình hoặc mở lại tab
     const handleVisibilityOrFocus = () => {
@@ -1888,7 +1888,7 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [user?.id, user?.email, user?.user_metadata, userLat, userLng, userCustomStatus, currentUserId, currentUserName, currentUserAvatar, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction]);
+  }, [user?.id, user?.email, user?.user_metadata, userLat, userLng, userCustomStatus, currentUserId, currentUserName, currentUserAvatar, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction, isSocketConnected]);
 
   // Bộ đếm định kỳ tự động thu hồi Chibi khi hết thời gian tự hủy
   useEffect(() => {
@@ -1968,6 +1968,7 @@ export default function App() {
 
     let isMounted = true;
     const pollMessages = async () => {
+      if (document.hidden) return;
       try {
         const serverMsgs = await apiClient.getMessages(activeConversationId);
         if (!isMounted || !Array.isArray(serverMsgs)) return;
@@ -2035,13 +2036,13 @@ export default function App() {
     };
 
     pollMessages();
-    const msgInterval = setInterval(pollMessages, 1500);
+    const msgInterval = setInterval(pollMessages, isSocketConnected ? 5000 : 2000);
 
     return () => {
       isMounted = false;
       clearInterval(msgInterval);
     };
-  }, [activeConversationId, currentUserId]);
+  }, [activeConversationId, currentUserId, isSocketConnected]);
 
   // THÔNG BÁO TIN NHẮN ĐẾN TOÀN CỤC (GLOBAL INBOX NOTIFICATION LISTENER)
   // Giúp người dùng dù đang ở bất kỳ màn hình nào (Bản đồ, Xã hội, Bạn bè, Tôi)
@@ -2051,6 +2052,7 @@ export default function App() {
 
     let isMounted = true;
     const checkGlobalInbox = async () => {
+      if (document.hidden) return;
       try {
         const inboxMsgs = await apiClient.getInboxMessages(currentUserId);
         if (!isMounted || !Array.isArray(inboxMsgs) || inboxMsgs.length === 0) return;
@@ -2151,12 +2153,12 @@ export default function App() {
       }
     };
 
-    const inboxInterval = setInterval(checkGlobalInbox, 2500);
+    const inboxInterval = setInterval(checkGlobalInbox, isSocketConnected ? 8000 : 3000);
     return () => {
       isMounted = false;
       clearInterval(inboxInterval);
     };
-  }, [currentUserId, activeTab, activeConversationId]);
+  }, [currentUserId, activeTab, activeConversationId, isSocketConnected]);
 
   // ĐỒNG BỘ THỜI GIAN THỰC TIN NHẮN 2 CHIỀU KHI ĐANG MỞ PHÒNG CHAT (POLLING 1.5s)
   useEffect(() => {
@@ -2164,6 +2166,7 @@ export default function App() {
 
     let isMounted = true;
     const fetchChatMessages = async () => {
+      if (document.hidden) return;
       try {
         const msgs = await apiClient.getMessages(activeConversationId);
         if (!isMounted || !Array.isArray(msgs)) return;
@@ -2217,12 +2220,12 @@ export default function App() {
     };
 
     fetchChatMessages();
-    const chatInterval = setInterval(fetchChatMessages, 1500);
+    const chatInterval = setInterval(fetchChatMessages, isSocketConnected ? 4000 : 1500);
     return () => {
       isMounted = false;
       clearInterval(chatInterval);
     };
-  }, [activeConversationId, currentUserId]);
+  }, [activeConversationId, currentUserId, isSocketConnected]);
 
   // CẬP NHẬT ẢNH ĐẠI DIỆN HỒ SƠ & ĐỒNG BỘ TỨC THÌ LÊN GIỌT NƯỚC BẢN ĐỒ VÀ MÁY KHÁC
   const handleDirectUpdateAvatar = async (newAvatar, newPhotos) => {

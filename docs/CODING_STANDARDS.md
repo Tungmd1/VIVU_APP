@@ -929,6 +929,21 @@ Trước khi một nhánh tính năng được phép sáp nhập (Merge) vào nh
 | **9** | **Bảo mật Nhật ký (No Leaks in Logs)** | Không để sót `console.log` rác? Không ghi mật khẩu, token xác thực hoặc chuỗi Base64 thô vào log? | [ ] |
 | **10** | **Kiểm thử Tự động Đạt 100%** | Toàn bộ 74 bài kiểm thử backend (`npm test`) có chạy qua 100% (0 failures) không? Linter (`npm run lint`) có đạt 0 lỗi không? | [ ] |
 
+### 8.3. Quy chuẩn Quản lý Tài nguyên & Chống Sập Trình Duyệt Di Động (Mobile Browser Anti-Crash & Resource Protocol)
+Khi phát triển các tính năng tương tác thời gian thực trên môi trường di động (iOS Safari, Android Chrome, WebView), bắt buộc tuân thủ 4 nguyên tắc kỹ thuật phòng chống crash ứng dụng:
+
+1. **Singleton Web AudioContext Engine**:
+   - iOS WebKit áp đặt giới hạn cứng tối đa 6 đối tượng `AudioContext` hoạt động đồng thời. Bất kỳ hàm phát âm thanh nào (chuông, tactile click, shutter sound, beacon) tuyệt đối không được gọi `new AudioContext()`.
+   - Bắt buộc dùng `getSharedAudioContext()` từ `utils/audioContextManager.js` để tái sử dụng một AudioContext duy nhất trên toàn ứng dụng.
+2. **Tiết lưu Cảm biến Chuyển động Phần cứng (Motion Sensor Throttling)**:
+   - Trên các thiết bị có tần số quét cao (90Hz / 120Hz ProMotion), sự kiện `devicemotion` kích hoạt 60 - 120 lần/giây.
+   - Bắt buộc áp dụng bộ lọc thời gian (Throttle tối thiểu 100ms / 10Hz) trước khi tính toán gia tốc `deltaX + deltaY + deltaZ`, giảm 90% tải CPU và bảo vệ thiết bị không bị hệ điều hành tắt do quá nhiệt hoặc tiêu thụ năng lượng vượt ngưỡng.
+3. **Giãn chu kỳ Polling & Chế độ Ngủ Thông minh (Adaptive Polling & Smart Sleep)**:
+   - Khi WebSocket (Socket.IO) đang ở trạng thái kết nối (`isSocketConnected = true`), giãn chu kỳ polling (nhịp tim GPS giãn lên 8s, quét tin nhắn lên 5s) để chống nghẽn hàng đợi mạng.
+   - Toàn bộ các vòng lặp polling phải kiểm tra `if (document.hidden) return;` để dừng ngay lập tức mọi request ngầm khi người dùng khóa màn hình hoặc chuyển ứng dụng, tránh tràn RAM do rò rỉ bộ nhớ.
+4. **Giao thức Đường Hầm Bền Vững (Persistent Tunnel Protocol)**:
+   - Khi kết nối qua Cloudflare Tunnel trên mạng di động 4G/5G, bắt buộc sử dụng giao thức `--protocol http2` (TCP port 443) thay vì UDP/QUIC mặc định nhằm ngăn chặn việc nhà mạng ngắt kết nối sau 30-60 giây nhàn rỗi.
+
 ---
 
 ## PHẦN 9: KẾT LUẬN VÀ ĐỊNH HƯỚNG PHÁT TRIỂN

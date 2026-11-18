@@ -1,10 +1,10 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { playTactileClickSound } from '../storyAudioEffects';
 
 /**
  * StoryMusicStickerOverlay - Nhãn dán nhạc kéo thả tự do (Free Drag & Drop)
  * - Tự do di chuyển nhãn dán khắp ảnh bằng cảm ứng (Touch) hoặc chuột (Mouse)
- * - Tự động giới hạn trong khung ảnh (18% <= x <= 82%, 14% <= y <= 80%)
+ * - Tự động giới hạn trong khung ảnh (16% <= x <= 84%, 12% <= y <= 82%)
  * - Thanh công cụ đáy cố định: 3 kiểu nhãn dán + Nút [↺ Đặt lại] tâm + Nút [⚙️ Tùy chọn]
  * Rule 5 (100% Bootstrap Icons), Rule 7 (< 300 dòng)
  */
@@ -20,14 +20,11 @@ export default function StoryMusicStickerOverlay({
   onOpenMusicPicker
 }) {
   const [isDragging, setIsDragging] = useState(false);
-  const dragStateRef = useRef({
-    isDragging: false,
-    startPointerX: 0,
-    startPointerY: 0,
-    startPosX: 50,
-    startPosY: 70,
-    hasMoved: false
-  });
+  const activePositionRef = useRef(musicStickerPosition);
+
+  useEffect(() => {
+    activePositionRef.current = musicStickerPosition;
+  }, [musicStickerPosition]);
 
   if (!selectedSong) {
     return (
@@ -63,79 +60,81 @@ export default function StoryMusicStickerOverlay({
   // Đặt lại vị trí tâm đáy ban đầu
   const handleResetPosition = () => {
     playTactileClickSound();
+    const defaultPos = { x: 50, y: 70 };
+    activePositionRef.current = defaultPos;
     if (onChangeMusicStickerPosition) {
-      onChangeMusicStickerPosition({ x: 50, y: 70 });
+      onChangeMusicStickerPosition(defaultPos);
     }
   };
 
   // Bắt đầu kéo thả (Pointer Down)
   const handlePointerDown = (e) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (e.target.closest('button')) return;
+
+    if (e.cancelable) e.preventDefault();
     e.stopPropagation();
 
-    try {
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    } catch (_) {}
+    const startPointerX = e.clientX;
+    const startPointerY = e.clientY;
+    const startPosX = activePositionRef.current?.x ?? 50;
+    const startPosY = activePositionRef.current?.y ?? 70;
+    let hasMoved = false;
 
-    dragStateRef.current = {
-      isDragging: true,
-      startPointerX: e.clientX,
-      startPointerY: e.clientY,
-      startPosX: musicStickerPosition?.x ?? 50,
-      startPosY: musicStickerPosition?.y ?? 70,
-      hasMoved: false
-    };
+    const container = e.currentTarget.closest('.story-canvas-root') || document.body;
+    const rect = container.getBoundingClientRect();
+    const containerW = rect.width || 380;
+    const containerH = rect.height || 680;
+
     setIsDragging(true);
-  };
 
-  // Di chuyển nhãn dán (Pointer Move)
-  const handlePointerMove = (e) => {
-    if (!dragStateRef.current.isDragging) return;
-    e.stopPropagation();
+    const onPointerMove = (moveEvt) => {
+      if (moveEvt.cancelable) moveEvt.preventDefault();
+      moveEvt.stopPropagation();
 
-    const deltaX = e.clientX - dragStateRef.current.startPointerX;
-    const deltaY = e.clientY - dragStateRef.current.startPointerY;
-    const distance = Math.hypot(deltaX, deltaY);
+      const deltaX = moveEvt.clientX - startPointerX;
+      const deltaY = moveEvt.clientY - startPointerY;
+      const dist = Math.hypot(deltaX, deltaY);
 
-    if (distance > 5) {
-      dragStateRef.current.hasMoved = true;
-    }
+      if (dist > 4) {
+        hasMoved = true;
+      }
 
-    const container = e.currentTarget.closest('.story-canvas-root') || e.currentTarget.parentElement;
-    const rect = container?.getBoundingClientRect() || { width: 380, height: 680 };
+      const deltaPercentX = (deltaX / containerW) * 100;
+      const deltaPercentY = (deltaY / containerH) * 100;
 
-    const deltaPercentX = (deltaX / rect.width) * 100;
-    const deltaPercentY = (deltaY / rect.height) * 100;
+      // Giới hạn an toàn trong khung ảnh (16% <= x <= 84%, 12% <= y <= 82%)
+      const clampedX = Math.max(16, Math.min(84, startPosX + deltaPercentX));
+      const clampedY = Math.max(12, Math.min(82, startPosY + deltaPercentY));
 
-    // Giới hạn trong khung ảnh (18% <= x <= 82%, 14% <= y <= 80%)
-    const clampedX = Math.max(18, Math.min(82, dragStateRef.current.startPosX + deltaPercentX));
-    const clampedY = Math.max(14, Math.min(80, dragState.current.startPosY + deltaPercentY));
-
-    if (onChangeMusicStickerPosition) {
-      onChangeMusicStickerPosition({
+      const newPos = {
         x: Math.round(clampedX * 10) / 10,
         y: Math.round(clampedY * 10) / 10
-      });
-    }
-  };
+      };
 
-  // Kết thúc kéo thả (Pointer Up / Cancel)
-  const handlePointerUp = (e) => {
-    if (!dragStateRef.current.isDragging) return;
-    e.stopPropagation();
+      activePositionRef.current = newPos;
 
-    const hasMoved = dragStateRef.current.hasMoved;
-    dragStateRef.current.isDragging = false;
-    setIsDragging(false);
+      if (onChangeMusicStickerPosition) {
+        onChangeMusicStickerPosition(newPos);
+      }
+    };
 
-    try {
-      e.currentTarget.releasePointerCapture?.(e.pointerId);
-    } catch (_) {}
+    const onPointerUp = (upEvt) => {
+      upEvt.stopPropagation();
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      setIsDragging(false);
 
-    // Nếu chỉ chạm nhanh mà không kéo -> Xoay vòng kiểu
-    if (!hasMoved) {
-      handleCycleStyle();
-    }
+      // Nếu chỉ chạm nhanh mà không kéo -> Xoay vòng kiểu
+      if (!hasMoved) {
+        handleCycleStyle();
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: false });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   };
 
   const currentX = musicStickerPosition?.x ?? 50;
@@ -154,13 +153,12 @@ export default function StoryMusicStickerOverlay({
             touchAction: 'none'
           }}
           onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
           className={`pointer-events-auto transition-transform ${
-            isDragging ? 'scale-105 cursor-grabbing shadow-2xl' : 'cursor-grab active:scale-95'
+            isDragging
+              ? 'scale-105 cursor-grabbing shadow-[0_0_25px_rgba(255,42,133,0.6)] ring-2 ring-[#FF2A85]/80 rounded-full'
+              : 'cursor-grab active:scale-95'
           }`}
-          title="Kéo thả để di chuyển nhãn dán • Chạm nhanh để đổi kiểu"
+          title="Chạm giữ & Kéo thả đến bất kỳ vị trí nào trên ảnh • Chạm nhanh để đổi kiểu"
         >
           {/* KIỂU ĐĨA THAN XOAY TRÒN (VINYL) */}
           {musicStickerStyle === 'VINYL' && (

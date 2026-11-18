@@ -154,13 +154,30 @@ export const dbService = {
     // Dọn sạch bài hát & trạng thái khi xóa story nếu không còn story nào khác chứa nhạc
     if (creatorId) {
       const remainingWithMusic = inMemoryStore.stories.filter(s => (s.host_id === creatorId || s.user_id === creatorId) && s.music);
+      const remainingStories = inMemoryStore.stories.filter(s => (s.host_id === creatorId || s.user_id === creatorId));
+      const pIdx = inMemoryStore.profiles.findIndex(p => p.id === creatorId);
+      const uIdx = inMemoryStore.users.findIndex(u => u.id === creatorId);
+
       if (remainingWithMusic.length === 0) {
-        const pIdx = inMemoryStore.profiles.findIndex(p => p.id === creatorId);
+        if (pIdx >= 0) inMemoryStore.profiles[pIdx].custom_song = null;
+        if (uIdx >= 0) inMemoryStore.users[uIdx].custom_song = null;
+      }
+
+      if (remainingStories.length === 0) {
         if (pIdx >= 0) {
           inMemoryStore.profiles[pIdx].custom_song = null;
-          if (!inMemoryStore.profiles[pIdx].custom_status || inMemoryStore.profiles[pIdx].custom_status === 'Khoảnh khắc mới' || inMemoryStore.profiles[pIdx].custom_status === story.title) {
-            inMemoryStore.profiles[pIdx].custom_status = '';
-          }
+          inMemoryStore.profiles[pIdx].custom_status = '';
+        }
+        if (uIdx >= 0) {
+          inMemoryStore.users[uIdx].custom_song = null;
+          inMemoryStore.users[uIdx].custom_status = '';
+        }
+      } else {
+        if (pIdx >= 0 && (!inMemoryStore.profiles[pIdx].custom_status || inMemoryStore.profiles[pIdx].custom_status === 'Khoảnh khắc mới' || inMemoryStore.profiles[pIdx].custom_status === story.title)) {
+          inMemoryStore.profiles[pIdx].custom_status = '';
+        }
+        if (uIdx >= 0 && (!inMemoryStore.users[uIdx].custom_status || inMemoryStore.users[uIdx].custom_status === 'Khoảnh khắc mới' || inMemoryStore.users[uIdx].custom_status === story.title)) {
+          inMemoryStore.users[uIdx].custom_status = '';
         }
       }
     }
@@ -809,29 +826,35 @@ export const dbService = {
       customStatus === 'clear' ||
       customStatus === 'remove' ||
       customStatus === null ||
-      customStatus === 'none';
+      customStatus === 'none' ||
+      customStatus === '';
 
     if (isExplicitStatusClear) {
       updatePayload.custom_status = '';
       registeredUser.custom_status = '';
+      const pIdx = inMemoryStore.profiles.findIndex(p => p.id === userId);
+      if (pIdx >= 0) inMemoryStore.profiles[pIdx].custom_status = '';
     } else if (customStatus !== undefined) {
-      if (!customStatus && registeredUser.custom_status) {
-        updatePayload.custom_status = registeredUser.custom_status;
-      } else {
-        updatePayload.custom_status = customStatus;
-        registeredUser.custom_status = customStatus;
-      }
+      updatePayload.custom_status = customStatus;
+      registeredUser.custom_status = customStatus;
     } else if (registeredUser.custom_status) {
       updatePayload.custom_status = registeredUser.custom_status;
     }
 
-    if (customSong !== undefined) {
-      if (customSong === null && registeredUser.custom_song && hasActiveServerChibi) {
-        updatePayload.custom_song = registeredUser.custom_song;
-      } else {
-        updatePayload.custom_song = customSong;
-        registeredUser.custom_song = customSong;
-      }
+    const isExplicitSongClear =
+      customSong === null ||
+      customSong === '' ||
+      customSong === 'remove' ||
+      customSong === 'none';
+
+    if (isExplicitSongClear) {
+      updatePayload.custom_song = null;
+      registeredUser.custom_song = null;
+      const pIdx = inMemoryStore.profiles.findIndex(p => p.id === userId);
+      if (pIdx >= 0) inMemoryStore.profiles[pIdx].custom_song = null;
+    } else if (customSong !== undefined) {
+      updatePayload.custom_song = customSong;
+      registeredUser.custom_song = customSong;
     } else if (registeredUser.custom_song) {
       updatePayload.custom_song = registeredUser.custom_song;
     }

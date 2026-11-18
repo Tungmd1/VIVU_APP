@@ -773,22 +773,37 @@ export default function App() {
             created_at: rs.created_at,
             expiry_hours: rs.expiry_hours || 24
           };
-          if (isOwner) {
-            try {
-              localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(mapped));
-              localStorage.setItem('vivu_user_active_story', JSON.stringify(mapped));
-            } catch {}
-          }
           return mapped;
         });
 
-      if (validStories.length > 0) {
-        setStories(prev => {
-          const existingIds = new Set(validStories.map(s => s.id));
-          const remainingPrev = prev.filter(s => !existingIds.has(s.id));
-          return [...validStories, ...remainingPrev];
-        });
+      const ownerStoriesFromServer = validStories.filter(s => s.isOwnerStory);
+      if (currentUserId && !currentUserId.startsWith('client-')) {
+        if (ownerStoriesFromServer.length === 0) {
+          // Backend không còn Story nào của chủ tài khoản -> Xóa sạch bộ nhớ đệm Story
+          try {
+            localStorage.removeItem('vivu_user_active_story');
+            localStorage.removeItem('vivu_user_active_stories');
+            localStorage.removeItem(`vivu_user_active_story_${currentUserId}`);
+            localStorage.removeItem(`vivu_user_active_stories_${currentUserId}`);
+          } catch {}
+        } else {
+          try {
+            localStorage.setItem(`vivu_user_active_stories_${currentUserId}`, JSON.stringify(ownerStoriesFromServer));
+            localStorage.setItem('vivu_user_active_stories', JSON.stringify(ownerStoriesFromServer));
+            localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(ownerStoriesFromServer[0]));
+            localStorage.setItem('vivu_user_active_story', JSON.stringify(ownerStoriesFromServer[0]));
+          } catch {}
+        }
       }
+
+      setStories(prev => {
+        const filteredPrev = (ownerStoriesFromServer.length === 0 && currentUserId)
+          ? prev.filter(s => s.hostId !== currentUserId && s.host_id !== currentUserId && !s.isOwnerStory)
+          : prev;
+        const existingIds = new Set(validStories.map(s => s.id));
+        const remainingPrev = filteredPrev.filter(s => !existingIds.has(s.id));
+        return [...validStories, ...remainingPrev];
+      });
     }).catch(() => {});
 
     return () => { isMounted = false; };
@@ -822,7 +837,8 @@ export default function App() {
         localStorage.removeItem('vivu_user_custom_chibi_expires');
       }
 
-      const savedStatus = user?.custom_status || localStorage.getItem(scopedStatusKey) || '';
+      const rawStatus = user?.custom_status || localStorage.getItem(scopedStatusKey) || '';
+      const cleanSavedStatus = (rawStatus === 'clear' || rawStatus === 'remove' || rawStatus === 'Khoảnh khắc mới' || rawStatus === 'Tâm trạng') ? '' : rawStatus;
       const savedSongRaw = user?.custom_song || localStorage.getItem(scopedSongKey) || null;
       let savedSong = null;
       if (savedSongRaw) {
@@ -839,8 +855,8 @@ export default function App() {
         setUserCustomChibi(null);
         setUserCustomChibiExpiresAt(null);
       }
-      if (savedStatus) {
-        setUserCustomStatus(savedStatus);
+      if (cleanSavedStatus) {
+        setUserCustomStatus(cleanSavedStatus);
       } else {
         setUserCustomStatus('');
       }
@@ -882,14 +898,18 @@ export default function App() {
           localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
         } catch {}
       }
-      if (serverUser.custom_status) {
-        setUserCustomStatus(serverUser.custom_status);
+      const cleanServerStatus = (serverUser.custom_status === 'clear' || serverUser.custom_status === 'remove' || serverUser.custom_status === 'Khoảnh khắc mới' || serverUser.custom_status === 'Tâm trạng') ? '' : (serverUser.custom_status || '');
+      if (cleanServerStatus) {
+        setUserCustomStatus(cleanServerStatus);
         try {
-          localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, serverUser.custom_status);
+          localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, cleanServerStatus);
         } catch {}
       } else {
         setUserCustomStatus('');
-        try { localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`); } catch {}
+        try { 
+          localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`); 
+          localStorage.removeItem('vivu_user_custom_status'); 
+        } catch {}
       }
       if (serverUser.custom_song) {
         setUserCustomSong(serverUser.custom_song);
@@ -2528,50 +2548,117 @@ export default function App() {
     }
 
     // Gỡ khỏi danh sách Story hiển thị trên bản đồ 3D
-    setStories(prev => prev.filter(s => s.id !== storyId && s.activeStory?.id !== storyId && s.hostId !== currentUserId && !s.isOwnerStory));
-    
-    // Gỡ khỏi bộ nhớ tạm active story
+    setStories(prev => prev.filter(s => s.id !== storyId && s.activeStory?.id !== storyId));
+
+    // 1. Tính toán danh sách Multi-Story còn lại của người dùng
+    let remainingOwnerStories = [];
     try {
-      localStorage.removeItem('vivu_user_active_story');
-      safeRemoveItem('vivu_user_active_story');
-      if (currentUserId) {
-        localStorage.removeItem(`vivu_user_active_story_${currentUserId}`);
+      const scopedListKey = currentUserId ? `vivu_user_active_stories_${currentUserId}` : null;
+      const rawList = (scopedListKey ? localStorage.getItem(scopedListKey) : null) || localStorage.getItem('vivu_user_active_stories');
+      if (rawList) {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed)) {
+          remainingOwnerStories = parsed.filter(s => s.id !== storyId && s.activeStory?.id !== storyId);
+        }
       }
     } catch {}
 
-    // Dừng phát nhạc ngay lập tức khi xóa Story
-    try {
-      storyAudioPlayer.stop();
-    } catch {}
+    if (remainingOwnerStories.length === 0) {
+      // Đã xóa hết 100% Story -> Dọn sạch triệt để mọi khóa Story, Song và Status
+      const keysToClean = [
+        'vivu_user_active_story',
+        'vivu_user_active_stories',
+        'vivu_user_custom_song',
+        'vivu_user_custom_status'
+      ];
+      if (currentUserId) {
+        keysToClean.push(
+          `vivu_user_active_story_${currentUserId}`,
+          `vivu_user_active_stories_${currentUserId}`,
+          `vivu_user_custom_song_${currentUserId}`,
+          `vivu_user_custom_status_${currentUserId}`
+        );
+      }
+      keysToClean.forEach(k => {
+        try {
+          localStorage.removeItem(k);
+          safeRemoveItem(k);
+        } catch {}
+      });
 
-    // Dọn sạch hoàn toàn bài hát & trạng thái mồ côi trên ghim và local storage
-    setUserCustomSong(null);
-    setUserCustomStatus('');
-    safeRemoveItem('vivu_user_custom_song');
-    safeRemoveItem('vivu_user_custom_status');
-    try {
-      localStorage.removeItem('vivu_user_custom_song');
-      localStorage.removeItem('vivu_user_custom_status');
-    } catch {}
+      // Dừng phát nhạc ngay lập tức khi xóa Story
+      try {
+        storyAudioPlayer.stop();
+      } catch {}
 
-    try {
-      await apiClient.updateGps(
-        currentUserId,
-        userLat,
-        userLng,
-        '',
-        currentUserName,
-        currentUserAvatar,
-        currentUserCode,
-        user?.phone,
-        null,
-        userCustomChibi,
-        userPinSkin,
-        userPinMascot,
-        userPinAction
-      );
-    } catch (e) {
-      console.warn('Lỗi dọn sạch nhạc story GPS:', e);
+      setUserCustomSong(null);
+      setUserCustomStatus('');
+
+      // Cập nhật Profile và GPS xóa sạch nhạc và tâm trạng trên Backend
+      try {
+        await updateProfile({ customStatus: 'clear', custom_song: null });
+      } catch {}
+
+      try {
+        await apiClient.updateGps(
+          currentUserId,
+          userLat,
+          userLng,
+          'clear',
+          currentUserName,
+          currentUserAvatar,
+          currentUserCode,
+          user?.phone,
+          null,
+          userCustomChibi,
+          userPinSkin,
+          userPinMascot,
+          userPinAction,
+          userCustomChibiExpiresAt
+        );
+      } catch (e) {
+        console.warn('Lỗi dọn sạch nhạc story GPS:', e);
+      }
+    } else {
+      // Vẫn còn Story khác trong chuỗi Multi-Story -> Cập nhật lại cache
+      try {
+        localStorage.setItem('vivu_user_active_stories', JSON.stringify(remainingOwnerStories));
+        if (currentUserId) {
+          localStorage.setItem(`vivu_user_active_stories_${currentUserId}`, JSON.stringify(remainingOwnerStories));
+        }
+        const newest = remainingOwnerStories[0];
+        localStorage.setItem('vivu_user_active_story', JSON.stringify(newest));
+        if (currentUserId) {
+          localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(newest));
+        }
+
+        const remainingSong = remainingOwnerStories.find(s => s.music || s.activeStory?.music)?.music || null;
+        if (!remainingSong) {
+          setUserCustomSong(null);
+          try {
+            localStorage.removeItem('vivu_user_custom_song');
+            if (currentUserId) localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
+            storyAudioPlayer.stop();
+          } catch {}
+          await updateProfile({ custom_song: null }).catch(() => {});
+          await apiClient.updateGps(
+            currentUserId,
+            userLat,
+            userLng,
+            userCustomStatus || '',
+            currentUserName,
+            currentUserAvatar,
+            currentUserCode,
+            user?.phone,
+            null,
+            userCustomChibi,
+            userPinSkin,
+            userPinMascot,
+            userPinAction,
+            userCustomChibiExpiresAt
+          ).catch(() => {});
+        }
+      } catch {}
     }
 
     // Gửi request DELETE lên backend server
@@ -3862,33 +3949,60 @@ export default function App() {
           setIsPinWardrobeOpen(true);
         }}
         onSelectStatus={(status, song, chibiId, expiresAt, expiryHours) => {
-          setUserCustomStatus(status || '');
+          const isClearStatus = !status || status === 'clear' || status === 'remove';
+          const resolvedStatus = isClearStatus ? '' : status;
+          const isRemoveChibi = !chibiId || chibiId === 'remove';
+          const resolvedChibi = isRemoveChibi ? null : chibiId;
+          const resolvedExp = isRemoveChibi ? null : (expiresAt || null);
+
+          setUserCustomStatus(resolvedStatus);
           setUserCustomSong(song || null);
-          setUserCustomChibi(chibiId || null);
-          setUserCustomChibiExpiresAt(expiresAt || null);
+          setUserCustomChibi(resolvedChibi);
+          setUserCustomChibiExpiresAt(resolvedExp);
           try {
             if (currentUserId && !currentUserId.startsWith('client-')) {
-              if (status) localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, status);
-              else localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`);
-              if (song) localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, JSON.stringify(song));
-              else localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
-              if (chibiId) localStorage.setItem(`vivu_user_custom_chibi_${currentUserId}`, chibiId);
-              else localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
-              if (expiresAt) localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(expiresAt));
-              else localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
+              if (resolvedStatus) {
+                localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, resolvedStatus);
+                localStorage.setItem('vivu_user_custom_status', resolvedStatus);
+              } else {
+                localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`);
+                localStorage.removeItem('vivu_user_custom_status');
+              }
+              if (song) {
+                const songStr = typeof song === 'object' ? JSON.stringify(song) : String(song);
+                localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, songStr);
+                localStorage.setItem('vivu_user_custom_song', songStr);
+              } else {
+                localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
+                localStorage.removeItem('vivu_user_custom_song');
+              }
+              if (resolvedChibi) {
+                localStorage.setItem(`vivu_user_custom_chibi_${currentUserId}`, resolvedChibi);
+                localStorage.setItem('vivu_user_custom_chibi', resolvedChibi);
+              } else {
+                localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
+                localStorage.removeItem('vivu_user_custom_chibi');
+              }
+              if (resolvedExp) {
+                localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(resolvedExp));
+                localStorage.setItem('vivu_user_custom_chibi_expires', String(resolvedExp));
+              } else {
+                localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
+                localStorage.removeItem('vivu_user_custom_chibi_expires');
+              }
             }
           } catch {}
           if (currentUserId) {
             updateProfile({ 
-              customStatus: status || '', 
-              customChibi: chibiId || null, 
-              chibi_expires_at: expiresAt || null,
+              customStatus: isClearStatus ? 'clear' : resolvedStatus, 
+              customChibi: isRemoveChibi ? 'remove' : resolvedChibi, 
+              chibi_expires_at: resolvedExp,
               custom_song: song || null
             }).catch(() => {});
             if (userLat && userLng) {
-              const safeChibi = chibiId || 'remove';
-              const safeExp = chibiId ? (expiresAt || null) : 0;
-              const safeStatusParam = (status || '').trim() || 'clear';
+              const safeChibi = isRemoveChibi ? 'remove' : resolvedChibi;
+              const safeExp = resolvedChibi ? (resolvedExp || 0) : 0;
+              const safeStatusParam = isClearStatus ? 'clear' : resolvedStatus;
               apiClient.updateGps(currentUserId, userLat, userLng, safeStatusParam, currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, safeChibi, userPinSkin, userPinMascot, userPinAction, safeExp);
             }
           }
@@ -3931,9 +4045,15 @@ export default function App() {
           storyAudioPlayer.stop();
           setUserCustomSong(null);
           safeRemoveItem('vivu_user_custom_song');
-          try { localStorage.removeItem('vivu_user_custom_song'); } catch {}
-          if (currentUserId && userLat && userLng) {
-            apiClient.updateGps(currentUserId, userLat, userLng, userCustomStatus, currentUserName, currentUserAvatar, currentUserCode, user?.phone, null, userCustomChibi, userPinSkin, userPinMascot, userPinAction);
+          try { 
+            localStorage.removeItem('vivu_user_custom_song'); 
+            if (currentUserId) localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
+          } catch {}
+          if (currentUserId) {
+            updateProfile({ custom_song: null }).catch(() => {});
+            if (userLat && userLng) {
+              apiClient.updateGps(currentUserId, userLat, userLng, userCustomStatus || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, null, userCustomChibi, userPinSkin, userPinMascot, userPinAction, userCustomChibiExpiresAt);
+            }
           }
           confetti({ particleCount: 20, spread: 35 });
         }}

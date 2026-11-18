@@ -630,6 +630,22 @@ export async function updateUserProfile(profileData) {
     return null;
   })();
 
+  const isExplicitClearStatus =
+    customStatus === '' ||
+    customStatus === 'clear' ||
+    customStatus === 'remove' ||
+    customStatus === null;
+  const resolvedCustomStatus = isExplicitClearStatus ? '' : (customStatus !== undefined ? customStatus : existing.custom_status);
+
+  const isExplicitClearSong =
+    customSong === null ||
+    customSong === '' ||
+    customSong === 'remove' ||
+    custom_song === null ||
+    custom_song === '' ||
+    custom_song === 'remove';
+  const resolvedCustomSong = isExplicitClearSong ? null : (customSong !== undefined ? customSong : (custom_song !== undefined ? custom_song : existing.custom_song));
+
   try {
     const existingRaw = localStorage.getItem('vivu_user_profile_data');
     const existing = existingRaw ? JSON.parse(existingRaw) : {};
@@ -640,12 +656,27 @@ export async function updateUserProfile(profileData) {
       full_name: fullName || existing.fullName,
       avatar_url: avatarUrl !== undefined ? avatarUrl : existing.avatar_url,
       avatarUrl: avatarUrl !== undefined ? avatarUrl : existing.avatarUrl,
-      custom_status: customStatus || existing.custom_status,
-      customStatus: customStatus || existing.customStatus
+      custom_status: resolvedCustomStatus,
+      customStatus: resolvedCustomStatus,
+      custom_song: resolvedCustomSong,
+      customSong: resolvedCustomSong
     };
     localStorage.setItem('vivu_user_profile_data', JSON.stringify(updatedCache));
     if (scopedUserId && scopedUserId !== 'guest') {
       localStorage.setItem(`vivu_user_profile_data_${scopedUserId}`, JSON.stringify(updatedCache));
+      if (isExplicitClearStatus) {
+        localStorage.removeItem(`vivu_user_custom_status_${scopedUserId}`);
+        localStorage.removeItem('vivu_user_custom_status');
+      } else if (resolvedCustomStatus) {
+        localStorage.setItem(`vivu_user_custom_status_${scopedUserId}`, resolvedCustomStatus);
+      }
+      if (isExplicitClearSong) {
+        localStorage.removeItem(`vivu_user_custom_song_${scopedUserId}`);
+        localStorage.removeItem('vivu_user_custom_song');
+      } else if (resolvedCustomSong) {
+        const songStr = typeof resolvedCustomSong === 'object' ? JSON.stringify(resolvedCustomSong) : String(resolvedCustomSong);
+        localStorage.setItem(`vivu_user_custom_song_${scopedUserId}`, songStr);
+      }
       const targetAv = avatarUrl !== undefined ? avatarUrl : existing.avatarUrl;
       if (targetAv) {
         localStorage.setItem(`vivu_user_avatar_${scopedUserId}`, targetAv);
@@ -710,12 +741,15 @@ export async function updateUserProfile(profileData) {
           session.user = {
             ...session.user,
             ...apiRes.user,
+            custom_status: resolvedCustomStatus,
+            custom_song: resolvedCustomSong,
             user_metadata: {
               ...session.user.user_metadata,
               ...apiRes.user,
               full_name: apiRes.user.full_name || fullName,
               avatar_url: apiRes.user.avatar_url || avatarUrl,
-              custom_status: customStatus,
+              custom_status: resolvedCustomStatus,
+              custom_song: resolvedCustomSong,
               phone: apiRes.user.phone || phone,
               age: apiRes.user.age ?? profileData.age,
               job: apiRes.user.job ?? profileData.job,
@@ -740,11 +774,14 @@ export async function updateUserProfile(profileData) {
     const local = localStorage.getItem(LOCAL_SESSION_KEY);
     if (local) {
       const session = JSON.parse(local);
+      session.user.custom_status = resolvedCustomStatus;
+      session.user.custom_song = resolvedCustomSong;
       session.user.user_metadata = {
         ...session.user.user_metadata,
         full_name: fullName,
         avatar_url: avatarUrl,
-        custom_status: customStatus,
+        custom_status: resolvedCustomStatus,
+        custom_song: resolvedCustomSong,
         phone: phone,
         age: profileData.age,
         job: profileData.job,

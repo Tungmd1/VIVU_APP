@@ -23,7 +23,9 @@ export default function StoryCanvasPreview({
   onRetakePhoto,
   onRemoveText,
   onRemoveSticker,
-  onRemoveSong
+  onRemoveSong,
+  onPublish,
+  isPublishing
 }) {
   const currentFilterObj = CAMERA_FILTER_PRESETS.find(f => f.id === selectedFilter);
 
@@ -169,8 +171,8 @@ export default function StoryCanvasPreview({
         </div>
       </div>
 
-      {/* Thanh công cụ đỉnh: Chụp lại, Aa, Sticker, Filter, Nhạc */}
-      <div className="relative z-30 p-4 pt-safe flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-auto">
+      {/* Thanh công cụ đỉnh: Chụp lại, [Nhạc, Aa, Sticker, Filter], [Đăng] */}
+      <div className="relative z-30 p-3.5 pt-safe flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-auto">
         {/* Nút quay lại Camera */}
         <button
           type="button"
@@ -178,85 +180,128 @@ export default function StoryCanvasPreview({
             playTactileClickSound();
             onRetakePhoto();
           }}
-          className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/15 flex items-center justify-center text-white active:scale-95 transition-transform"
-          title="Chụp lại"
+          className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-all shadow-md cursor-pointer"
+          title="Chụp lại ảnh"
         >
-          <i className="bi bi-arrow-left text-lg"></i>
+          <i className="bi bi-arrow-left text-base"></i>
         </button>
 
-        {/* Cụm nút sáng tạo bên phải */}
-        <div className="flex items-center gap-2 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
-          {/* Chèn Text */}
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              onOpenTextEditor();
-            }}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white/90 hover:text-white hover:bg-white/10 transition-all"
-            title="Thêm chữ (Aa)"
-          >
-            <span className="font-serif font-black text-sm">Aa</span>
-          </button>
+        {/* Cụm công cụ sáng tạo & Nút Đăng */}
+        <div className="flex items-center gap-2">
+          {/* Cụm công cụ: Nhạc (đầu tiên), Aa, Sticker, Filter */}
+          <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/15 shadow-lg">
+            {/* 1. Chọn Nhạc Apple Music */}
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                if (onOpenMusicPicker) onOpenMusicPicker();
+              }}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                selectedSong
+                  ? 'bg-gradient-to-tr from-[#FF2A85] to-[#7928CA] text-white shadow-[0_0_12px_rgba(255,42,133,0.8)] animate-pulse'
+                  : 'text-white/90 hover:text-white hover:bg-white/15 active:scale-95'
+              }`}
+              title={selectedSong ? `Bài hát: ${selectedSong.title}` : "Chọn nhạc nền"}
+            >
+              <i className="bi bi-music-note-beamed text-sm"></i>
+            </button>
 
-          {/* Chèn Nhãn dán Sticker */}
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              onOpenStickerPicker();
-            }}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white/90 hover:text-white hover:bg-white/10 transition-all"
-            title="Nhãn dán, Poll & Meme"
-          >
-            <i className="bi bi-stickies text-base"></i>
-          </button>
+            {/* 2. Chèn Text */}
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                if (onOpenTextEditor) onOpenTextEditor();
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:scale-95 transition-all cursor-pointer"
+              title="Thêm chữ (Aa)"
+            >
+              <span className="font-serif font-black text-xs">Aa</span>
+            </button>
 
-          {/* Bộ lọc Filter / Chỉnh màu */}
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              onOpenFilterAdjuster();
-            }}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white/90 hover:text-white hover:bg-white/10 transition-all"
-            title="Bộ lọc & Tinh chỉnh ảnh"
-          >
-            <i className="bi bi-sliders text-base"></i>
-          </button>
+            {/* 3. Chèn Nhãn dán Sticker */}
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                if (onOpenStickerPicker) onOpenStickerPicker();
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:scale-95 transition-all cursor-pointer"
+              title="Nhãn dán, Poll & Meme"
+            >
+              <i className="bi bi-stickies text-sm"></i>
+            </button>
 
-          {/* Chọn Nhạc */}
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              onOpenMusicPicker();
-            }}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-              selectedSong ? 'bg-teal-500 text-black shadow-md shadow-teal-500/30' : 'text-white/90 hover:text-white hover:bg-white/10'
-            }`}
-            title="Gắn nhạc nền"
-          >
-            <i className="bi bi-music-note-beamed text-base"></i>
-          </button>
+            {/* 4. Bộ lọc Filter / Chỉnh màu */}
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                if (onOpenFilterAdjuster) onOpenFilterAdjuster();
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/90 hover:text-white hover:bg-white/15 active:scale-95 transition-all cursor-pointer"
+              title="Bộ lọc & Tinh chỉnh ảnh"
+            >
+              <i className="bi bi-sliders text-sm"></i>
+            </button>
+          </div>
+
+          {/* Nút Đăng Story trực tiếp */}
+          {onPublish && (
+            <button
+              type="button"
+              disabled={isPublishing}
+              onClick={onPublish}
+              className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white text-xs font-bold shadow-[0_0_15px_rgba(255,42,133,0.5)] active:scale-95 hover:brightness-110 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+              title="Đăng Story"
+            >
+              {isPublishing ? (
+                <>
+                  <i className="bi bi-arrow-repeat animate-spin text-xs"></i>
+                  <span>Đang đăng...</span>
+                </>
+              ) : (
+                <>
+                  <span>Đăng</span>
+                  <i className="bi bi-check2 text-sm font-bold"></i>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Widget hiển thị bài hát đang phát nếu có */}
-      {selectedSong && (
-        <div className="relative z-30 mx-4 mb-20 pointer-events-auto self-center">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-xs shadow-lg">
+      {/* Widget hiển thị bài hát đang phát nếu có HOẶC prompt thêm nhạc nếu chưa có */}
+      {selectedSong ? (
+        <div className="relative z-30 mx-4 mb-6 pointer-events-auto self-center">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-xs shadow-xl">
             <div
               onClick={onTogglePlaySong}
               className="flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
               title="Phát / Tạm dừng"
             >
-              <div className={`w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-black text-xs ${isPlayingMusic ? 'animate-spin' : ''}`}>
+              <div className={`w-6 h-6 rounded-full bg-gradient-to-tr from-[#FF2A85] to-[#00E5FF] flex items-center justify-center text-white text-xs shadow-md ${isPlayingMusic ? 'animate-spin' : ''}`}>
                 <i className={`bi ${isPlayingMusic ? 'bi-disc' : 'bi-play-fill'}`}></i>
               </div>
-              <span className="font-bold truncate max-w-[130px]">{selectedSong.title}</span>
-              <span className="text-white/50 text-[11px] truncate max-w-[70px]">({selectedSong.artist})</span>
+              <div className="flex flex-col text-left">
+                <span className="font-bold truncate max-w-[130px] leading-tight">{selectedSong.title}</span>
+                <span className="text-white/50 text-[10px] truncate max-w-[100px] leading-tight">{selectedSong.artist}</span>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                if (onOpenMusicPicker) onOpenMusicPicker();
+              }}
+              className="px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-[10px] text-cyan-300 font-semibold transition-colors cursor-pointer"
+              title="Đổi bài hát khác"
+            >
+              Đổi
+            </button>
+
             {onRemoveSong && (
               <button
                 type="button"
@@ -264,13 +309,32 @@ export default function StoryCanvasPreview({
                   e.stopPropagation();
                   onRemoveSong();
                 }}
-                className="w-5 h-5 ml-1 rounded-full bg-white/20 hover:bg-rose-600 text-white flex items-center justify-center text-[10px] cursor-pointer transition-colors"
+                className="w-5 h-5 ml-0.5 rounded-full bg-white/20 hover:bg-rose-600 text-white flex items-center justify-center text-[10px] cursor-pointer transition-colors"
                 title="Gỡ bỏ bài hát"
               >
                 <i className="bi bi-x-lg"></i>
               </button>
             )}
           </div>
+        </div>
+      ) : (
+        /* Floating Prompt thêm nhạc khi chưa chọn bài nào */
+        <div className="relative z-30 mx-4 mb-6 pointer-events-auto self-center">
+          <button
+            type="button"
+            onClick={() => {
+              playTactileClickSound();
+              if (onOpenMusicPicker) onOpenMusicPicker();
+            }}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-md border border-white/20 hover:border-[#FF2A85]/60 text-white text-xs shadow-xl transition-all active:scale-95 group cursor-pointer"
+            title="Thêm nhạc nền vào Story"
+          >
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#FF2A85] to-[#7928CA] flex items-center justify-center text-white text-[10px] group-hover:scale-110 transition-transform shadow-[0_0_10px_rgba(255,42,133,0.5)]">
+              <i className="bi bi-music-note-beamed"></i>
+            </div>
+            <span className="font-semibold text-white/90 group-hover:text-white">Thêm nhạc nền</span>
+            <i className="bi bi-plus text-xs text-white/60 group-hover:text-white"></i>
+          </button>
         </div>
       )}
     </div>

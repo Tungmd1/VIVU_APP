@@ -220,39 +220,41 @@ export default function UnifiedCreationStudioModal({
     <div className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden animate-fadeIn">
       <div className="relative w-full h-full max-w-md bg-[#0a0f18] flex flex-col justify-between overflow-hidden shadow-2xl">
         
-        {/* HEADER: ĐÓNG & TIÊU ĐỀ */}
-        <div className="absolute top-0 left-0 right-0 z-40 p-3 pt-4 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-md text-white/80 hover:text-white flex items-center justify-center border border-white/10 active:scale-95 transition-all shadow-md"
-            title="Đóng Studio"
-          >
-            <i className="bi bi-x-lg text-sm"></i>
-          </button>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15 text-white text-xs font-bold shadow-lg">
-            <span className="w-2 h-2 rounded-full bg-[#FF2A85] animate-pulse"></span>
-            <span>VIVU Studio</span>
+        {/* HEADER: ĐÓNG & TIÊU ĐỀ (Chỉ hiển thị cho tab MOOD và CHIBI; tab STORY có top-bar chuyên biệt riêng) */}
+        {activeStudioTab !== 'STORY' && (
+          <div className="absolute top-0 left-0 right-0 z-40 p-3 pt-4 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-9 h-9 rounded-full bg-black/60 backdrop-blur-md text-white/80 hover:text-white flex items-center justify-center border border-white/10 active:scale-95 transition-all shadow-md"
+              title="Đóng Studio"
+            >
+              <i className="bi bi-x-lg text-sm"></i>
+            </button>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/15 text-white text-xs font-bold shadow-lg">
+              <span className="w-2 h-2 rounded-full bg-[#FF2A85] animate-pulse"></span>
+              <span>VIVU Studio</span>
+            </div>
+            <button
+              type="button"
+              disabled={isPublishing}
+              onClick={handlePublishAll}
+              className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white text-xs font-bold shadow-[0_0_15px_rgba(255,42,133,0.5)] active:scale-95 hover:brightness-110 transition-all flex items-center gap-1.5"
+            >
+              {isPublishing ? (
+                <>
+                  <i className="bi bi-arrow-repeat animate-spin text-xs"></i>
+                  <span>Đang lưu...</span>
+                </>
+              ) : (
+                <>
+                  <span>Đăng</span>
+                  <i className="bi bi-check2 text-sm font-bold"></i>
+                </>
+              )}
+            </button>
           </div>
-          <button
-            type="button"
-            disabled={isPublishing}
-            onClick={handlePublishAll}
-            className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white text-xs font-bold shadow-[0_0_15px_rgba(255,42,133,0.5)] active:scale-95 hover:brightness-110 transition-all flex items-center gap-1.5"
-          >
-            {isPublishing ? (
-              <>
-                <i className="bi bi-arrow-repeat animate-spin text-xs"></i>
-                <span>Đang lưu...</span>
-              </>
-            ) : (
-              <>
-                <span>Đăng</span>
-                <i className="bi bi-check2 text-sm font-bold"></i>
-              </>
-            )}
-          </button>
-        </div>
+        )}
 
         {/* NỘI DUNG CHÍNH THEO TAB */}
         <div className="flex-1 w-full h-full relative overflow-hidden">
@@ -298,6 +300,8 @@ export default function UnifiedCreationStudioModal({
                   setIsPlayingMusic(false);
                   setSelectedSong(null);
                 }}
+                onPublish={handlePublishAll}
+                isPublishing={isPublishing}
               />
             )
           )}
@@ -505,50 +509,52 @@ export default function UnifiedCreationStudioModal({
           )}
         </div>
 
-        {/* THANH CHUYỂN CHẾ ĐỘ THỐNG NHẤT Ở ĐÁY (UNIFIED BOTTOM MODE SWITCHER) */}
-        <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black via-black/95 to-transparent pt-3 pb-4 px-4 flex items-center justify-around border-t border-white/10 backdrop-blur-xl">
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              setActiveStudioTab('STORY');
-            }}
-            className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
-              activeStudioTab === 'STORY' ? 'text-[#FF2A85] scale-110 font-bold bg-[#FF2A85]/15' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <i className="bi bi-camera-reels-fill text-lg"></i>
-            <span className="text-[10px]">📸 Story</span>
-          </button>
+        {/* THANH CHUYỂN CHẾ ĐỘ THỐNG NHẤT Ở ĐÁY (Ẩn khi đang chỉnh sửa Story Canvas để toàn màn hình) */}
+        {!(activeStudioTab === 'STORY' && phase === 'EDIT') && (
+          <div className="absolute bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-black via-black/95 to-transparent pt-3 pb-4 px-4 flex items-center justify-around border-t border-white/10 backdrop-blur-xl">
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                setActiveStudioTab('STORY');
+              }}
+              className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
+                activeStudioTab === 'STORY' ? 'text-[#FF2A85] scale-110 font-bold bg-[#FF2A85]/15' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <i className="bi bi-camera-reels-fill text-lg"></i>
+              <span className="text-[10px]">📸 Story</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              setActiveStudioTab('MOOD');
-            }}
-            className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
-              activeStudioTab === 'MOOD' ? 'text-[#00E5FF] scale-110 font-bold bg-[#00E5FF]/15' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <i className="bi bi-chat-heart-fill text-lg"></i>
-            <span className="text-[10px]">✍️ Tâm trạng</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                setActiveStudioTab('MOOD');
+              }}
+              className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
+                activeStudioTab === 'MOOD' ? 'text-[#00E5FF] scale-110 font-bold bg-[#00E5FF]/15' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <i className="bi bi-chat-heart-fill text-lg"></i>
+              <span className="text-[10px]">✍️ Tâm trạng</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              setActiveStudioTab('CHIBI');
-            }}
-            className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
-              activeStudioTab === 'CHIBI' ? 'text-amber-400 scale-110 font-bold bg-amber-400/15' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            <i className="bi bi-emoji-smile-fill text-lg"></i>
-            <span className="text-[10px]">🧸 Mascot</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => {
+                playTactileClickSound();
+                setActiveStudioTab('CHIBI');
+              }}
+              className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
+                activeStudioTab === 'CHIBI' ? 'text-amber-400 scale-110 font-bold bg-amber-400/15' : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <i className="bi bi-emoji-smile-fill text-lg"></i>
+              <span className="text-[10px]">🧸 Mascot</span>
+            </button>
+          </div>
+        )}
 
         {/* Sub-modals text, stickers, filter, music */}
         {isTextEditorOpen && (

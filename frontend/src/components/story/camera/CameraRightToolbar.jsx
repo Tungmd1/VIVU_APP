@@ -49,11 +49,10 @@ export default function CameraRightToolbar({
         title="Boomerang"
       >
         <span className="text-[12px] text-white/95 font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">Boomerang</span>
-        <div className={`w-10 h-10 rounded-full backdrop-blur-md border flex items-center justify-center shadow-lg transition-all ${
-          isDualCam
+        <div className={`w-10 h-10 rounded-full backdrop-blur-md border flex items-center justify-center shadow-lg transition-all ${isDualCam
             ? 'bg-purple-600 text-white border-purple-400 shadow-[0_0_14px_rgba(168,85,247,0.6)]'
             : 'bg-black/45 border-white/20 text-white group-hover:bg-white group-hover:text-black'
-        }`}>
+          }`}>
           <i className="bi bi-infinity text-lg leading-none"></i>
         </div>
       </button>
@@ -87,11 +86,10 @@ export default function CameraRightToolbar({
         <span className="text-[12px] text-white/95 font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)] truncate max-w-[80px]">
           {selectedSong ? selectedSong.title : 'Nhạc'}
         </span>
-        <div className={`w-10 h-10 rounded-full backdrop-blur-md border flex items-center justify-center shadow-lg transition-all ${
-          selectedSong
+        <div className={`w-10 h-10 rounded-full backdrop-blur-md border flex items-center justify-center shadow-lg transition-all ${selectedSong
             ? 'bg-[#FF2A85] text-white border-[#FF2A85] shadow-[0_0_14px_rgba(255,42,133,0.6)] animate-pulse'
             : 'bg-black/45 border-white/20 text-white group-hover:bg-white group-hover:text-black'
-        }`}>
+          }`}>
           <i className="bi bi-music-note-beamed text-base leading-none"></i>
         </div>
       </button>

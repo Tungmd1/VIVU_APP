@@ -53,6 +53,7 @@ export default function UnifiedCreationStudioModal({
   // Mood & Music states
   const [customStatusInput, setCustomStatusInput] = useState('');
   const [selectedSong, setSelectedSong] = useState(null);
+  const [musicStickerStyle, setMusicStickerStyle] = useState('VINYL'); // 'VINYL' | 'ALBUM_CARD' | 'EQUALIZER'
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
   // Chibi states
@@ -185,7 +186,8 @@ export default function UnifiedCreationStudioModal({
         title: selectedSong.title,
         artist: selectedSong.artist,
         audio_url: selectedSong.audioUrl || selectedSong.audio_url,
-        cover_url: selectedSong.coverUrl || selectedSong.cover_url || selectedSong.cover
+        cover_url: selectedSong.coverUrl || selectedSong.cover_url || selectedSong.cover,
+        sticker_style: musicStickerStyle
       } : null,
       tagged_friends: taggedFriends,
       privacy,
@@ -286,6 +288,8 @@ export default function UnifiedCreationStudioModal({
                 texts={texts}
                 stickers={stickers}
                 selectedSong={selectedSong}
+                musicStickerStyle={musicStickerStyle}
+                onChangeMusicStickerStyle={setMusicStickerStyle}
                 isPlayingMusic={isPlayingMusic}
                 onTogglePlaySong={handleTogglePlaySong}
                 onOpenMusicPicker={() => setIsMusicPickerOpen(true)}

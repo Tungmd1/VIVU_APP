@@ -7,6 +7,7 @@ import DualCameraOverlay from './camera/DualCameraOverlay';
 import StoryFullscreenLightbox from './viewer/StoryFullscreenLightbox';
 import StoryDeleteConfirmDialog from './viewer/StoryDeleteConfirmDialog';
 import StoryHeaderBar from './viewer/StoryHeaderBar';
+import StoryMusicStickerDisplay from './viewer/StoryMusicStickerDisplay';
 import { storyAudioPlayer, resolveSongMetadata } from '../../data/trendingSongs';
 import { playTactileClickSound } from './storyAudioEffects';
 import apiClient from '../../services/apiClient';
@@ -323,6 +324,14 @@ export default function StoryViewerModal({
           currentUserId={currentUserId}
           onVotePoll={onVotePoll}
           onReplyQA={onReplyQA}
+        />
+
+        {/* Nhãn Dán Nhạc Sống Động Theo Phong Cách Tác Giả Đã Cài Đặt (Đĩa than / Bìa Album / Sóng âm) */}
+        <StoryMusicStickerDisplay
+          music={resolvedStoryMusic}
+          stickerStyle={actualStory.music?.sticker_style || actualStory.music?.stickerStyle || 'VINYL'}
+          isPlayingMusic={isPlayingMusic}
+          onToggleMusic={handleToggleMusic}
         />
 
         {/* VÙNG ĐIỀU HƯỚNG TRÁI / PHẢI KHI CÓ NHIỀU STORY */}

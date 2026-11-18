@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DualCameraOverlay from '../camera/DualCameraOverlay';
 import { CAMERA_FILTER_PRESETS } from '../camera/CameraViewfinder';
 import { playTactileClickSound } from '../storyAudioEffects';
+import MusicStyleOptionsModal from './MusicStyleOptionsModal';
+import StoryMusicStickerOverlay from './StoryMusicStickerOverlay';
 
 export default function StoryCanvasPreview({
   mode = 'PHOTO', // 'PHOTO' | 'TEXT'
@@ -14,6 +16,8 @@ export default function StoryCanvasPreview({
   texts = [],
   stickers = [],
   selectedSong,
+  musicStickerStyle = 'VINYL', // 'VINYL' | 'ALBUM_CARD' | 'EQUALIZER'
+  onChangeMusicStickerStyle,
   isPlayingMusic,
   onTogglePlaySong,
   onOpenMusicPicker,
@@ -27,7 +31,16 @@ export default function StoryCanvasPreview({
   onPublish,
   isPublishing
 }) {
+  const [isMusicOptionsOpen, setIsMusicOptionsOpen] = useState(false);
   const currentFilterObj = CAMERA_FILTER_PRESETS.find(f => f.id === selectedFilter);
+
+  // Xoay vòng kiểu nhãn dán nhạc khi chạm vào nhãn dán: VINYL -> ALBUM_CARD -> EQUALIZER -> VINYL
+  const cycleNextMusicStyle = () => {
+    if (!onChangeMusicStickerStyle) return;
+    const styles = ['VINYL', 'ALBUM_CARD', 'EQUALIZER'];
+    const nextIdx = (styles.indexOf(musicStickerStyle) + 1) % styles.length;
+    onChangeMusicStickerStyle(styles[nextIdx]);
+  };
 
   // Tính toán chuỗi CSS filter kết hợp preset + slider adjustments
   const computedFilterCss = [
@@ -190,19 +203,23 @@ export default function StoryCanvasPreview({
         <div className="flex items-center gap-2">
           {/* Cụm công cụ: Nhạc (đầu tiên), Aa, Sticker, Filter */}
           <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/15 shadow-lg">
-            {/* 1. Chọn Nhạc Apple Music */}
+            {/* 1. Chọn Nhạc Apple Music & Mở Tùy Chọn Nhãn Dán */}
             <button
               type="button"
               onClick={() => {
                 playTactileClickSound();
-                if (onOpenMusicPicker) onOpenMusicPicker();
+                if (selectedSong) {
+                  setIsMusicOptionsOpen(true);
+                } else if (onOpenMusicPicker) {
+                  onOpenMusicPicker();
+                }
               }}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                 selectedSong
                   ? 'bg-gradient-to-tr from-[#FF2A85] to-[#7928CA] text-white shadow-[0_0_12px_rgba(255,42,133,0.8)] animate-pulse'
                   : 'text-white/90 hover:text-white hover:bg-white/15 active:scale-95'
               }`}
-              title={selectedSong ? `Bài hát: ${selectedSong.title}` : "Chọn nhạc nền"}
+              title={selectedSong ? `Tùy chọn nhạc: ${selectedSong.title}` : "Chọn nhạc nền"}
             >
               <i className="bi bi-music-note-beamed text-sm"></i>
             </button>
@@ -272,70 +289,37 @@ export default function StoryCanvasPreview({
         </div>
       </div>
 
-      {/* Widget hiển thị bài hát đang phát nếu có HOẶC prompt thêm nhạc nếu chưa có */}
-      {selectedSong ? (
-        <div className="relative z-30 mx-4 mb-6 pointer-events-auto self-center">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 backdrop-blur-md border border-white/20 text-white text-xs shadow-xl">
-            <div
-              onClick={onTogglePlaySong}
-              className="flex items-center gap-2 cursor-pointer active:scale-95 transition-all"
-              title="Phát / Tạm dừng"
-            >
-              <div className={`w-6 h-6 rounded-full bg-gradient-to-tr from-[#FF2A85] to-[#00E5FF] flex items-center justify-center text-white text-xs shadow-md ${isPlayingMusic ? 'animate-spin' : ''}`}>
-                <i className={`bi ${isPlayingMusic ? 'bi-disc' : 'bi-play-fill'}`}></i>
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="font-bold truncate max-w-[130px] leading-tight">{selectedSong.title}</span>
-                <span className="text-white/50 text-[10px] truncate max-w-[100px] leading-tight">{selectedSong.artist}</span>
-              </div>
-            </div>
+      {/* KHU VỰC NHÃN DÁN NHẠC & THANH CHUYỂN NHANH 3 PHONG CÁCH */}
+      <StoryMusicStickerOverlay
+        selectedSong={selectedSong}
+        musicStickerStyle={musicStickerStyle}
+        onChangeMusicStickerStyle={onChangeMusicStickerStyle}
+        isPlayingMusic={isPlayingMusic}
+        onTogglePlaySong={onTogglePlaySong}
+        onOpenMusicOptions={() => setIsMusicOptionsOpen(true)}
+        onOpenMusicPicker={onOpenMusicPicker}
+      />
 
-            <button
-              type="button"
-              onClick={() => {
-                playTactileClickSound();
-                if (onOpenMusicPicker) onOpenMusicPicker();
-              }}
-              className="px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-[10px] text-cyan-300 font-semibold transition-colors cursor-pointer"
-              title="Đổi bài hát khác"
-            >
-              Đổi
-            </button>
-
-            {onRemoveSong && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveSong();
-                }}
-                className="w-5 h-5 ml-0.5 rounded-full bg-white/20 hover:bg-rose-600 text-white flex items-center justify-center text-[10px] cursor-pointer transition-colors"
-                title="Gỡ bỏ bài hát"
-              >
-                <i className="bi bi-x-lg"></i>
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* Floating Prompt thêm nhạc khi chưa chọn bài nào */
-        <div className="relative z-30 mx-4 mb-6 pointer-events-auto self-center">
-          <button
-            type="button"
-            onClick={() => {
-              playTactileClickSound();
-              if (onOpenMusicPicker) onOpenMusicPicker();
-            }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/65 hover:bg-black/85 backdrop-blur-md border border-white/20 hover:border-[#FF2A85]/60 text-white text-xs shadow-xl transition-all active:scale-95 group cursor-pointer"
-            title="Thêm nhạc nền vào Story"
-          >
-            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#FF2A85] to-[#7928CA] flex items-center justify-center text-white text-[10px] group-hover:scale-110 transition-transform shadow-[0_0_10px_rgba(255,42,133,0.5)]">
-              <i className="bi bi-music-note-beamed"></i>
-            </div>
-            <span className="font-semibold text-white/90 group-hover:text-white">Thêm nhạc nền</span>
-            <i className="bi bi-plus text-xs text-white/60 group-hover:text-white"></i>
-          </button>
-        </div>
+      {/* MODAL TÙY CHỌN PHONG CÁCH NHÃN DÁN NHẠC CHI TIẾT */}
+      {isMusicOptionsOpen && (
+        <MusicStyleOptionsModal
+          isOpen={isMusicOptionsOpen}
+          onClose={() => setIsMusicOptionsOpen(false)}
+          selectedSong={selectedSong}
+          currentStyle={musicStickerStyle}
+          onSelectStyle={(style) => {
+            if (onChangeMusicStickerStyle) onChangeMusicStickerStyle(style);
+          }}
+          onOpenMusicPicker={() => {
+            setIsMusicOptionsOpen(false);
+            if (onOpenMusicPicker) onOpenMusicPicker();
+          }}
+          onRemoveSong={() => {
+            if (onRemoveSong) onRemoveSong();
+          }}
+          isPlayingMusic={isPlayingMusic}
+          onTogglePlayMusic={onTogglePlaySong}
+        />
       )}
     </div>
   );

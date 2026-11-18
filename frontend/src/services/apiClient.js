@@ -750,6 +750,130 @@ export const apiClient = {
       console.warn('[API Client] deleteNotification fallback:', err.message);
     }
     return false;
+  },
+
+  // ==========================================
+  // TẢI LÊN TỆP ĐA PHƯƠNG TIỆN (MEDIA UPLOAD)
+  // ==========================================
+  uploadMedia(file, category = 'chat', onProgress = null) {
+    return new Promise((resolve, reject) => {
+      try {
+        const xhr = new XMLHttpRequest();
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', category);
+
+        xhr.open('POST', `${API_BASE_URL}/upload/media?category=${encodeURIComponent(category)}`);
+
+        if (xhr.upload && typeof onProgress === 'function') {
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percent = Math.round((event.loaded / event.total) * 100);
+              onProgress(percent);
+            }
+          };
+        }
+
+        xhr.onload = () => {
+          try {
+            const res = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300 && res.success) {
+              resolve(res);
+            } else {
+              reject(new Error(res.message || `Lỗi tải lên (${xhr.status})`));
+            }
+          } catch (e) {
+            reject(new Error('Phản hồi từ máy chủ không hợp lệ'));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error('Mất kết nối mạng khi tải tệp lên. Vui lòng thử lại.'));
+        };
+
+        xhr.ontimeout = () => {
+          reject(new Error('Hết thời gian chờ khi tải tệp. Vui lòng thử lại.'));
+        };
+
+        xhr.timeout = 60000; // 60s timeout
+        xhr.send(formData);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  },
+
+  // ==========================================
+  // QUẢN LÝ TIN NỔI BẬT TRÊN HỒ SƠ (STORY HIGHLIGHTS)
+  // ==========================================
+  async getHighlights(userId) {
+    if (!userId) return [];
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(userId)}/highlights`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) return json.data;
+    } catch (err) {
+      console.warn('[API Client] getHighlights error:', err.message);
+    }
+    return [];
+  },
+
+  async createHighlight(userId, highlightData) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(userId)}/highlights`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(highlightData)
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+      throw new Error(json.message || 'Không thể tạo tin nổi bật');
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  async updateHighlight(userId, highlightId, updateData) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(userId)}/highlights/${encodeURIComponent(highlightId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+      throw new Error(json.message || 'Không thể cập nhật tin nổi bật');
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  async deleteHighlight(userId, highlightId) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(userId)}/highlights/${encodeURIComponent(highlightId)}`, {
+        method: 'DELETE'
+      });
+      const json = await res.json();
+      return json.success;
+    } catch (err) {
+      console.warn('[API Client] deleteHighlight error:', err.message);
+      return false;
+    }
+  },
+
+  async pinStoryToHighlight(userId, highlightId, storyData) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(userId)}/highlights/pin-story`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ highlightId, storyData })
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+      throw new Error(json.message || 'Không thể ghim tin nổi bật');
+    } catch (err) {
+      throw err;
+    }
   }
 };
 

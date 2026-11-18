@@ -8,6 +8,7 @@ import MessengerRoomHeader from './MessengerRoomHeader';
 import LiveLocationModal from './LiveLocationModal';
 import LiveLocationCard from './LiveLocationCard';
 import ChatPollCard from './ChatPollCard';
+import MediaPreviewModal from './MediaPreviewModal';
 import apiClient from '../../services/apiClient';
 
 /**
@@ -46,27 +47,39 @@ export default function MessengerActiveRoom({
   const chatFileInputRef = useRef(null);
   const chatVideoInputRef = useRef(null);
   const [isLiveLocationModalOpen, setIsLiveLocationModalOpen] = useState(false);
+  const [previewMediaFile, setPreviewMediaFile] = useState(null);
+  const [previewMediaType, setPreviewMediaType] = useState('image');
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [selectedLightboxMedia, setSelectedLightboxMedia] = useState(null);
 
   // Tính cấp Chuỗi Thân Thiết (Streak): Cứ mỗi 3 tin nhắn tăng 1 cấp chuỗi
   const currentMessageCount = messages.length || 0;
   const streakLevel = Math.max(1, Math.floor(currentMessageCount / 3));
   const hasStreak = currentMessageCount >= 3;
 
-  // Gửi ảnh & video
-  const handleMediaSend = (e, type) => {
+  // Chọn ảnh & video -> Mở Modal xem trước toàn màn hình
+  const handleMediaSelected = (e, type) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      onSendMessage({
-        conversationId: activeConversationId,
-        [type]: reader.result,
-        text: ''
-      });
-      setIsToolsDrawerOpen(false);
-    };
-    reader.readAsDataURL(file);
+    setPreviewMediaFile(file);
+    setPreviewMediaType(type);
+    setIsPreviewModalOpen(true);
+    setIsToolsDrawerOpen(false);
     e.target.value = '';
+  };
+
+  // Thực hiện tải lên máy chủ và gửi tin nhắn
+  const handleExecuteSendMedia = async ({ file, caption, type, onProgress }) => {
+    const uploadRes = await apiClient.uploadMedia(file, 'chat', onProgress);
+    if (!uploadRes || !uploadRes.url) {
+      throw new Error('Không nhận được đường dẫn tệp sau khi tải lên.');
+    }
+
+    onSendMessage({
+      conversationId: activeConversationId,
+      [type]: uploadRes.url,
+      text: caption || ''
+    });
   };
 
   // Gửi vị trí GPS tĩnh
@@ -163,13 +176,24 @@ export default function MessengerActiveRoom({
                       </div>
                     ) : msg.video ? (
                       /* Tin nhắn Video */
-                      <div className="rounded-2xl overflow-hidden border border-white/15 max-w-[240px] bg-black shadow-sm">
-                        <video src={msg.video} controls className="w-full max-h-56 object-cover rounded-2xl" />
+                      <div className="rounded-2xl overflow-hidden border border-white/15 max-w-[260px] bg-black shadow-md">
+                        <video src={msg.video} controls playsInline className="w-full max-h-60 object-cover rounded-2xl" />
+                        {msg.text && (
+                          <p className="p-2.5 text-xs text-white/90 leading-relaxed break-words bg-black/60 border-t border-white/10">{msg.text}</p>
+                        )}
                       </div>
                     ) : (msg.image) ? (
                       /* Tin nhắn Ảnh */
-                      <div className="rounded-2xl overflow-hidden border border-white/15 max-w-[220px] shadow-sm">
-                        <img src={msg.image} alt="Đính kèm" className="w-full max-h-56 object-cover rounded-2xl" />
+                      <div className="rounded-2xl overflow-hidden border border-white/15 max-w-[240px] bg-black/40 shadow-md">
+                        <img 
+                          src={msg.image} 
+                          alt="Đính kèm" 
+                          className="w-full max-h-60 object-cover rounded-2xl cursor-pointer hover:opacity-90 active:scale-[0.99] transition-all" 
+                          onClick={() => setSelectedLightboxMedia({ type: 'image', url: msg.image })}
+                        />
+                        {msg.text && (
+                          <p className="p-2.5 text-xs text-white/90 leading-relaxed break-words bg-black/60 border-t border-white/10">{msg.text}</p>
+                        )}
                       </div>
                     ) : (msg.type === 'troll' || msg.isTroll) ? (
                       /* Thẻ Tin Nhắn Troll Đặc Bản */
@@ -309,14 +333,14 @@ export default function MessengerActiveRoom({
             <input 
               type="file" 
               ref={chatFileInputRef}
-              onChange={(e) => handleMediaSend(e, 'image')}
+              onChange={(e) => handleMediaSelected(e, 'image')}
               accept="image/*"
               className="hidden"
             />
             <input 
               type="file" 
               ref={chatVideoInputRef}
-              onChange={(e) => handleMediaSend(e, 'video')}
+              onChange={(e) => handleMediaSelected(e, 'video')}
               accept="video/*"
               className="hidden"
             />
@@ -383,6 +407,49 @@ export default function MessengerActiveRoom({
         partnerName={activeConversation?.name || 'bạn bè'}
         onConfirmStart={handleStartLiveLocation}
       />
+
+      {/* Modal Xem Trước Toàn Màn Hình Khi Gửi Ảnh/Video */}
+      <MediaPreviewModal
+        isOpen={isPreviewModalOpen}
+        file={previewMediaFile}
+        mediaType={previewMediaType}
+        onClose={() => {
+          setIsPreviewModalOpen(false);
+          setPreviewMediaFile(null);
+        }}
+        onSendMedia={handleExecuteSendMedia}
+      />
+
+      {/* Lightbox Xem Ảnh/Video Toàn Màn Hình Từ Tin Nhắn */}
+      {selectedLightboxMedia && (
+        <div 
+          onClick={() => setSelectedLightboxMedia(null)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-fadeIn"
+        >
+          <button 
+            onClick={() => setSelectedLightboxMedia(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center text-lg z-10 transition-all"
+          >
+            <i className="bi bi-x-lg" />
+          </button>
+          {selectedLightboxMedia.type === 'video' ? (
+            <video 
+              src={selectedLightboxMedia.url} 
+              controls 
+              autoPlay 
+              className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl" 
+              onClick={(e) => e.stopPropagation()} 
+            />
+          ) : (
+            <img 
+              src={selectedLightboxMedia.url} 
+              alt="Phóng to" 
+              className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl" 
+              onClick={(e) => e.stopPropagation()} 
+            />
+          )}
+        </div>
+      )}
     </main>
   );
 }

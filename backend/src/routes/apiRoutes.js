@@ -6,6 +6,8 @@ import gpsRoutes from './gpsRoutes.js';
 import friendRoutes from './friendRoutes.js';
 import authRoutes from './authRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
+import uploadRoutes from './uploadRoutes.js';
+import profileRoutes from './profileRoutes.js';
 import { dbService } from '../services/dbService.js';
 
 const router = Router();
@@ -60,5 +62,7 @@ router.use('/circles', circleRoutes);
 router.use('/gps', gpsRoutes);
 router.use('/friends', friendRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/upload', uploadRoutes);
+router.use('/profile', profileRoutes);
 
 export default router;

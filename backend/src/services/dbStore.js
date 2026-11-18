@@ -17,7 +17,8 @@ const INITIAL_DB = {
   circles: [],
   friendRequests: [],
   friendships: [],
-  notifications: []
+  notifications: [],
+  highlights: []
 };
 
 class DatabaseStore {
@@ -66,7 +67,8 @@ class DatabaseStore {
           circles: Array.isArray(parsed.circles) ? parsed.circles : [],
           friendRequests: Array.isArray(parsed.friendRequests) ? parsed.friendRequests : [],
           friendships: Array.isArray(parsed.friendships) ? parsed.friendships : [],
-          notifications: Array.isArray(parsed.notifications) ? parsed.notifications : []
+          notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
+          highlights: Array.isArray(parsed.highlights) ? parsed.highlights : []
         };
         this.isLoaded = true;
         this.sanitize();

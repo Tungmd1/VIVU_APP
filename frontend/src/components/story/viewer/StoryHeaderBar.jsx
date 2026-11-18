@@ -17,6 +17,7 @@ export default function StoryHeaderBar({
   onToggleMusic,
   isOwner,
   onOpenDeleteConfirm,
+  onOpenPinHighlight,
   mainImageSrc,
   onOpenFullscreen,
   onClose,
@@ -96,6 +97,22 @@ export default function StoryHeaderBar({
               title="Xóa Story này"
             >
               <i className="bi bi-trash3 text-xs"></i>
+            </button>
+          )}
+
+          {/* NÚT GHIM LÊN TIN NỔI BẬT (Chỉ hiển thị cho chủ sở hữu bài đăng) */}
+          {isOwner && onOpenPinHighlight && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                playTactileClickSound();
+                onOpenPinHighlight();
+              }}
+              className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#10FFA0]/20 to-[#00E5FF]/20 hover:from-[#10FFA0]/40 hover:to-[#00E5FF]/40 border border-[#10FFA0]/40 text-[#10FFA0] flex items-center justify-center transition-all cursor-pointer shadow-md"
+              title="Ghim lên Tin Nổi Bật hồ sơ"
+            >
+              <i className="bi bi-star-fill text-xs" />
             </button>
           )}
 

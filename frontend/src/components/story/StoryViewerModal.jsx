@@ -9,6 +9,7 @@ import StoryDeleteConfirmDialog from './viewer/StoryDeleteConfirmDialog';
 import StoryHeaderBar from './viewer/StoryHeaderBar';
 import { storyAudioPlayer, resolveSongMetadata } from '../../data/trendingSongs';
 import { playTactileClickSound } from './storyAudioEffects';
+import apiClient from '../../services/apiClient';
 
 function formatRemainingTime(expiresAt) {
   if (!expiresAt) return 'Còn 24h';
@@ -52,6 +53,12 @@ export default function StoryViewerModal({
   const [replyText, setReplyText] = useState('');
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [dualSwapped, setDualSwapped] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [existingHighlights, setExistingHighlights] = useState([]);
+  const [selectedHighlightId, setSelectedHighlightId] = useState('new');
+  const [newHighlightTitle, setNewHighlightTitle] = useState('');
+  const [isPinning, setIsPinning] = useState(false);
+  const [pinToast, setPinToast] = useState('');
 
   // Đồng bộ khi storyList thay đổi từ props ngoài
   useEffect(() => {
@@ -170,6 +177,53 @@ export default function StoryViewerModal({
       console.warn('[Delete Story Error]:', err);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Mở modal Ghim lên Tin Nổi Bật
+  const handleOpenPinHighlight = async () => {
+    setShowPinModal(true);
+    setNewHighlightTitle(actualStory?.title || 'Tin nổi bật');
+    if (currentUserId) {
+      try {
+        const hls = await apiClient.getHighlights(currentUserId);
+        if (Array.isArray(hls)) {
+          setExistingHighlights(hls);
+          if (hls.length > 0) {
+            setSelectedHighlightId(hls[0].id);
+          } else {
+            setSelectedHighlightId('new');
+          }
+        }
+      } catch (e) {
+        console.warn('Lỗi đọc highlights:', e);
+      }
+    }
+  };
+
+  // Xác nhận thực hiện ghim story vào highlight
+  const handleExecutePin = async () => {
+    if (!currentUserId || isPinning) return;
+    setIsPinning(true);
+    try {
+      await apiClient.pinStoryToHighlight(currentUserId, selectedHighlightId, {
+        id: actualStory.id,
+        title: actualStory.title || 'Khoảnh khắc',
+        image: mainImageSrc || actualStory.image,
+        video: actualStory.video,
+        groupTitle: newHighlightTitle.trim() || 'Tin nổi bật',
+        created_at: actualStory.created_at || new Date().toISOString()
+      });
+      playTactileClickSound();
+      setPinToast('Đã ghim Story lên Tin nổi bật!');
+      setTimeout(() => {
+        setPinToast('');
+        setShowPinModal(false);
+      }, 1200);
+    } catch (err) {
+      alert(err.message || 'Lỗi khi ghim story lên tin nổi bật');
+    } finally {
+      setIsPinning(false);
     }
   };
 
@@ -307,6 +361,7 @@ export default function StoryViewerModal({
           onToggleMusic={handleToggleMusic}
           isOwner={isOwner}
           onOpenDeleteConfirm={() => setShowDeleteConfirm(true)}
+          onOpenPinHighlight={handleOpenPinHighlight}
           mainImageSrc={mainImageSrc}
           onOpenFullscreen={() => setIsFullscreenLightbox(true)}
           onClose={onClose}
@@ -368,6 +423,142 @@ export default function StoryViewerModal({
           filterCss={actualStory.filter_css}
           onClose={() => setIsFullscreenLightbox(false)}
         />
+      )}
+
+      {/* MODAL GHIM STORY LÊN TIN NỔI BẬT */}
+      {showPinModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => !isPinning && setShowPinModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-[#1A1A1E] border border-white/20 p-5 shadow-2xl space-y-4 animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <i className="bi bi-star-fill text-[#10FFA0] text-base" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Ghim Lên Tin Nổi Bật</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs cursor-pointer"
+              >
+                <i className="bi bi-x-lg" />
+              </button>
+            </div>
+
+            {/* Thumbnail Story đang xem */}
+            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/5 border border-white/10">
+              <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-white/15 bg-black">
+                {actualStory.video ? (
+                  <video src={actualStory.video} className="w-full h-full object-cover" />
+                ) : (
+                  <img src={mainImageSrc || actualStory.image} alt="" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-white truncate">{actualStory.title || 'Khoảnh khắc'}</p>
+                <p className="text-[11px] text-[#10FFA0] font-medium">Sẵn sàng ghim lên hồ sơ</p>
+              </div>
+            </div>
+
+            {/* Danh sách lựa chọn nhóm */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-white/80 block">
+                Chọn nhóm nổi bật:
+              </label>
+
+              <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
+                {/* Lựa chọn tạo nhóm mới */}
+                <div
+                  onClick={() => setSelectedHighlightId('new')}
+                  className={`p-2.5 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all ${
+                    selectedHighlightId === 'new'
+                      ? 'bg-[#10FFA0]/10 border-[#10FFA0] text-[#10FFA0]'
+                      : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs">
+                    <i className="bi bi-plus-lg" />
+                  </div>
+                  <span className="text-xs font-bold flex-1">+ Tạo nhóm mới</span>
+                  {selectedHighlightId === 'new' && <i className="bi bi-check-circle-fill text-sm" />}
+                </div>
+
+                {/* Các nhóm hiện có */}
+                {existingHighlights.map((hl) => (
+                  <div
+                    key={hl.id}
+                    onClick={() => setSelectedHighlightId(hl.id)}
+                    className={`p-2.5 rounded-xl border flex items-center gap-2.5 cursor-pointer transition-all ${
+                      selectedHighlightId === hl.id
+                        ? 'bg-[#10FFA0]/10 border-[#10FFA0] text-[#10FFA0]'
+                        : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-full overflow-hidden border border-white/15 bg-black shrink-0">
+                      <img src={hl.cover_image || hl.coverImage} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <span className="text-xs font-semibold flex-1 truncate">{hl.title}</span>
+                    <span className="text-[10px] text-white/50">{hl.stories?.length || 0} mục</span>
+                    {selectedHighlightId === hl.id && <i className="bi bi-check-circle-fill text-sm ml-1" />}
+                  </div>
+                ))}
+              </div>
+
+              {/* Nếu chọn tạo nhóm mới -> Hiện ô nhập tên */}
+              {selectedHighlightId === 'new' && (
+                <div className="pt-1">
+                  <label className="text-[11px] text-white/70 block mb-1">Tên nhóm mới:</label>
+                  <input
+                    type="text"
+                    value={newHighlightTitle}
+                    onChange={(e) => setNewHighlightTitle(e.target.value)}
+                    placeholder="Ví dụ: Kỷ niệm, Du lịch..."
+                    maxLength={25}
+                    className="w-full py-2 px-3 rounded-xl bg-[#151619] border border-white/15 text-white text-xs outline-none focus:border-[#10FFA0]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Nút hành động */}
+            <div className="flex items-center gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                className="flex-1 py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={isPinning || (selectedHighlightId === 'new' && !newHighlightTitle.trim())}
+                onClick={handleExecutePin}
+                className="flex-1 py-2 px-3 rounded-xl bg-[#10FFA0] hover:bg-[#00E5FF] disabled:opacity-40 text-black text-xs font-bold shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {isPinning ? (
+                  <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <i className="bi bi-pin-angle-fill" />
+                    <span>Ghim Lên Hồ Sơ</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST THÔNG BÁO GHIM THÀNH CÔNG */}
+      {pinToast && (
+        <div className="fixed top-12 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-2xl bg-[#10FFA0] text-black font-bold text-xs shadow-2xl animate-bounce flex items-center gap-2">
+          <i className="bi bi-check-circle-fill text-sm" />
+          <span>{pinToast}</span>
+        </div>
       )}
     </div>
   );

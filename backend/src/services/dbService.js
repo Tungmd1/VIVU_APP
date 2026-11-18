@@ -1977,6 +1977,152 @@ export const dbService = {
     }
     dbStore.persist();
     return { id: circleId, deleted: true };
+  },
+
+  // ==========================================
+  // QUẢN LÝ TIN NỔI BẬT TRÊN HỒ SƠ (STORY HIGHLIGHTS)
+  // ==========================================
+  async getUserHighlights(userId) {
+    if (!userId) return [];
+    if (!Array.isArray(dbStore.data.highlights)) {
+      dbStore.data.highlights = [];
+    }
+    return dbStore.data.highlights
+      .filter(h => h.user_id === userId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  },
+
+  async createHighlight(userId, highlightData = {}) {
+    if (!userId) throw new Error('userId là bắt buộc');
+    if (!highlightData.title || !highlightData.title.trim()) {
+      throw new Error('Tiêu đề tin nổi bật không được để trống');
+    }
+    if (!Array.isArray(dbStore.data.highlights)) {
+      dbStore.data.highlights = [];
+    }
+
+    const stories = Array.isArray(highlightData.stories) ? highlightData.stories : [];
+    const coverImage = highlightData.cover_image || highlightData.coverImage || (stories[0]?.image || '');
+
+    const newHighlight = {
+      id: highlightData.id || `hl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      user_id: userId,
+      title: highlightData.title.trim(),
+      cover_image: coverImage,
+      stories: stories.map((s, idx) => ({
+        id: s.id || `hl-item-${Date.now()}-${idx}`,
+        title: s.title || highlightData.title.trim(),
+        image: s.image || s.url || '',
+        video: s.video || null,
+        created_at: s.created_at || new Date().toISOString()
+      })),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    dbStore.data.highlights.unshift(newHighlight);
+    dbStore.persist();
+    return newHighlight;
+  },
+
+  async updateHighlight(userId, highlightId, updateData = {}) {
+    if (!userId || !highlightId) throw new Error('userId và highlightId là bắt buộc');
+    if (!Array.isArray(dbStore.data.highlights)) {
+      dbStore.data.highlights = [];
+    }
+    const idx = dbStore.data.highlights.findIndex(h => h.id === highlightId);
+    if (idx < 0) throw new Error('Không tìm thấy nhóm tin nổi bật');
+    const existing = dbStore.data.highlights[idx];
+    if (existing.user_id !== userId) {
+      const err = new Error('Bạn không có quyền chỉnh sửa tin nổi bật này');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (updateData.title && updateData.title.trim()) {
+      existing.title = updateData.title.trim();
+    }
+    if (updateData.cover_image || updateData.coverImage) {
+      existing.cover_image = updateData.cover_image || updateData.coverImage;
+    }
+    if (Array.isArray(updateData.stories)) {
+      existing.stories = updateData.stories;
+    }
+    existing.updated_at = new Date().toISOString();
+
+    dbStore.persist();
+    return existing;
+  },
+
+  async deleteHighlight(userId, highlightId) {
+    if (!userId || !highlightId) throw new Error('userId và highlightId là bắt buộc');
+    if (!Array.isArray(dbStore.data.highlights)) {
+      dbStore.data.highlights = [];
+    }
+    const item = dbStore.data.highlights.find(h => h.id === highlightId);
+    if (!item) return { id: highlightId, deleted: true };
+    if (item.user_id !== userId) {
+      const err = new Error('Bạn không có quyền xóa tin nổi bật này');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    dbStore.data.highlights = dbStore.data.highlights.filter(h => h.id !== highlightId);
+    dbStore.persist();
+    return { id: highlightId, deleted: true };
+  },
+
+  async pinStoryToHighlight(userId, highlightId, storyData) {
+    if (!userId || !storyData) throw new Error('userId và storyData là bắt buộc');
+    if (!Array.isArray(dbStore.data.highlights)) {
+      dbStore.data.highlights = [];
+    }
+
+    const storyItem = {
+      id: storyData.id || `hl-story-${Date.now()}`,
+      title: storyData.title || 'Khoảnh khắc',
+      image: storyData.image || storyData.url || '',
+      video: storyData.video || null,
+      created_at: storyData.created_at || new Date().toISOString()
+    };
+
+    // Nếu chọn tạo nhóm mới ngay tại chỗ
+    if (!highlightId || highlightId === 'new') {
+      const newGroup = {
+        id: `hl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        user_id: userId,
+        title: storyData.groupTitle || storyData.title || 'Tin nổi bật',
+        cover_image: storyItem.image || storyItem.video || '',
+        stories: [storyItem],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      dbStore.data.highlights.unshift(newGroup);
+      dbStore.persist();
+      return newGroup;
+    }
+
+    // Nếu ghim vào nhóm đã có
+    const target = dbStore.data.highlights.find(h => h.id === highlightId);
+    if (!target) throw new Error('Không tìm thấy nhóm tin nổi bật chỉ định');
+    if (target.user_id !== userId) {
+      const err = new Error('Bạn không có quyền ghim vào nhóm tin nổi bật này');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (!Array.isArray(target.stories)) target.stories = [];
+    // Kiểm tra chống trùng lặp story trong nhóm
+    const exists = target.stories.some(s => s.id === storyItem.id || (s.image && s.image === storyItem.image));
+    if (!exists) {
+      target.stories.push(storyItem);
+      if (!target.cover_image) {
+        target.cover_image = storyItem.image;
+      }
+      target.updated_at = new Date().toISOString();
+      dbStore.persist();
+    }
+    return target;
   }
 };
 

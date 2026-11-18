@@ -2,11 +2,21 @@ import express from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import apiRoutes from './routes/apiRoutes.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { initSocketIO } from './services/socketService.js';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.resolve(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+if (!fs.existsSync(path.join(uploadsDir, 'chat'))) fs.mkdirSync(path.join(uploadsDir, 'chat'), { recursive: true });
+if (!fs.existsSync(path.join(uploadsDir, 'highlights'))) fs.mkdirSync(path.join(uploadsDir, 'highlights'), { recursive: true });
 
 const app = express();
 const httpServer = createServer(app);
@@ -15,6 +25,9 @@ const PORT = process.env.PORT || 5000;
 // Khởi tạo Socket.IO trên httpServer
 const io = initSocketIO(httpServer);
 app.set('io', io);
+
+// Phục vụ tệp tĩnh uploads (Ảnh / Video Chat & Highlights tối ưu cho VPS)
+app.use('/uploads', express.static(uploadsDir));
 
 // CORS setup
 const corsOrigin = process.env.CORS_ORIGIN || '*';

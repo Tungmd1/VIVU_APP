@@ -67,8 +67,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 1. Proxy /api and /socket.io to backend
-  if (req.url.startsWith('/api') || req.url.startsWith('/socket.io')) {
+  // 1. Proxy /api, /socket.io and /uploads to backend
+  if (req.url.startsWith('/api') || req.url.startsWith('/socket.io') || req.url.startsWith('/uploads')) {
     const proxyReq = http.request({
       hostname: '127.0.0.1',
       port: BACKEND_PORT,

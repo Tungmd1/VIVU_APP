@@ -948,10 +948,12 @@ export default function App() {
     const handleUserOffline = ({ userId }) => {
       console.log(`[Socket.IO Client] [OFFLINE] Đối phương đã thoát: ${userId}`);
       setNearbyOnlinePeers(prev => prev.filter(p => p.id !== userId));
-      // Ở tab Xã Hội: Xóa giọt nước và story của người này khi họ offline
+      // Ở tab Xã Hội: Xóa giọt nước và story live của người này khi họ offline
       setStories(prev => prev.filter(s => s.id !== `live-peer-${userId}` && s.hostId !== userId));
-      // Ở tab Bạn Bè: Vẫn giữ bạn bè nhưng đánh dấu isOnline: false (Chế độ ẩn)
-      setFriends(prev => prev.map(f => f.id === userId ? { ...f, isOnline: false } : f));
+      // Ở tab Bạn Bè: Đánh dấu triệt để tất cả cờ isOnline, is_online, online = false
+      setFriends(prev => prev.map(f => f.id === userId ? { ...f, isOnline: false, is_online: false, online: false } : f));
+      // Cập nhật cả danh sách tin nhắn hội thoại
+      setConversations(prev => prev.map(c => c.friendId === userId ? { ...c, online: false, isOnline: false, is_online: false } : c));
     };
 
     // 2. Tọa độ GPS peer cập nhật realtime
@@ -4393,6 +4395,9 @@ export default function App() {
         onClose={() => setIsAccountSwitcherOpen(false)}
         currentUser={user}
         onSwitchAccount={async (acc) => {
+          if (currentUserId) {
+            try { await apiClient.setOffline(currentUserId); } catch (_) {}
+          }
           if (acc?.email) {
             await login(acc.email, acc.password || 'vivu123');
           }

@@ -950,15 +950,19 @@ export const dbService = {
 
   async setUserOffline(userId) {
     if (!userId) return null;
+    const now10mAgo = new Date(Date.now() - 600000).toISOString();
     const profile = inMemoryStore.profiles.find(p => p.id === userId);
     if (profile) {
       profile.is_online = false;
-      // Đặt thời gian lùi về 10 phút trước để đảm bảo getProfiles trả về offline
-      profile.last_seen_at = new Date(Date.now() - 600000).toISOString();
-      dbStore.persist();
-      return profile;
+      profile.last_seen_at = now10mAgo;
     }
-    return null;
+    const user = inMemoryStore.users.find(u => u.id === userId);
+    if (user) {
+      user.is_online = false;
+      user.last_seen_at = now10mAgo;
+    }
+    dbStore.persist();
+    return profile || user || null;
   },
 
   generateUserCode(userId) {
@@ -1197,6 +1201,7 @@ export const dbService = {
       const p = inMemoryStore.profiles.find(prof => prof.id === fId) || {};
       const combined = { ...u, ...p };
       const ageMs = combined.last_seen_at ? Date.now() - new Date(combined.last_seen_at).getTime() : Infinity;
+      const isOnline = p.is_online !== false && ageMs < 15000;
       return {
         id: fId,
         name: combined.full_name || combined.name || 'Người dùng VIVU',
@@ -1207,7 +1212,8 @@ export const dbService = {
         custom_status: combined.custom_status || 'Đang hoạt động',
         lat: combined.lat,
         lng: combined.lng,
-        isOnline: ageMs < 120000,
+        isOnline: isOnline,
+        is_online: isOnline,
         battery: combined.battery || '95%'
       };
     });
@@ -1364,7 +1370,7 @@ export const dbService = {
         const isStranger = !isFriend && !hasReplied;
 
         const ageMs = combinedPartner.last_seen_at ? Date.now() - new Date(combinedPartner.last_seen_at).getTime() : Infinity;
-        const isOnline = combinedPartner.is_online !== false && ageMs < 120000;
+        const isOnline = partnerProfile.is_online !== false && ageMs < 15000;
 
         conversations.push({
           id: convId,
@@ -1374,6 +1380,8 @@ export const dbService = {
           avatar: combinedPartner.avatar_url || combinedPartner.avatar || null,
           user_code: combinedPartner.user_code || this.generateUserCode(partnerId),
           online: isOnline,
+          isOnline: isOnline,
+          is_online: isOnline,
           isStranger,
           isFriend,
           hasReplied,

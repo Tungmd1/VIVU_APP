@@ -20,8 +20,8 @@ export function initSocketIO(httpServer) {
       methods: ['GET', 'POST']
     },
     transports: ['websocket', 'polling'],
-    pingInterval: 10000,
-    pingTimeout: 20000
+    pingInterval: 4000,
+    pingTimeout: 6000
   });
 
   ioInstance = io;
@@ -38,6 +38,17 @@ export function initSocketIO(httpServer) {
       userSockets.set(userId, new Set());
     }
     userSockets.get(userId).add(socket.id);
+
+    // Đồng bộ trạng thái trực tuyến ngay khi có kết nối WebSocket
+    const pIdx = dbStore.profiles.findIndex(p => p.id === userId);
+    if (pIdx >= 0) {
+      dbStore.profiles[pIdx].is_online = true;
+      dbStore.profiles[pIdx].last_seen_at = new Date().toISOString();
+    }
+    const uIdx = dbStore.users.findIndex(u => u.id === userId);
+    if (uIdx >= 0) {
+      dbStore.users[uIdx].last_seen_at = new Date().toISOString();
+    }
 
     console.log(`[Socket.IO] ✅ ${userId} connected (socket: ${socket.id}, total sockets: ${userSockets.get(userId).size})`);
 
@@ -455,13 +466,18 @@ function handleUserDisconnect(socket, userId, io) {
     if (sockets.size === 0) {
       userSockets.delete(userId);
 
-      // Đánh dấu offline trong profile
+      const now10mAgo = new Date(Date.now() - 600000).toISOString();
+      // Đánh dấu offline trong profile và user
       const profileIdx = dbStore.profiles.findIndex(p => p.id === userId);
       if (profileIdx >= 0) {
         dbStore.profiles[profileIdx].is_online = false;
-        dbStore.profiles[profileIdx].last_seen_at = new Date(Date.now() - 600000).toISOString();
-        dbStore.persist();
+        dbStore.profiles[profileIdx].last_seen_at = now10mAgo;
       }
+      const userIdx = dbStore.users.findIndex(u => u.id === userId);
+      if (userIdx >= 0) {
+        dbStore.users[userIdx].last_seen_at = now10mAgo;
+      }
+      dbStore.persist();
 
       // Broadcast cho TẤT CẢ client còn lại biết user này đã offline
       io.emit('user:offline', {
@@ -469,6 +485,42 @@ function handleUserDisconnect(socket, userId, io) {
         timestamp: Date.now()
       });
     }
+  }
+}
+
+/**
+ * Ngắt kết nối cưỡng chế và chuyển tài khoản sang offline ngay lập tức
+ */
+export function forceUserOffline(userId) {
+  if (!userId) return;
+  const sockets = userSockets.get(userId);
+  if (sockets && sockets.size > 0) {
+    sockets.forEach(socketId => {
+      const s = ioInstance?.sockets?.sockets?.get(socketId);
+      if (s) {
+        try { s.disconnect(true); } catch (_) {}
+      }
+    });
+  }
+  userSockets.delete(userId);
+
+  const now10mAgo = new Date(Date.now() - 600000).toISOString();
+  const profileIdx = dbStore.profiles.findIndex(p => p.id === userId);
+  if (profileIdx >= 0) {
+    dbStore.profiles[profileIdx].is_online = false;
+    dbStore.profiles[profileIdx].last_seen_at = now10mAgo;
+  }
+  const userIdx = dbStore.users.findIndex(u => u.id === userId);
+  if (userIdx >= 0) {
+    dbStore.users[userIdx].last_seen_at = now10mAgo;
+  }
+  dbStore.persist();
+
+  if (ioInstance) {
+    ioInstance.emit('user:offline', {
+      userId,
+      timestamp: Date.now()
+    });
   }
 }
 

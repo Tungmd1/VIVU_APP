@@ -39,6 +39,7 @@ app.use(cors({
 
 // Body parsers
 app.use(express.json({ limit: '10mb' }));
+app.use(express.text({ type: ['text/plain', 'application/json'], limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Request logging in development

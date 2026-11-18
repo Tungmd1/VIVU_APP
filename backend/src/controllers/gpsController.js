@@ -1,4 +1,5 @@
 import { dbService } from '../services/dbService.js';
+import { forceUserOffline } from '../services/socketService.js';
 
 export const gpsController = {
   async getNearbyProfiles(req, res, next) {
@@ -30,7 +31,10 @@ export const gpsController = {
         try {
           const parsed = JSON.parse(req.body);
           userId = parsed.userId;
-        } catch (_) {}
+        } catch (_) {
+          // Nếu body là raw userId text
+          if (req.body.startsWith('user-')) userId = req.body.trim();
+        }
       }
       if (!userId && req.query?.userId) {
         userId = req.query.userId;
@@ -41,10 +45,14 @@ export const gpsController = {
 
       const updated = await dbService.setUserOffline(userId);
 
-      // Broadcast sự kiện user:offline qua Socket.IO tới toàn bộ các client khác
-      const io = req.app?.get('io');
-      if (io) {
-        io.emit('user:offline', { userId, timestamp: Date.now() });
+      // Cưỡng chế ngắt socket mapping & broadcast user:offline tức thì
+      try {
+        forceUserOffline(userId);
+      } catch (fErr) {
+        const io = req.app?.get('io');
+        if (io) {
+          io.emit('user:offline', { userId, timestamp: Date.now() });
+        }
       }
 
       console.log(`[GPS Controller] 🔴 User offline: ${userId}`);

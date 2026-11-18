@@ -371,7 +371,10 @@ export default function GoogleMapView({
       const markerKey = String(item.id || item.user_id || `peer-${iLat}-${iLng}`);
       usedKeys.add(markerKey);
 
-      const isOffline = item.isOnline === false;
+      const hId = item.hostId || item.host_id || item.id;
+      const isOnlineAuthor = (onlinePeers || []).some(p => p.id === hId && (p.isOnline === true || p.is_online === true)) || 
+                             (friends || []).some(f => f.id === hId && (f.isOnline === true || f.is_online === true));
+      const isOffline = item.isOnline != null ? (item.isOnline === false || item.is_online === false) : !isOnlineAuthor;
       const hostAvatar = item.hostAvatar || item.avatar || DEFAULT_WHITE_PERSON_AVATAR;
       const displayName = item.hostName || item.host_name || item.name || 'Người dùng VIVU';
       const peerStoriesList = Array.isArray(item.stories) && item.stories.length > 0

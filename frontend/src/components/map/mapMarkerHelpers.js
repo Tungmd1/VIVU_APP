@@ -3,18 +3,10 @@ import { getMascotActionDataUrl, playActionSound } from '../../data/messengerZal
 
 /**
  * mapMarkerHelpers.js - Bộ Trình Tạo Giao Diện Marker & Bong Bóng Không Gian VIVU (Thế Hệ Zenly 3D)
- * - 100% Bootstrap Icons (Rule 5)
- * - Tách module chống file đơn khối (Rule 7, < 450 dòng)
- * - Hỗ trợ Dynamic Pin Skins: Zenly 3D Free Standing (0 chóp nhọn) > Polaroid Card > Aura Circle > Classic Teardrop
- * - Hỗ trợ Bộ Chibi Meme FB Messenger & Zalo (Ami, QooBee, Quỳnh Aka, Pusheen) với 7 hành động
+ * - 100% Bootstrap Icons (Rule 5) | Tối ưu < 440 dòng (Rule 7)
  */
-
-// Xác định kiểu khung hiển thị (Pin Skin) theo ngữ cảnh hoặc ghi đè thủ công
 export function resolveMarkerSkin({ manualSkin, hasStory, hasChibi, hasAction }) {
-  if (manualSkin && manualSkin !== 'auto') {
-    return manualSkin; // 'zenly_3d' | 'aura_circle' | 'classic_teardrop'
-  }
-  // Chỉ khi chọn mascot hành động toàn thân trong tủ đồ mới dùng zenly_3d
+  if (manualSkin && manualSkin !== 'auto') return manualSkin;
   if (hasAction) return 'zenly_3d';
   return 'aura_circle';
 }
@@ -66,26 +58,19 @@ export function getMarkerBodyHtml({
             </div>
           `}
 
-          <!-- ĐĨA NHẠC VINYL MINI XOAY Ở GÓC GHIM -->
           ${hasSong ? `
-            <div class="vivu-vinyl-disc absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#111116] border border-white/40 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center animate-spin-slow z-30 cursor-pointer pointer-events-auto hover:scale-125 transition-transform"
-                 data-song-title="${songTitle || ''}"
-                 title="Bài hát: ${songTitle || 'Đang phát'} (Bấm để bật/tắt)">
+            <div class="vivu-vinyl-disc absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#111116] border border-white/40 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center animate-spin-slow z-30 cursor-pointer pointer-events-auto hover:scale-125 transition-transform" data-song-title="${songTitle || ''}" title="Bài hát: ${songTitle || 'Đang phát'} (Bấm để bật/tắt)">
               <div class="w-4 h-4 rounded-full border border-neutral-700/80 flex items-center justify-center">
                 <div class="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#FF2A85] to-[#7928CA] flex items-center justify-center shadow-inner">
                   <i class="bi bi-music-note-beamed text-[6.5px] text-white"></i>
                 </div>
               </div>
-            </div>
-          ` : ''}
-
+            </div>` : ''}
           ${isOwner && !hasStory ? `
             <button id="btn-quick-create-story" type="button" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_10px_#FF2A85] flex items-center justify-center z-30 hover:scale-115 active:scale-90 transition-transform cursor-pointer pointer-events-auto" title="Đăng Story">
               <i class="bi bi-plus-lg text-[11px] font-bold"></i>
-            </button>
-          ` : ''}
+            </button>` : ''}
         </div>
-        <!-- Bóng đổ 3D mềm mại dưới chân (Ground Shadow) -->
         <div class="w-11 h-2 rounded-full bg-black/45 blur-[1.5px] -mt-1 shadow-inner pointer-events-none"></div>
       </div>
     `;
@@ -95,7 +80,7 @@ export function getMarkerBodyHtml({
   const isAura = skinMode === 'aura_circle' || skinMode === 'polaroid' || hasStory;
   if (isAura) {
     const ringClass = hasStory
-      ? 'p-[3px] bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#00E5FF] shadow-[0_0_20px_rgba(255,42,133,0.7)] animate-pulse-slow'
+      ? (isOffline ? 'p-[2.5px] bg-neutral-400 opacity-70' : 'p-[3px] bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#00E5FF] shadow-[0_0_20px_rgba(255,42,133,0.7)] animate-pulse-slow')
       : (isOwner ? 'p-[2.5px] bg-gradient-to-tr from-[#00E5FF] via-purple-500 to-[#FF2A85] shadow-[0_0_20px_rgba(0,229,255,0.7)]' : (isOffline ? 'p-[2px] bg-neutral-400 opacity-65' : 'p-[2.5px] bg-gradient-to-tr from-[#00E5FF] to-[#10FFA0] shadow-[0_0_18px_rgba(0,229,255,0.65)]'));
 
     return `
@@ -116,7 +101,7 @@ export function getMarkerBodyHtml({
         ` : ''}
 
         <!-- Vòng hào quang xung nhịp kép (Dual Breathing Aura) -->
-        <div class="absolute -inset-2 rounded-full ${hasStory ? 'bg-[rgba(255,42,133,0.25)]' : 'bg-[rgba(0,229,255,0.2)]'} animate-ping pointer-events-none"></div>
+        <div class="absolute -inset-2 rounded-full ${hasStory ? (isOffline ? 'hidden' : 'bg-[rgba(255,42,133,0.25)]') : (isOffline ? 'hidden' : 'bg-[rgba(0,229,255,0.2)]')} animate-ping pointer-events-none"></div>
 
         <!-- Thân Tròn Viền Story Ring / Aura Ring -->
         <div class="vivu-pin-circle relative w-12 h-12 rounded-full ${ringClass} flex items-center justify-center transition-transform group-hover:scale-110 active:scale-95" ${hasStory ? 'data-has-story="true" title="Bấm để xem Story toàn màn hình"' : ''}>
@@ -453,11 +438,10 @@ export function getPeerBubbleHtml(item, isCoLocated = false) {
   // 5. VIÊN THUỐC TÊN TIÊU CHUẨN
   return `
     <div class="peer-bubble-wrapper mb-1 px-2.5 py-1 bg-white/95 border-[#D2D9F4] text-[#131315] backdrop-blur-md rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.12)] border text-[11px] font-semibold flex items-center gap-1.5 whitespace-nowrap pointer-events-auto">
-      <span class="w-1.5 h-1.5 rounded-full bg-[#10FFA0] animate-pulse"></span>
+      <span class="w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-neutral-400' : 'bg-[#10FFA0] animate-pulse'}"></span>
       <span class="truncate max-w-[95px]">${displayName}</span>
       <button id="btn-peer-troll" type="button" class="ml-0.5 px-1.5 py-0.2 rounded-full bg-[#FF2A85]/15 hover:bg-[#FF2A85]/30 text-[#FF2A85] text-[9px] font-bold border border-[#FF2A85]/30 flex items-center gap-0.5 active:scale-90 transition-transform cursor-pointer" title="Trêu bạn bè">
-        <i class="bi bi-fire text-[9px]"></i>
-        <span>Trêu</span>
+        <i class="bi bi-fire text-[9px]"></i><span>Trêu</span>
       </button>
       ${isCoLocated ? '<span class="text-[9px] text-[#FFAA00] font-bold">[GẦN BẠN]</span>' : ''}
     </div>

@@ -274,16 +274,18 @@ export const apiClient = {
     if (!userId) return null;
     try {
       const payload = JSON.stringify({ userId });
-      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-        const blob = new Blob([payload], { type: 'application/json' });
-        navigator.sendBeacon(`${API_BASE_URL}/gps/offline`, blob);
-      } else {
+      try {
         await fetch(`${API_BASE_URL}/gps/offline`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: payload,
           keepalive: true
         });
+      } catch (fErr) {
+        if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+          const blob = new Blob([payload], { type: 'application/json' });
+          navigator.sendBeacon(`${API_BASE_URL}/gps/offline`, blob);
+        }
       }
     } catch (err) {
       console.warn('[API Client] setOffline fallback:', err.message);

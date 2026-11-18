@@ -17,6 +17,7 @@ const uploadsDir = path.resolve(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(path.join(uploadsDir, 'chat'))) fs.mkdirSync(path.join(uploadsDir, 'chat'), { recursive: true });
 if (!fs.existsSync(path.join(uploadsDir, 'highlights'))) fs.mkdirSync(path.join(uploadsDir, 'highlights'), { recursive: true });
+if (!fs.existsSync(path.join(uploadsDir, 'stories'))) fs.mkdirSync(path.join(uploadsDir, 'stories'), { recursive: true });
 
 const app = express();
 const httpServer = createServer(app);

@@ -134,16 +134,23 @@ export function formatRemainingChibiTime(expiresAt) {
 }
 
 // 2. RENDER BONG BÓNG TRẠNG THÁI / BÀI HÁT / CHIBI CHO CHỦ SỞ HỮU (BẠN)
-export function getOwnerBubbleHtml({ myActiveStory, song, statusText, chibiId, actionMascot, actionId, chibiExpiresAt }) {
-  if (myActiveStory) {
+export function renderStoryBubbleBox(storiesOrSingle, isOwner = false, displayName = 'VIVU') {
+  const storyList = Array.isArray(storiesOrSingle) ? storiesOrSingle : (storiesOrSingle ? [storiesOrSingle] : []);
+  if (storyList.length === 0) return '';
+
+  const firstStory = storyList[0]?.activeStory || storyList[0];
+  const total = storyList.length;
+
+  if (total === 1) {
+    const idAttr = isOwner ? 'id="btn-view-owner-story"' : 'id="btn-view-peer-story"';
     return `
-      <div id="btn-view-owner-story" class="owner-bubble-wrapper mb-2 relative flex flex-col items-center animate-in zoom-in-95 duration-200 cursor-pointer group" title="Bấm để xem Story toàn màn hình">
-        <div class="vivu-story-gif-box relative w-[52px] h-[64px] rounded-2xl overflow-hidden border border-white/30 shadow-[0_8px_24px_rgba(0,0,0,0.7)] bg-[#0d0e14] flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-          ${myActiveStory.image ? `
-            <img src="${myActiveStory.image}" alt="Story" class="w-full h-full object-cover animate-gif-breath" />
+      <div ${idAttr} class="${isOwner ? 'owner-bubble-wrapper' : 'peer-bubble-wrapper'} mb-2 relative flex flex-col items-center animate-in zoom-in-95 duration-200 cursor-pointer group pointer-events-auto" title="Bấm để xem Story của ${displayName}">
+        <div class="vivu-story-gif-box relative w-[54px] h-[66px] rounded-2xl overflow-hidden border border-white/35 shadow-[0_8px_24px_rgba(0,0,0,0.7)] bg-[#0d0e14] flex items-center justify-center transition-all duration-300 group-hover:scale-110">
+          ${(firstStory.image || firstStory.dual_image) ? `
+            <img src="${firstStory.image || firstStory.dual_image}" alt="Story" class="w-full h-full object-cover animate-gif-breath" />
           ` : `
-            <div class="w-full h-full ${myActiveStory.bg_gradient || 'bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#7928CA]'} flex flex-col items-center justify-center p-1 text-center animate-gif-breath">
-              <span class="text-[8px] font-black text-white line-clamp-2 leading-tight uppercase drop-shadow-sm">${myActiveStory.title || 'STORY'}</span>
+            <div class="w-full h-full ${firstStory.bg_gradient || 'bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#7928CA]'} flex flex-col items-center justify-center p-1 text-center animate-gif-breath">
+              <span class="text-[8px] font-black text-white line-clamp-2 leading-tight uppercase drop-shadow-sm">${firstStory.title || 'STORY'}</span>
             </div>
           `}
           <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none"></div>
@@ -153,6 +160,69 @@ export function getOwnerBubbleHtml({ myActiveStory, song, statusText, chibiId, a
         </div>
       </div>
     `;
+  }
+
+  // Multi-Story Mini Card kèm Thanh cuộn/pager và Nút mũi tên chuyển tin
+  const idAttr = isOwner ? 'id="btn-view-owner-story"' : 'id="btn-view-peer-story"';
+  const safeJson = encodeURIComponent(JSON.stringify(storyList.map(s => {
+    const act = s.activeStory || s;
+    return {
+      id: act.id,
+      title: act.title || 'Story',
+      image: act.image || act.dual_image || '',
+      bg_gradient: act.bg_gradient || ''
+    };
+  })));
+
+  return `
+    <div ${idAttr} class="vivu-multi-story-card ${isOwner ? 'owner-bubble-wrapper' : 'peer-bubble-wrapper'} mb-2 relative flex flex-col items-center select-none animate-in zoom-in-95 duration-200 pointer-events-auto cursor-pointer"
+         data-multi-story="${safeJson}"
+         data-current-index="0"
+         data-total="${total}"
+         title="Xem ${total} Story của ${displayName}">
+      <div class="vivu-story-gif-box relative w-[68px] h-[86px] rounded-2xl overflow-hidden border-2 border-[#FF2A85]/80 shadow-[0_8px_25px_rgba(255,42,133,0.4)] bg-[#0d0e14] flex items-center justify-center group">
+        <!-- Vùng ảnh / nội dung Story -->
+        <div class="vivu-story-viewport w-full h-full relative cursor-pointer">
+          ${(firstStory.image || firstStory.dual_image) ? `
+            <img src="${firstStory.image || firstStory.dual_image}" alt="Story" class="w-full h-full object-cover animate-gif-breath" />
+          ` : `
+            <div class="w-full h-full ${firstStory.bg_gradient || 'bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#7928CA]'} flex flex-col items-center justify-center p-1 text-center animate-gif-breath">
+              <span class="text-[8px] font-black text-white line-clamp-2 leading-tight uppercase drop-shadow-sm">${firstStory.title || 'STORY'}</span>
+            </div>
+          `}
+          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 pointer-events-none"></div>
+        </div>
+
+        <!-- Thanh phân đoạn đếm Story (Mini Indicators & Badge) -->
+        <div class="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between pointer-events-none z-20">
+          <div class="flex gap-0.5 flex-1 max-w-[38px] overflow-hidden">
+            ${storyList.slice(0, 5).map((_, i) => `<span class="h-1 flex-1 rounded-full transition-all ${i === 0 ? 'bg-white shadow-[0_0_6px_#fff]' : 'bg-white/30'} vivu-story-dash" data-dash-index="${i}"></span>`).join('')}
+          </div>
+          <span class="text-[7.5px] font-mono font-bold text-white bg-black/75 px-1 py-0.2 rounded-full border border-white/20 vivu-story-counter">1/${total}</span>
+        </div>
+
+        <!-- Nút Mũi Tên Trái / Phải Điều Hướng Trực Tiếp Trên Bản Đồ -->
+        <button type="button" class="vivu-story-nav-btn absolute left-0.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center text-[10px] z-30 transition-all active:scale-75 shadow-lg pointer-events-auto border border-white/25" data-dir="prev" title="Tin trước">
+          <i class="bi bi-chevron-left text-[9px] pointer-events-none"></i>
+        </button>
+        <button type="button" class="vivu-story-nav-btn absolute right-0.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center text-[10px] z-30 transition-all active:scale-75 shadow-lg pointer-events-auto border border-white/25" data-dir="next" title="Tin tiếp theo">
+          <i class="bi bi-chevron-right text-[9px] pointer-events-none"></i>
+        </button>
+
+        <!-- Biểu tượng phóng to toàn màn hình -->
+        <span class="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white text-[7.5px] z-20 pointer-events-none border border-white/20">
+          <i class="bi bi-arrows-fullscreen"></i>
+        </span>
+      </div>
+    </div>
+  `;
+}
+
+// 2. RENDER BONG BÓNG TRẠNG THÁI / BÀI HÁT / CHIBI CHO CHỦ SỞ HỮU (BẠN)
+export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statusText, chibiId, actionMascot, actionId, chibiExpiresAt }) {
+  const storyTarget = (myActiveStories && myActiveStories.length > 0) ? myActiveStories : myActiveStory;
+  if (storyTarget) {
+    return renderStoryBubbleBox(storyTarget, true, 'Bạn');
   }
 
   // Khử tiêu đề mồ côi khi Story đã bị xóa
@@ -279,28 +349,13 @@ export function getPeerBubbleHtml(item, isCoLocated = false) {
   }
 
   const targetStory = item.activeStory || (item.category === 'moment' || item.image || item.dual_image || item.bg_gradient ? item : null);
+  const storyTarget = (item.stories && item.stories.length > 0) ? item.stories : targetStory;
   const peerSong = item.custom_song || item.songData || item.music || null;
   const statusText = item.custom_status || (item.title && item.title !== 'Đang trực tuyến' && item.title !== 'Khoảnh khắc mới' ? item.title : '');
 
-  // 1. STORY KHOẢNH KHẮC
-  if (targetStory) {
-    return `
-      <div id="btn-view-peer-story" class="peer-bubble-wrapper mb-2 relative flex flex-col items-center animate-in zoom-in-95 duration-200 cursor-pointer group" title="Bấm để xem Story của ${displayName}">
-        <div class="vivu-story-gif-box relative w-[52px] h-[64px] rounded-2xl overflow-hidden border border-white/30 shadow-[0_8px_24px_rgba(0,0,0,0.7)] bg-[#0d0e14] flex items-center justify-center transition-all duration-300 group-hover:scale-110">
-          ${(targetStory.image || targetStory.dual_image) ? `
-            <img src="${targetStory.image || targetStory.dual_image}" alt="Story" class="w-full h-full object-cover animate-gif-breath" />
-          ` : `
-            <div class="w-full h-full ${targetStory.bg_gradient || 'bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#7928CA]'} flex flex-col items-center justify-center p-1 text-center animate-gif-breath">
-              <span class="text-[8px] font-black text-white line-clamp-2 leading-tight uppercase drop-shadow-sm">${targetStory.title || 'STORY'}</span>
-            </div>
-          `}
-          <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none"></div>
-          <span class="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-white/20 backdrop-blur-xs flex items-center justify-center text-white text-[9px] group-hover:scale-110 transition-transform">
-            <i class="bi bi-arrows-fullscreen"></i>
-          </span>
-        </div>
-      </div>
-    `;
+  // 1. STORY KHOẢNH KHẮC (ĐƠN HOẶC NHIỀU TIN)
+  if (storyTarget) {
+    return renderStoryBubbleBox(storyTarget, false, displayName);
   }
 
   // 2. CHIBI HÀNH ĐỘNG FB/ZALO HOẶC MASCOT

@@ -98,9 +98,10 @@ export default function GoogleMapView({
       item.isOwnerStory === true
     )
   );
-  const myActiveStory = useMemo(() => stories.find(s => isOwnerItem(s)) || null, [stories, currentUserId]);
-  const myActiveStoryRef = useRef(myActiveStory);
-  myActiveStoryRef.current = myActiveStory;
+  const myActiveStories = useMemo(() => stories.filter(s => isOwnerItem(s)), [stories, currentUserId]);
+  const myActiveStory = useMemo(() => myActiveStories[0] || null, [myActiveStories]);
+  const myActiveStoryRef = useRef(myActiveStories.length > 0 ? myActiveStories : myActiveStory);
+  myActiveStoryRef.current = myActiveStories.length > 0 ? myActiveStories : myActiveStory;
   const userCustomSongRef = useRef(userCustomSong);
   userCustomSongRef.current = userCustomSong;
 
@@ -183,7 +184,10 @@ export default function GoogleMapView({
     });
 
     const ownerHtml = getOwnerBubbleHtml({ 
-      myActiveStory, song, statusText, 
+      myActiveStory,
+      myActiveStories,
+      song,
+      statusText, 
       chibiId: userCustomChibi,
       actionMascot: userPinMascot,
       actionId: userPinAction,
@@ -312,12 +316,24 @@ export default function GoogleMapView({
     let rawItems = [];
 
     if (isFriendsMode) {
-      rawItems = (friends || []).filter(f => f && !isOwnerItem(f));
+      rawItems = (friends || []).filter(f => f && !isOwnerItem(f)).map(f => {
+        const fStories = (stories || []).filter(s => s && (s.hostId === f.id || s.host_id === f.id));
+        return fStories.length > 0 ? { ...f, stories: fStories } : f;
+      });
     } else {
-      const peerStories = (stories || []).filter(s => s && !isOwnerItem(s));
-      const activePeerIdsWithStory = new Set(peerStories.map(s => s.hostId || s.id));
+      const peerStoriesByHost = new Map();
+      (stories || []).filter(s => s && !isOwnerItem(s)).forEach(s => {
+        const hId = s.hostId || s.host_id || s.id;
+        if (!peerStoriesByHost.has(hId)) {
+          peerStoriesByHost.set(hId, { ...s, stories: [s] });
+        } else {
+          peerStoriesByHost.get(hId).stories.push(s);
+        }
+      });
+      const groupedPeerStories = Array.from(peerStoriesByHost.values());
+      const activePeerIdsWithStory = new Set(peerStoriesByHost.keys());
       const nonStoryOnlinePeers = (onlinePeers || []).filter(p => p && !isOwnerItem(p) && !activePeerIdsWithStory.has(p.id));
-      rawItems = [...peerStories, ...nonStoryOnlinePeers];
+      rawItems = [...groupedPeerStories, ...nonStoryOnlinePeers];
     }
 
     const usedKeys = new Set();

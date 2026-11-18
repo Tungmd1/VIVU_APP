@@ -282,25 +282,98 @@ describe('VIVU Phase 1: Upload Infrastructure & Story Highlights Persistence Sui
   // 3. UPLOAD DIRECTORY & STATIC DISK VALIDATION
   // ==========================================
   describe('Static Upload Infrastructure (VPS Optimization)', () => {
-    test('Các thư mục lưu trữ tĩnh backend/uploads/chat và highlights phải tồn tại', () => {
+    test('Các thư mục lưu trữ tĩnh backend/uploads/chat, highlights và stories phải tồn tại', () => {
       const chatDir = path.join(uploadsDir, 'chat');
       const highlightsDir = path.join(uploadsDir, 'highlights');
+      const storiesDir = path.join(uploadsDir, 'stories');
 
       assert.ok(fs.existsSync(chatDir), 'backend/uploads/chat phải tồn tại');
       assert.ok(fs.existsSync(highlightsDir), 'backend/uploads/highlights phải tồn tại');
+      assert.ok(fs.existsSync(storiesDir), 'backend/uploads/stories phải tồn tại');
     });
 
     test('Ghi và đọc tệp giả lập trong thư mục uploads đảm bảo tính toàn vẹn', () => {
-      const testFilePath = path.join(uploadsDir, 'chat', 'test-probe.txt');
-      fs.writeFileSync(testFilePath, 'vivu-static-probe', 'utf8');
+      const testFilePath = path.join(uploadsDir, 'stories', 'test-probe-story.txt');
+      fs.writeFileSync(testFilePath, 'vivu-story-probe', 'utf8');
 
       assert.ok(fs.existsSync(testFilePath));
       const content = fs.readFileSync(testFilePath, 'utf8');
-      assert.equal(content, 'vivu-static-probe');
+      assert.equal(content, 'vivu-story-probe');
 
       // Dọn dẹp
       fs.unlinkSync(testFilePath);
       assert.ok(!fs.existsSync(testFilePath));
+    });
+  });
+
+  // ==========================================
+  // 4. MULTI-STORY CREATION & EXPIRY (PHASE 2)
+  // ==========================================
+  describe('Phase 2 Multi-Story Coexistence & Expiry', () => {
+    test('Một tài khoản đăng nhiều Story liên tiếp: Cả 2 Story cùng cùng tồn tại và trả về đúng thứ tự', async () => {
+      const story1 = await dbService.createStory({
+        id: `multi-story-1-${Date.now()}`,
+        host_id: userA.id,
+        title: 'Story Buổi Sáng',
+        image: '/uploads/stories/morning.jpg',
+        expiry_hours: 24
+      });
+
+      const story2 = await dbService.createStory({
+        id: `multi-story-2-${Date.now()}`,
+        host_id: userA.id,
+        title: 'Story Buổi Chiều',
+        image: '/uploads/stories/afternoon.jpg',
+        expiry_hours: 24
+      });
+
+      const allStories = await dbService.getStories();
+      const userAStories = allStories.filter(s => s.host_id === userA.id);
+
+      assert.ok(userAStories.length >= 2, 'Tài khoản A phải có ít nhất 2 Story hoạt động');
+      assert.ok(userAStories.some(s => s.id === story1.id));
+      assert.ok(userAStories.some(s => s.id === story2.id));
+    });
+
+    test('Xóa 1 Story cụ thể không làm mất các Story khác của cùng người dùng', async () => {
+      const storyA = await dbService.createStory({
+        id: `delete-test-a-${Date.now()}`,
+        host_id: userA.id,
+        title: 'Story Cần Xóa'
+      });
+
+      const storyB = await dbService.createStory({
+        id: `delete-test-b-${Date.now()}`,
+        host_id: userA.id,
+        title: 'Story Cần Giữ Lại'
+      });
+
+      // Xóa Story A
+      await dbService.deleteStory(storyA.id, userA.id);
+
+      const remainingStories = await dbService.getStories();
+      assert.equal(remainingStories.some(s => s.id === storyA.id), false, 'Story A phải bị xóa');
+      assert.equal(remainingStories.some(s => s.id === storyB.id), true, 'Story B phải vẫn còn tồn tại');
+    });
+
+    test('Story quá hạn tự động bị lọc bỏ trong khi Story còn hạn vẫn hiển thị bình thường', async () => {
+      const expiredStory = await dbService.createStory({
+        id: `expired-${Date.now()}`,
+        host_id: userA.id,
+        title: 'Story Quá Hạn',
+        expires_at: new Date(Date.now() - 10000).toISOString() // Đã quá hạn 10s trước
+      });
+
+      const activeStory = await dbService.createStory({
+        id: `active-${Date.now()}`,
+        host_id: userA.id,
+        title: 'Story Đang Còn Hạn',
+        expires_at: new Date(Date.now() + 3600000).toISOString() // Còn hạn 1 tiếng
+      });
+
+      const stories = await dbService.getStories();
+      assert.equal(stories.some(s => s.id === expiredStory.id), false, 'Story hết hạn phải bị loại bỏ');
+      assert.equal(stories.some(s => s.id === activeStory.id), true, 'Story còn hạn phải hiển thị');
     });
   });
 });

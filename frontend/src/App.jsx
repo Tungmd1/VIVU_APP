@@ -1,6 +1,11 @@
 import { DEFAULT_WHITE_PERSON_AVATAR, getSafeAvatar } from './utils/avatarUtils';
 import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
-import confetti from 'canvas-confetti';
+// Thay thế pháo hoa canvas-confetti bằng phản hồi rung tactile nhẹ nhàng (Tuân thủ Mục 9 plan.md)
+const confetti = () => {
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    try { navigator.vibrate([20, 35]); } catch {}
+  }
+};
 import { useGeolocation } from './hooks/useGeolocation';
 import { vivuBackendService } from './services/vivuBackendService';
 import { apiClient } from './services/apiClient';
@@ -16,6 +21,7 @@ import UserLocationSheet from './components/layout/UserLocationSheet';
 import QuickStatusSheet from './components/story/QuickStatusSheet';
 import FriendDetailSheet from './components/layout/FriendDetailSheet';
 import StoryStudioModal from './components/story/StoryStudioModal';
+import UnifiedCreationStudioModal from './components/story/UnifiedCreationStudioModal';
 import StoryViewerModal from './components/story/StoryViewerModal';
 import GuestProfileModal from './components/profile/GuestProfileModal';
 import UserProfileViewModal from './components/profile/UserProfileViewModal';
@@ -465,6 +471,18 @@ export default function App() {
   // Danh sách Stories thật từ người dùng (Khởi tạo từ cache an toàn nếu có)
   const [stories, setStories] = useState(() => {
     try {
+      const scopedListKey = currentUserId ? `vivu_user_active_stories_${currentUserId}` : null;
+      const cachedList = (scopedListKey ? localStorage.getItem(scopedListKey) : null) || localStorage.getItem('vivu_user_active_stories');
+      if (cachedList) {
+        const parsedList = JSON.parse(cachedList);
+        if (Array.isArray(parsedList)) {
+          const now = Date.now();
+          const valid = parsedList.filter(s => !s.expires_at || new Date(s.expires_at).getTime() > now);
+          if (valid.length > 0) {
+            return valid.map(s => ({ ...s, isOwnerStory: true, activeStory: s }));
+          }
+        }
+      }
       const scopedKey = currentUserId ? `vivu_user_active_story_${currentUserId}` : null;
       const cached = (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('vivu_user_active_story');
       if (cached) {
@@ -2678,7 +2696,17 @@ export default function App() {
     };
     newStory.activeStory = newStory;
 
-    setStories(prev => [newStory, ...prev.filter(s => s.id !== newStory.id)]);
+    setStories(prev => {
+      const updated = [newStory, ...prev.filter(s => s.id !== newStory.id)];
+      try {
+        const ownerActiveList = updated.filter(s => s.isOwnerStory || s.hostId === currentUserId);
+        localStorage.setItem('vivu_user_active_stories', JSON.stringify(ownerActiveList));
+        if (currentUserId && !currentUserId.startsWith('client-')) {
+          localStorage.setItem(`vivu_user_active_stories_${currentUserId}`, JSON.stringify(ownerActiveList));
+        }
+      } catch {}
+      return updated;
+    });
     try {
       localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
       if (currentUserId && !currentUserId.startsWith('client-')) {
@@ -2769,6 +2797,81 @@ export default function App() {
     });
   };
 
+  // Luồng đăng thống nhất Studio VIVU (Giai đoạn 2): Đăng Story, Tâm trạng, Nhạc và Chibi cùng lúc
+  const handleUnifiedStudioSubmit = async ({ storyPayload, customStatus, customSong, customChibi, chibiExpiresAt, statusExpiryHours }) => {
+    // 1. Nếu có nội dung Story
+    if (storyPayload) {
+      await handleCreateNewStory(storyPayload);
+    }
+
+    // 2. Cập nhật Tâm trạng suy nghĩ
+    if (customStatus !== undefined && customStatus !== null) {
+      setUserCustomStatus(customStatus);
+      try {
+        localStorage.setItem("vivu_user_custom_status", customStatus);
+        if (currentUserId) localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, customStatus);
+      } catch {}
+    }
+
+    // 3. Cập nhật Nhạc nền
+    if (customSong !== undefined) {
+      setUserCustomSong(customSong);
+      try {
+        const songStr = customSong ? JSON.stringify(customSong) : '';
+        if (songStr) {
+          localStorage.setItem("vivu_user_custom_song", songStr);
+          if (currentUserId) localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, songStr);
+        } else {
+          localStorage.removeItem("vivu_user_custom_song");
+          if (currentUserId) localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
+        }
+      } catch {}
+    }
+
+    // 4. Cập nhật Linh vật Chibi Mascot
+    if (customChibi !== undefined) {
+      setUserCustomChibi(customChibi);
+      setUserCustomChibiExpiresAt(chibiExpiresAt || null);
+      try {
+        if (customChibi) {
+          localStorage.setItem("vivu_user_custom_chibi", customChibi);
+          if (chibiExpiresAt) localStorage.setItem("vivu_user_chibi_expires_at", String(chibiExpiresAt));
+          if (currentUserId) {
+            localStorage.setItem(`vivu_user_custom_chibi_${currentUserId}`, customChibi);
+            if (chibiExpiresAt) localStorage.setItem(`vivu_user_chibi_expires_at_${currentUserId}`, String(chibiExpiresAt));
+          }
+        } else {
+          localStorage.removeItem("vivu_user_custom_chibi");
+          localStorage.removeItem("vivu_user_chibi_expires_at");
+          if (currentUserId) {
+            localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
+            localStorage.removeItem(`vivu_user_chibi_expires_at_${currentUserId}`);
+          }
+        }
+      } catch {}
+    }
+
+    // 5. Đồng bộ vị trí & thông tin Profile lên Backend
+    if (currentUserId && userLat && userLng) {
+      apiClient.updateGps(
+        currentUserId,
+        userLat,
+        userLng,
+        customStatus !== undefined ? customStatus : userCustomStatus,
+        currentUserName,
+        currentUserAvatar,
+        currentUserCode,
+        user?.phone,
+        customSong !== undefined ? customSong : userCustomSong,
+        customChibi !== undefined ? customChibi : userCustomChibi,
+        userPinSkin,
+        userPinMascot,
+        userPinAction,
+        chibiExpiresAt !== undefined ? chibiExpiresAt : userCustomChibiExpiresAt
+      );
+    }
+  };
+
 
 
   // YÊU CẦU 5: XỬ LÝ POST LIỀN TỪ QUICK SNAP CAMERA LÊN STORY (ĐỒNG BỘ VỚI CÁC TRANG KHÁC)
@@ -2797,7 +2900,17 @@ export default function App() {
     };
     newStory.activeStory = newStory;
 
-    setStories(prev => [newStory, ...prev.filter(s => s.id !== newStory.id)]);
+    setStories(prev => {
+      const updated = [newStory, ...prev.filter(s => s.id !== newStory.id)];
+      try {
+        const ownerActiveList = updated.filter(s => s.isOwnerStory || s.hostId === currentUserId);
+        localStorage.setItem('vivu_user_active_stories', JSON.stringify(ownerActiveList));
+        if (currentUserId && !currentUserId.startsWith('client-')) {
+          localStorage.setItem(`vivu_user_active_stories_${currentUserId}`, JSON.stringify(ownerActiveList));
+        }
+      } catch {}
+      return updated;
+    });
     try {
       localStorage.setItem('vivu_user_active_story', JSON.stringify(newStory));
       if (currentUserId && !currentUserId.startsWith('client-')) {
@@ -3776,18 +3889,21 @@ export default function App() {
         }}
       />
 
-      {/* 11. MODAL SOẠN THẢO STORY KHOẢNH KHẮC & CAMERA PRO (UNIFIED) */}
-      <StoryStudioModal
+      {/* 11. MODAL SÁNG TẠO THỐNG NHẤT STUDIO VIVU (GIAI ĐOẠN 2) */}
+      <UnifiedCreationStudioModal
         isOpen={isCreateModalOpen || isQuickSnapOpen}
         onClose={() => {
           setIsCreateModalOpen(false);
           setIsQuickSnapOpen(false);
         }}
-        onSubmitStory={handleCreateNewStory}
+        onSubmitAll={handleUnifiedStudioSubmit}
         userLocationName={cityName || "Vị trí GPS của Bạn"}
         userLat={userLat}
         userLng={userLng}
         friends={friends}
+        initialCustomStatus={userCustomStatus}
+        initialCustomSong={userCustomSong}
+        initialCustomChibi={userCustomChibi}
       />
 
       {/* 14. GIẢ LẬP CUỘC GỌI */}

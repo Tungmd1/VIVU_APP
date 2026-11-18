@@ -1,6 +1,5 @@
 import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState, useEffect } from 'react';
-import confetti from 'canvas-confetti';
 import MusicPickerModal from './MusicPickerModal';
 import { storyAudioPlayer } from '../../data/trendingSongs';
 import { playTactileClickSound } from './storyAudioEffects';
@@ -92,14 +91,7 @@ export default function QuickStatusSheet({
       onSelectStatus(customInput.trim(), selectedSong, selectedChibiId, expiresAt, expiryHours);
     }
 
-    try {
-      confetti({
-        particleCount: 40,
-        spread: 55,
-        origin: { y: 0.8 },
-        zIndex: 9999
-      });
-    } catch {}
+    if (navigator.vibrate) navigator.vibrate([20, 40]);
 
     onClose();
   };

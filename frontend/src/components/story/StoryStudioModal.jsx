@@ -1,6 +1,5 @@
 import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import React, { useState, useEffect, useRef } from 'react';
-import confetti from 'canvas-confetti';
 import CameraViewfinder from './camera/CameraViewfinder';
 import StoryCanvasPreview from './editor/StoryCanvasPreview';
 import StoryTextEditor from './editor/StoryTextEditor';
@@ -157,15 +156,6 @@ export default function StoryStudioModal({
     setIsPublishing(true);
     playStoryBeaconChime();
     if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
-
-    try {
-      confetti({
-        particleCount: 50,
-        spread: 60,
-        origin: { y: 0.8 },
-        zIndex: 9999
-      });
-    } catch {}
 
     const payload = {
       image,

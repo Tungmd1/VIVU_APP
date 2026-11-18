@@ -326,10 +326,11 @@ export default function StoryViewerModal({
           onReplyQA={onReplyQA}
         />
 
-        {/* Nhãn Dán Nhạc Sống Động Theo Phong Cách Tác Giả Đã Cài Đặt (Đĩa than / Bìa Album / Sóng âm) */}
+        {/* Nhãn Dán Nhạc Sống Động Theo Phong Cách & Vị Trí Tác Giả Đã Cài Đặt (Đĩa than / Bìa Album / Sóng âm) */}
         <StoryMusicStickerDisplay
           music={resolvedStoryMusic}
           stickerStyle={actualStory.music?.sticker_style || actualStory.music?.stickerStyle || 'VINYL'}
+          position={actualStory.music?.position || resolvedStoryMusic?.position}
           isPlayingMusic={isPlayingMusic}
           onToggleMusic={handleToggleMusic}
         />

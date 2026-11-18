@@ -54,6 +54,7 @@ export default function UnifiedCreationStudioModal({
   const [customStatusInput, setCustomStatusInput] = useState('');
   const [selectedSong, setSelectedSong] = useState(null);
   const [musicStickerStyle, setMusicStickerStyle] = useState('VINYL'); // 'VINYL' | 'ALBUM_CARD' | 'EQUALIZER'
+  const [musicStickerPosition, setMusicStickerPosition] = useState({ x: 50, y: 70 });
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
 
   // Chibi states
@@ -81,6 +82,7 @@ export default function UnifiedCreationStudioModal({
       setSelectedChibiId(initialCustomChibi || null);
       setActiveStudioTab('STORY');
       setPhase('CAMERA');
+      setMusicStickerPosition({ x: 50, y: 70 });
     } else {
       storyAudioPlayer.stop();
       setIsPlayingMusic(false);
@@ -89,6 +91,7 @@ export default function UnifiedCreationStudioModal({
       setIsDualCam(false);
       setTexts([]);
       setStickers([]);
+      setMusicStickerPosition({ x: 50, y: 70 });
       setIsPublishing(false);
     }
   }, [isOpen, initialCustomStatus, initialCustomSong, initialCustomChibi]);
@@ -187,7 +190,8 @@ export default function UnifiedCreationStudioModal({
         artist: selectedSong.artist,
         audio_url: selectedSong.audioUrl || selectedSong.audio_url,
         cover_url: selectedSong.coverUrl || selectedSong.cover_url || selectedSong.cover,
-        sticker_style: musicStickerStyle
+        sticker_style: musicStickerStyle,
+        position: musicStickerPosition
       } : null,
       tagged_friends: taggedFriends,
       privacy,
@@ -290,6 +294,8 @@ export default function UnifiedCreationStudioModal({
                 selectedSong={selectedSong}
                 musicStickerStyle={musicStickerStyle}
                 onChangeMusicStickerStyle={setMusicStickerStyle}
+                musicStickerPosition={musicStickerPosition}
+                onChangeMusicStickerPosition={setMusicStickerPosition}
                 isPlayingMusic={isPlayingMusic}
                 onTogglePlaySong={handleTogglePlaySong}
                 onOpenMusicPicker={() => setIsMusicPickerOpen(true)}

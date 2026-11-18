@@ -18,6 +18,8 @@ export default function StoryCanvasPreview({
   selectedSong,
   musicStickerStyle = 'VINYL', // 'VINYL' | 'ALBUM_CARD' | 'EQUALIZER'
   onChangeMusicStickerStyle,
+  musicStickerPosition = { x: 50, y: 70 },
+  onChangeMusicStickerPosition,
   isPlayingMusic,
   onTogglePlaySong,
   onOpenMusicPicker,
@@ -51,7 +53,7 @@ export default function StoryCanvasPreview({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="relative w-full h-full bg-black select-none overflow-hidden flex flex-col justify-between">
+    <div className="story-canvas-root relative w-full h-full bg-black select-none overflow-hidden flex flex-col justify-between">
       {/* Lớp nền ảnh hoặc Gradient */}
       <div className="absolute inset-0 w-full h-full overflow-hidden flex items-center justify-center">
         {mode === 'PHOTO' && image ? (
@@ -294,6 +296,8 @@ export default function StoryCanvasPreview({
         selectedSong={selectedSong}
         musicStickerStyle={musicStickerStyle}
         onChangeMusicStickerStyle={onChangeMusicStickerStyle}
+        musicStickerPosition={musicStickerPosition}
+        onChangeMusicStickerPosition={onChangeMusicStickerPosition}
         isPlayingMusic={isPlayingMusic}
         onTogglePlaySong={onTogglePlaySong}
         onOpenMusicOptions={() => setIsMusicOptionsOpen(true)}

@@ -9,10 +9,15 @@ import { playTactileClickSound } from '../storyAudioEffects';
 export default function StoryMusicStickerDisplay({
   music,
   stickerStyle = 'VINYL',
+  position,
   isPlayingMusic,
   onToggleMusic
 }) {
   if (!music) return null;
+
+  const effectivePosition = position || music.position || { x: 50, y: 72 };
+  const currentX = effectivePosition?.x ?? 50;
+  const currentY = effectivePosition?.y ?? 72;
 
   const handleToggle = (e) => {
     e.stopPropagation();
@@ -21,8 +26,16 @@ export default function StoryMusicStickerDisplay({
   };
 
   return (
-    <div className="absolute bottom-28 left-4 right-4 z-30 pointer-events-none flex justify-center animate-fadeIn select-none">
-      <div className="pointer-events-auto">
+    <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden select-none animate-fadeIn">
+      <div
+        style={{
+          position: 'absolute',
+          left: `${currentX}%`,
+          top: `${currentY}%`,
+          transform: 'translate(-50%, -50%)'
+        }}
+        className="pointer-events-auto"
+      >
         
         {/* 1. KIỂU ĐĨA THAN XOAY TRÒN (VINYL) */}
         {stickerStyle === 'VINYL' && (

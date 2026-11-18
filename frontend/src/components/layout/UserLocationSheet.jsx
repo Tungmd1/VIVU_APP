@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import VivuButton from '../common/VivuButton';
 import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import { getChibiMascotById, getChibiDataUrl } from '../../data/chibiMascotData';

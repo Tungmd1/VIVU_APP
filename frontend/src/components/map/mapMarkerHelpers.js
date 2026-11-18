@@ -44,15 +44,15 @@ export function getMarkerBodyHtml({
         <!-- Hover Preview Mini khi có Story (Rê chuột trên PC) -->
         ${hasStory && storyPreviewImage ? `
           <div class="vivu-story-hover-card absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-            <div class="w-20 h-26 rounded-2xl overflow-hidden border-2 border-white/80 shadow-[0_12px_30px_rgba(0,0,0,0.85)] bg-black relative">
-              <img src="${storyPreviewImage}" alt="Story Preview" class="w-full h-full object-cover" />
-              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-              <div class="absolute bottom-1.5 left-1.5 right-1.5 text-center">
-                <span class="text-[8px] font-bold text-white truncate block">${storyTitle || 'Story'}</span>
-                ${storyCount > 1 ? `<span class="text-[7px] text-[#00E5FF] font-mono block">${storyCount} tin</span>` : ''}
+            <div class="rounded-2xl overflow-hidden border-2 border-white/90 shadow-[0_12px_30px_rgba(0,0,0,0.9)] bg-black relative shrink-0" style="width: 76px; height: 104px; min-width: 76px; max-width: 76px; min-height: 104px; max-height: 104px;">
+              <img src="${storyPreviewImage}" alt="Story Preview" class="object-cover block" style="width: 76px; height: 104px; min-width: 76px; max-width: 76px; min-height: 104px; max-height: 104px;" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30 pointer-events-none"></div>
+              <div class="absolute bottom-1.5 left-1 right-1 text-center pointer-events-none">
+                <span class="text-[8.5px] font-bold text-white truncate block leading-tight drop-shadow-md">${storyTitle || 'Story'}</span>
+                ${storyCount > 1 ? `<span class="text-[7.5px] text-[#00E5FF] font-mono font-bold block">${storyCount} tin</span>` : ''}
               </div>
             </div>
-            <div class="w-2 h-2 bg-black border-r-2 border-b-2 border-white/80 transform rotate-45 -mt-1 shadow-md"></div>
+            <div class="w-2 h-2 bg-black border-r-2 border-b-2 border-white/90 transform rotate-45 -mt-1 shadow-md shrink-0"></div>
           </div>
         ` : ''}
 
@@ -103,15 +103,15 @@ export function getMarkerBodyHtml({
         <!-- Hover Preview Mini khi có Story (Rê chuột trên PC) -->
         ${hasStory && storyPreviewImage ? `
           <div class="vivu-story-hover-card absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
-            <div class="w-20 h-26 rounded-2xl overflow-hidden border-2 border-white/80 shadow-[0_12px_30px_rgba(0,0,0,0.85)] bg-black relative">
-              <img src="${storyPreviewImage}" alt="Story Preview" class="w-full h-full object-cover" />
-              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-              <div class="absolute bottom-1.5 left-1.5 right-1.5 text-center">
-                <span class="text-[8px] font-bold text-white truncate block">${storyTitle || 'Story'}</span>
-                ${storyCount > 1 ? `<span class="text-[7px] text-[#00E5FF] font-mono block">${storyCount} tin</span>` : ''}
+            <div class="rounded-2xl overflow-hidden border-2 border-white/90 shadow-[0_12px_30px_rgba(0,0,0,0.9)] bg-black relative shrink-0" style="width: 76px; height: 104px; min-width: 76px; max-width: 76px; min-height: 104px; max-height: 104px;">
+              <img src="${storyPreviewImage}" alt="Story Preview" class="object-cover block" style="width: 76px; height: 104px; min-width: 76px; max-width: 76px; min-height: 104px; max-height: 104px;" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30 pointer-events-none"></div>
+              <div class="absolute bottom-1.5 left-1 right-1 text-center pointer-events-none">
+                <span class="text-[8.5px] font-bold text-white truncate block leading-tight drop-shadow-md">${storyTitle || 'Story'}</span>
+                ${storyCount > 1 ? `<span class="text-[7.5px] text-[#00E5FF] font-mono font-bold block">${storyCount} tin</span>` : ''}
               </div>
             </div>
-            <div class="w-2 h-2 bg-black border-r-2 border-b-2 border-white/80 transform rotate-45 -mt-1 shadow-md"></div>
+            <div class="w-2 h-2 bg-black border-r-2 border-b-2 border-white/90 transform rotate-45 -mt-1 shadow-md shrink-0"></div>
           </div>
         ` : ''}
 

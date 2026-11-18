@@ -7,6 +7,7 @@ import { io } from 'socket.io-client';
  */
 export function useSocket(userId) {
   const socketRef = useRef(null);
+  const [socketInstance, setSocketInstance] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
@@ -25,6 +26,7 @@ export function useSocket(userId) {
     });
 
     socketRef.current = socket;
+    setSocketInstance(socket);
 
     socket.on('connect', () => {
       console.log(`[Socket.IO Client] ✅ Đã kết nối với server (socketId: ${socket.id})`);
@@ -88,9 +90,10 @@ export function useSocket(userId) {
         socket.disconnect();
       }
       socketRef.current = null;
+      setSocketInstance(null);
       setIsConnected(false);
     };
   }, [userId]);
 
-  return { socketRef, isConnected };
+  return { socketRef, socket: socketInstance, isConnected };
 }

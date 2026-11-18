@@ -330,3 +330,22 @@ body {
 .vivu-zenly-marker, .vivu-teardrop-marker, .vivu-aura-marker, .vivu-polaroid-marker {
   pointer-events: auto !important;
 }
+
+/* LEAFLET CUSTOM MARKER & HOVER CARD FIX (Chống lỗi méo mó / kéo dài hình ảnh trên PC) */
+.leaflet-container .leaflet-marker-pane .vivu-story-hover-card img,
+.leaflet-container .leaflet-marker-pane .vivu-story-gif-box img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: cover !important;
+}
+
+.vivu-story-hover-card {
+  width: 76px !important;
+  height: 108px !important;
+  min-width: 76px !important;
+  max-width: 76px !important;
+  min-height: 108px !important;
+  max-height: 108px !important;
+}

@@ -5,6 +5,8 @@ import { notificationService } from './notificationService.js';
 
 // Mapping: userId → Set<socketId> (hỗ trợ 1 user nhiều tab/thiết bị)
 const userSockets = new Map();
+const activeBumpSessions = new Map();
+const getBumpSessionKey = (u1, u2) => [String(u1), String(u2)].sort().join(':');
 let ioInstance = null;
 
 /**
@@ -166,64 +168,156 @@ export function initSocketIO(httpServer) {
     });
 
     // ================================================================
-    // SPATIAL BUMP (CỤM LY 3D NGOÀI ĐỜI THỰC < 15M)
+    // SPATIAL BUMP (CỤNG LY 3D NGOÀI ĐỜI THỰC < 15M - MUTUAL HANDSHAKE)
     // ================================================================
     socket.on('spatial:bump-initiate', async (data) => {
       try {
         const { targetUserId, senderName, senderAvatar, lat, lng } = data;
-        if (!targetUserId) return;
+        if (!targetUserId || targetUserId === userId) return;
 
         console.log(`[Socket.IO] 🥂 Spatial Bump initiated by ${userId} to ${targetUserId}`);
 
-        // 1. Tự động tạo bài đăng Story Đôi (Joint Story)
-        let jointStory = null;
-        try {
-          const jointTitle = `🎉 ${senderName || 'Bạn'} & ${data.targetName || 'Bạn bè'} đang vi vu cùng nhau!`;
-          jointStory = await dbService.createStory({
-            host_id: userId,
-            host_name: senderName || 'Tôi',
-            host_avatar: senderAvatar || null,
-            partner_id: targetUserId,
-            partner_name: data.targetName || '',
-            partner_avatar: data.targetAvatar || '',
-            title: jointTitle,
-            description: `Vừa cụm ly gặp gỡ ngoài đời thực tại tọa độ ${Number(lat || 10.7769).toFixed(4)}, ${Number(lng || 106.7009).toFixed(4)}!`,
-            category: 'hangout',
-            lat: Number(lat || 10.7769),
-            lng: Number(lng || 106.7009),
-            is_joint: true,
-            expiry_hours: 6
-          });
-        } catch (storyErr) {
-          console.warn('[Socket.IO] Joint story creation warning:', storyErr.message);
-        }
-
-        // 2. Gửi sự kiện trigger bump 3D tới cả 2 người
-        const bumpPayload = {
+        const sessionKey = getBumpSessionKey(userId, targetUserId);
+        activeBumpSessions.set(sessionKey, {
+          user1: userId,
+          user2: targetUserId,
           initiatorId: userId,
           initiatorName: senderName || 'Tôi',
           initiatorAvatar: senderAvatar,
           targetUserId,
-          targetName: data.targetName,
+          targetName: data.targetName || 'Bạn bè',
           targetAvatar: data.targetAvatar,
-          lat,
-          lng,
-          story: jointStory,
+          lat: Number(lat || 10.7769),
+          lng: Number(lng || 106.7009),
+          readyUsers: new Set(),
+          createdAt: Date.now()
+        });
+
+        const bumpPayload = {
+          sessionKey,
+          initiatorId: userId,
+          initiatorName: senderName || 'Tôi',
+          initiatorAvatar: senderAvatar,
+          targetUserId,
+          targetName: data.targetName || 'Bạn bè',
+          targetAvatar: data.targetAvatar,
+          lat: Number(lat || 10.7769),
+          lng: Number(lng || 106.7009),
           timestamp: Date.now()
         };
 
-        // Gửi cho người nhận
+        // Gửi sự kiện trigger mở modal 3D cho CẢ 2 BÊN
         emitToUser(targetUserId, 'spatial:bump-trigger', bumpPayload);
-        // Gửi xác nhận cho người gửi
         socket.emit('spatial:bump-trigger', bumpPayload);
 
-        // Broadcast story mới cho toàn thể client trên map
-        if (jointStory) {
-          ioInstance.emit('stories:new', jointStory);
+        // Gửi thông báo nổi Toast qua notificationService cho targetUser
+        try {
+          notificationService.createNotification({
+            type: 'spatial_bump',
+            fromUserId: userId,
+            toUserId: targetUserId,
+            title: '🥂 Cụng Ly Ngoài Đời Thực!',
+            body: `${senderName || 'Bạn bè'} đang ở cận kề và muốn cụng ly chúc mừng cùng bạn!`,
+            avatar: senderAvatar || '',
+            actionData: {
+              bumpData: bumpPayload
+            }
+          });
+        } catch (notifErr) {
+          console.warn('[Socket.IO] Bump notification warning:', notifErr.message);
         }
       } catch (err) {
         console.warn('[Socket.IO] spatial:bump-initiate error:', err.message);
       }
+    });
+
+    socket.on('spatial:bump-ready', async (data) => {
+      try {
+        const { targetUserId } = data;
+        if (!targetUserId) return;
+        const sessionKey = getBumpSessionKey(userId, targetUserId);
+        let session = activeBumpSessions.get(sessionKey);
+
+        if (!session) {
+          session = {
+            user1: userId,
+            user2: targetUserId,
+            initiatorId: userId,
+            targetUserId,
+            lat: 10.7769,
+            lng: 106.7009,
+            readyUsers: new Set(),
+            createdAt: Date.now()
+          };
+          activeBumpSessions.set(sessionKey, session);
+        }
+
+        session.readyUsers.add(userId);
+
+        // Báo cho đối phương biết bên này đã sẵn sàng
+        emitToUser(targetUserId, 'spatial:bump-peer-ready', {
+          fromUserId: userId,
+          timestamp: Date.now()
+        });
+
+        // Kiểm tra xem CẢ 2 BÊN đã sẵn sàng chưa (Phương án B: Bắt tay 2 chiều)
+        const isBothReady = session.readyUsers.has(userId) && session.readyUsers.has(targetUserId);
+
+        if (isBothReady) {
+          console.log(`[Socket.IO] 🥂 CẢ 2 BÊN ĐÃ SẴN SÀNG CỤNG LY: ${userId} & ${targetUserId}`);
+
+          // Tạo bài đăng Story Đôi kỷ niệm cuộc gặp
+          let jointStory = null;
+          try {
+            const jointTitle = `🎉 ${session.initiatorName || 'Bạn'} & ${session.targetName || 'Bạn bè'} vừa cụng ly chúc mừng cùng nhau!`;
+            jointStory = await dbService.createStory({
+              host_id: session.initiatorId || userId,
+              host_name: session.initiatorName || 'Tôi',
+              host_avatar: session.initiatorAvatar || null,
+              partner_id: targetUserId,
+              partner_name: session.targetName || '',
+              partner_avatar: session.targetAvatar || '',
+              title: jointTitle,
+              description: `Vừa cụng ly chúc mừng ngoài đời thực tại tọa độ ${Number(session.lat || 10.7769).toFixed(4)}, ${Number(session.lng || 106.7009).toFixed(4)}!`,
+              category: 'hangout',
+              lat: Number(session.lat || 10.7769),
+              lng: Number(session.lng || 106.7009),
+              is_joint: true,
+              expiry_hours: 6
+            });
+          } catch (storyErr) {
+            console.warn('[Socket.IO] Joint story creation warning:', storyErr.message);
+          }
+
+          const clinkPayload = {
+            sessionKey,
+            story: jointStory,
+            timestamp: Date.now()
+          };
+
+          // Gửi sự kiện cụng ly CLINK đồng thời tới CẢ 2 BÊN!
+          emitToUser(targetUserId, 'spatial:bump-clink', clinkPayload);
+          socket.emit('spatial:bump-clink', clinkPayload);
+
+          if (jointStory) {
+            ioInstance.emit('stories:new', jointStory);
+          }
+
+          activeBumpSessions.delete(sessionKey);
+        }
+      } catch (err) {
+        console.warn('[Socket.IO] spatial:bump-ready error:', err.message);
+      }
+    });
+
+    socket.on('spatial:bump-cancel', (data) => {
+      try {
+        const { targetUserId } = data;
+        if (!targetUserId) return;
+        const sessionKey = getBumpSessionKey(userId, targetUserId);
+        activeBumpSessions.delete(sessionKey);
+        emitToUser(targetUserId, 'spatial:bump-peer-cancelled', { fromUserId: userId });
+      } catch (err) {}
     });
 
     // ================================================================

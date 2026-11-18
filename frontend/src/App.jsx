@@ -314,6 +314,9 @@ export default function App() {
   const [isBumpModalOpen, setIsBumpModalOpen] = useState(false);
   const [activeBumpData, setActiveBumpData] = useState(null);
   const [dismissedBumpPeerId, setDismissedBumpPeerId] = useState(null);
+  const [isBumpMyReady, setIsBumpMyReady] = useState(false);
+  const [isBumpPeerReady, setIsBumpPeerReady] = useState(false);
+  const [isBumpClinkTriggered, setIsBumpClinkTriggered] = useState(false);
 
   // Tự động nhận diện đường link công khai Cloudflare Tunnel
   useEffect(() => {
@@ -612,7 +615,7 @@ export default function App() {
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
 
   // Khởi tạo kết nối Socket.IO realtime
-  const { socketRef, isConnected: isSocketConnected } = useSocket(currentUserId);
+  const { socketRef, socket, isConnected: isSocketConnected } = useSocket(currentUserId);
 
   // CÔ LẬP DỮ LIỆU: Khi đổi tài khoản hoặc đăng xuất, reset sạch toàn bộ state
   useEffect(() => {
@@ -1089,10 +1092,13 @@ export default function App() {
       }));
     };
 
-    // 10. Sự kiện Cụm Ly 3D (Spatial Bump Trigger) từ Socket.IO
+    // 10. Sự kiện Cụm Ly 3D (Spatial Bump Handshake Protocol) từ Socket.IO
     const handleBumpTrigger = (bumpData) => {
       console.log('[Socket.IO Client] [BUMP] Nhận sự kiện Cụm Ly 3D:', bumpData);
       setActiveBumpData(bumpData);
+      setIsBumpMyReady(false);
+      setIsBumpPeerReady(false);
+      setIsBumpClinkTriggered(false);
       setIsBumpModalOpen(true);
       if (bumpData.story) {
         setStories(prev => {
@@ -1100,6 +1106,37 @@ export default function App() {
           return [bumpData.story, ...prev];
         });
       }
+    };
+
+    const handleBumpPeerReady = (data) => {
+      console.log('[Socket.IO Client] [BUMP] Đối phương đã sẵn sàng chạm ly:', data);
+      setIsBumpPeerReady(true);
+    };
+
+    const handleBumpClink = (data) => {
+      console.log('[Socket.IO Client] [BUMP] 🎉 CẢ 2 BÊN ĐÃ SẴN SÀNG -> CỤNG LY THÀNH CÔNG:', data);
+      setIsBumpClinkTriggered(true);
+      if (data?.jointStory) {
+        setStories(prev => {
+          if (prev.some(s => s.id === data.jointStory.id)) return prev;
+          return [data.jointStory, ...prev];
+        });
+      }
+    };
+
+    const handleBumpPeerCancelled = (data) => {
+      console.log('[Socket.IO Client] [BUMP] Đối phương đã đóng/hủy cụng ly:', data);
+      setIsBumpModalOpen(false);
+      setIsBumpMyReady(false);
+      setIsBumpPeerReady(false);
+      setIsBumpClinkTriggered(false);
+      setIncomingMessageToast({
+        id: 'bump-cancelled-' + Date.now(),
+        senderName: 'VIVU Spatial Bump',
+        senderAvatar: DEFAULT_WHITE_PERSON_AVATAR,
+        text: 'Đối phương đã đóng cửa sổ Cụng Ly.',
+        isNotification: true
+      });
     };
 
     // 11. Sự kiện Lời mời vào nhóm mới từ bạn bè (CIRCLE:INVITE)
@@ -1202,6 +1239,9 @@ export default function App() {
     socket.on('friend:unfriended', handleUnfriended);
     socket.on('chat:read', handleChatRead);
     socket.on('spatial:bump-trigger', handleBumpTrigger);
+    socket.on('spatial:bump-peer-ready', handleBumpPeerReady);
+    socket.on('spatial:bump-clink', handleBumpClink);
+    socket.on('spatial:bump-peer-cancelled', handleBumpPeerCancelled);
     socket.on('circle:invite', handleCircleInvite);
     socket.on('circle:member_joined', handleCircleMemberJoined);
     socket.on('circle:member_left', handleCircleMemberLeft);
@@ -1220,6 +1260,9 @@ export default function App() {
       socket.off('friend:unfriended', handleUnfriended);
       socket.off('chat:read', handleChatRead);
       socket.off('spatial:bump-trigger', handleBumpTrigger);
+      socket.off('spatial:bump-peer-ready', handleBumpPeerReady);
+      socket.off('spatial:bump-clink', handleBumpClink);
+      socket.off('spatial:bump-peer-cancelled', handleBumpPeerCancelled);
       socket.off('circle:invite', handleCircleInvite);
       socket.off('circle:member_joined', handleCircleMemberJoined);
       socket.off('circle:member_left', handleCircleMemberLeft);
@@ -1227,7 +1270,7 @@ export default function App() {
       socket.off('circle:disbanded', handleCircleDisbanded);
       socket.off('circle:updated', handleCircleUpdated);
     };
-  }, [socketRef.current, currentUserId]);
+  }, [socket, currentUserId]);
 
   // Hành động thao tác thông báo
   const handleMarkNotificationRead = async (notifId) => {
@@ -1509,6 +1552,38 @@ export default function App() {
     friends: allNearbyOnlineFriends.filter(p => p.id !== dismissedBumpPeerId),
     onTriggerBump: handleInitiateBump
   });
+
+  // Xử lý gửi tín hiệu sẵn sàng Cụng Ly (Mutual Handshake Ready)
+  const handleBumpReady = useCallback(() => {
+    if (!activeBumpData) return;
+    setIsBumpMyReady(true);
+    const partnerId = activeBumpData.initiatorId === currentUserId
+      ? (activeBumpData.targetUserId || activeBumpData.targetId)
+      : activeBumpData.initiatorId;
+
+    if (socket && socket.connected) {
+      socket.emit('spatial:bump-ready', {
+        targetUserId: partnerId,
+        sessionId: activeBumpData.sessionId
+      });
+    }
+  }, [activeBumpData, currentUserId, socket]);
+
+  // Xử lý đóng Modal Cụng Ly & thông báo hủy cho đối phương nếu chưa cụng ly
+  const handleCloseBumpModal = useCallback(() => {
+    if (isBumpModalOpen && activeBumpData && !isBumpClinkTriggered) {
+      const partnerId = activeBumpData.initiatorId === currentUserId
+        ? (activeBumpData.targetUserId || activeBumpData.targetId)
+        : activeBumpData.initiatorId;
+      if (partnerId && socket && socket.connected) {
+        socket.emit('spatial:bump-cancel', { targetUserId: partnerId });
+      }
+    }
+    setIsBumpModalOpen(false);
+    setIsBumpMyReady(false);
+    setIsBumpPeerReady(false);
+    setIsBumpClinkTriggered(false);
+  }, [isBumpModalOpen, activeBumpData, isBumpClinkTriggered, currentUserId, socket]);
 
 
 
@@ -4263,7 +4338,7 @@ export default function App() {
           onOpenRightFriendshipPanel={() => setIsRightFriendshipPanelOpen(true)}
           onDirectChat={handleStoryDirectChat}
           onStartCall={(target) => handleStartCall('voice', target)}
-          onTriggerBump={(target) => handleTriggerBumpWithUser(target)}
+          onTriggerBump={(target) => handleInitiateBump(target)}
           onOpenMemeTroll={(target) => setTrollTargetUser(target)}
           onStartNavigation={(target) => {
             setNavTarget(target);
@@ -4426,12 +4501,16 @@ export default function App() {
         {isBumpModalOpen && (
           <SpatialBumpModal3D
             isOpen={isBumpModalOpen}
-            onClose={() => setIsBumpModalOpen(false)}
+            onClose={handleCloseBumpModal}
             initiatorName={activeBumpData?.initiatorName || currentUserName}
             initiatorAvatar={activeBumpData?.initiatorAvatar || currentUserAvatar}
             targetName={activeBumpData?.targetName || 'Bạn bè'}
             targetAvatar={activeBumpData?.targetAvatar || DEFAULT_WHITE_PERSON_AVATAR}
             isInitiator={activeBumpData?.initiatorId === currentUserId}
+            isMyReady={isBumpMyReady}
+            isPeerReady={isBumpPeerReady}
+            clinkTriggered={isBumpClinkTriggered}
+            onReady={handleBumpReady}
           />
         )}
       </Suspense>

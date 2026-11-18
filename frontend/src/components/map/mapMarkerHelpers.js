@@ -12,21 +12,25 @@ import { getMascotActionDataUrl, playActionSound } from '../../data/messengerZal
 // Xác định kiểu khung hiển thị (Pin Skin) theo ngữ cảnh hoặc ghi đè thủ công
 export function resolveMarkerSkin({ manualSkin, hasStory, hasChibi, hasAction }) {
   if (manualSkin && manualSkin !== 'auto') {
-    return manualSkin; // 'zenly_3d' | 'polaroid' | 'aura_circle' | 'classic_teardrop'
+    return manualSkin; // 'zenly_3d' | 'aura_circle' | 'classic_teardrop'
   }
-  if (hasStory) return 'polaroid';
   // Chỉ khi chọn mascot hành động toàn thân trong tủ đồ mới dùng zenly_3d
   if (hasAction) return 'zenly_3d';
   return 'aura_circle';
 }
 
-// 1. RENDER THÂN GHIM (MARKER BODY) THEO PHONG CÁCH ZENLY 3D / AURA / POLAROID / CLASSIC
+// 1. RENDER THÂN GHIM (MARKER BODY) THEO PHONG CÁCH ZENLY 3D / AURA STORY RING
 export function getMarkerBodyHtml({
   skinMode = 'aura_circle',
   avatar = '',
   name = 'BẠN',
   isOwner = false,
   hasStory = false,
+  storyCount = 0,
+  storyPreviewImage = null,
+  storyTitle = null,
+  hasSong = false,
+  songTitle = null,
   isOffline = false,
   chibiDataUrl = null,
   actionDataUrl = null,
@@ -37,6 +41,21 @@ export function getMarkerBodyHtml({
     const displayImg = actionDataUrl || avatar;
     return `
       <div class="vivu-zenly-marker flex flex-col items-center select-none relative group cursor-pointer animate-in zoom-in-95 duration-200 pointer-events-auto">
+        <!-- Hover Preview Mini khi có Story (Rê chuột trên PC) -->
+        ${hasStory && storyPreviewImage ? `
+          <div class="vivu-story-hover-card absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+            <div class="w-20 h-26 rounded-2xl overflow-hidden border-2 border-white/80 shadow-[0_12px_30px_rgba(0,0,0,0.85)] bg-black relative">
+              <img src="${storyPreviewImage}" alt="Story Preview" class="w-full h-full object-cover" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+              <div class="absolute bottom-1.5 left-1.5 right-1.5 text-center">
+                <span class="text-[8px] font-bold text-white truncate block">${storyTitle || 'Story'}</span>
+                ${storyCount > 1 ? `<span class="text-[7px] text-[#00E5FF] font-mono block">${storyCount} tin</span>` : ''}
+              </div>
+            </div>
+            <div class="w-2 h-2 bg-black border-r-2 border-b-2 border-white/80 transform rotate-45 -mt-1 shadow-md"></div>
+          </div>
+        ` : ''}
+
         <!-- Nhân vật Chibi / Avatar đứng thẳng trên mặt đất -->
         <div class="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center transition-transform group-hover:scale-115 active:scale-95 animate-chibi-float pointer-events-auto cursor-pointer" ${actionSound ? `data-action-sound="${actionSound}" data-chibi-sound="${actionSound}"` : ''}>
           ${displayImg ? `
@@ -46,7 +65,21 @@ export function getMarkerBodyHtml({
               <i class="bi bi-person-fill text-2xl"></i>
             </div>
           `}
-          ${isOwner ? `
+
+          <!-- ĐĨA NHẠC VINYL MINI XOAY Ở GÓC GHIM -->
+          ${hasSong ? `
+            <div class="vivu-vinyl-disc absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#111116] border border-white/40 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center animate-spin-slow z-30 cursor-pointer pointer-events-auto hover:scale-125 transition-transform"
+                 data-song-title="${songTitle || ''}"
+                 title="Bài hát: ${songTitle || 'Đang phát'} (Bấm để bật/tắt)">
+              <div class="w-4 h-4 rounded-full border border-neutral-700/80 flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#FF2A85] to-[#7928CA] flex items-center justify-center shadow-inner">
+                  <i class="bi bi-music-note-beamed text-[6.5px] text-white"></i>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          ${isOwner && !hasStory ? `
             <button id="btn-quick-create-story" type="button" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_10px_#FF2A85] flex items-center justify-center z-30 hover:scale-115 active:scale-90 transition-transform cursor-pointer pointer-events-auto" title="Đăng Story">
               <i class="bi bi-plus-lg text-[11px] font-bold"></i>
             </button>
@@ -58,43 +91,64 @@ export function getMarkerBodyHtml({
     `;
   }
 
-  // 1.2 PHONG CÁCH THẺ POLAROID MINI (KHI CÓ STORY)
-  if (skinMode === 'polaroid' || hasStory) {
-    return `
-      <div class="vivu-polaroid-marker flex flex-col items-center select-none relative group cursor-pointer animate-in zoom-in-95 duration-200">
-        <div class="relative w-12 h-15 rounded-2xl p-1 bg-white shadow-[0_10px_25px_rgba(0,0,0,0.6)] border border-white/80 transition-transform group-hover:scale-110 active:scale-95">
-          <div class="w-full h-11 rounded-xl overflow-hidden bg-[#151619] flex items-center justify-center">
-            ${avatar ? `<img src="${avatar}" alt="${name}" class="w-full h-full object-cover" />` : `<div class="w-full h-full bg-white flex items-center justify-center text-neutral-400"><i class="bi bi-person-fill text-lg"></i></div>`}
-          </div>
-          <!-- Huy hiệu Live nhấp nháy -->
-          <div class="absolute -top-1.5 -right-1.5 px-1.5 py-0.2 rounded-full bg-[#FF2A85] text-white text-[8px] font-black tracking-wider uppercase shadow-md flex items-center gap-0.5 animate-pulse">
-            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>
-            <span>LIVE</span>
-          </div>
-          <div class="w-full pt-0.5 text-center">
-            <span class="text-[8px] font-bold text-neutral-800 truncate block max-w-full">${name}</span>
-          </div>
-        </div>
-        <!-- Bóng đổ 3D dưới chân thẻ ảnh -->
-        <div class="w-10 h-2 rounded-full bg-black/40 blur-[1px] -mt-0.5 pointer-events-none"></div>
-      </div>
-    `;
-  }
+  // 1.2 PHONG CÁCH VÒNG TRÒN AURA PHÁT SÁNG & STORY RING (CHUẨN INSTAGRAM / ZENLY 3D)
+  const isAura = skinMode === 'aura_circle' || skinMode === 'polaroid' || hasStory;
+  if (isAura) {
+    const ringClass = hasStory
+      ? 'p-[3px] bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#00E5FF] shadow-[0_0_20px_rgba(255,42,133,0.7)] animate-pulse-slow'
+      : (isOwner ? 'p-[2.5px] bg-gradient-to-tr from-[#00E5FF] via-purple-500 to-[#FF2A85] shadow-[0_0_20px_rgba(0,229,255,0.7)]' : (isOffline ? 'p-[2px] bg-neutral-400 opacity-65' : 'p-[2.5px] bg-gradient-to-tr from-[#00E5FF] to-[#10FFA0] shadow-[0_0_18px_rgba(0,229,255,0.65)]'));
 
-  // 1.3 PHONG CÁCH VÒNG TRÒN AURA PHÁT SÁNG (MẶC ĐỊNH HIỆN ĐẠI - 0 CHÓP NHỌN)
-  if (skinMode === 'aura_circle') {
     return `
-      <div class="vivu-aura-marker flex flex-col items-center select-none relative group cursor-pointer animate-in zoom-in-95 duration-200">
-        <!-- Vòng hào quang xung nhịp kép (Dual Breathing Aura) -->
-        <div class="absolute -inset-2 rounded-full bg-[rgba(0,229,255,0.2)] animate-ping pointer-events-none"></div>
-        <div class="relative w-12 h-12 rounded-full p-[2.5px] ${isOwner ? 'bg-gradient-to-tr from-[#00E5FF] via-purple-500 to-[#FF2A85] shadow-[0_0_20px_rgba(0,229,255,0.7)]' : (isOffline ? 'bg-neutral-400 opacity-65' : 'bg-gradient-to-tr from-[#00E5FF] to-[#10FFA0] shadow-[0_0_18px_rgba(0,229,255,0.65)]')} flex items-center justify-center transition-transform group-hover:scale-110 active:scale-95">
-          <div class="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
-            ${avatar ? `<img src="${avatar}" alt="${name}" class="w-full h-full object-cover" />` : `<div class="w-full h-full bg-white flex items-center justify-center text-neutral-400"><i class="bi bi-person-fill text-xl"></i></div>`}
+      <div class="vivu-aura-marker flex flex-col items-center select-none relative group cursor-pointer animate-in zoom-in-95 duration-200 pointer-events-auto">
+        <!-- Hover Preview Mini khi có Story (Rê chuột trên PC) -->
+        ${hasStory && storyPreviewImage ? `
+          <div class="vivu-story-hover-card absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+            <div class="w-20 h-26 rounded-2xl overflow-hidden border-2 border-white/80 shadow-[0_12px_30px_rgba(0,0,0,0.85)] bg-black relative">
+              <img src="${storyPreviewImage}" alt="Story Preview" class="w-full h-full object-cover" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+              <div class="absolute bottom-1.5 left-1.5 right-1.5 text-center">
+                <span class="text-[8px] font-bold text-white truncate block">${storyTitle || 'Story'}</span>
+                ${storyCount > 1 ? `<span class="text-[7px] text-[#00E5FF] font-mono block">${storyCount} tin</span>` : ''}
+              </div>
+            </div>
+            <div class="w-2 h-2 bg-black border-r-2 border-b-2 border-white/80 transform rotate-45 -mt-1 shadow-md"></div>
           </div>
-          ${isOwner ? `
+        ` : ''}
+
+        <!-- Vòng hào quang xung nhịp kép (Dual Breathing Aura) -->
+        <div class="absolute -inset-2 rounded-full ${hasStory ? 'bg-[rgba(255,42,133,0.25)]' : 'bg-[rgba(0,229,255,0.2)]'} animate-ping pointer-events-none"></div>
+
+        <!-- Thân Tròn Viền Story Ring / Aura Ring -->
+        <div class="vivu-pin-circle relative w-12 h-12 rounded-full ${ringClass} flex items-center justify-center transition-transform group-hover:scale-110 active:scale-95" ${hasStory ? 'data-has-story="true" title="Bấm để xem Story toàn màn hình"' : ''}>
+          <div class="w-full h-full rounded-full overflow-hidden bg-[#0d0e14] border-2 border-white flex items-center justify-center">
+            ${avatar ? `<img src="${avatar}" alt="${name}" class="w-full h-full object-cover" />` : `<div class="w-full h-full bg-neutral-800 flex items-center justify-center text-white/50"><i class="bi bi-person-fill text-xl"></i></div>`}
+          </div>
+
+          <!-- ĐĨA NHẠC VINYL MINI XOAY Ở GÓC GHIM -->
+          ${hasSong ? `
+            <div class="vivu-vinyl-disc absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#111116] border border-white/40 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center animate-spin-slow z-30 cursor-pointer pointer-events-auto hover:scale-125 transition-transform"
+                 data-song-title="${songTitle || ''}"
+                 title="Bài hát: ${songTitle || 'Đang phát'} (Bấm để bật/tắt)">
+              <div class="w-4 h-4 rounded-full border border-neutral-700/80 flex items-center justify-center">
+                <div class="w-2.5 h-2.5 rounded-full bg-gradient-to-tr from-[#FF2A85] to-[#7928CA] flex items-center justify-center shadow-inner">
+                  <i class="bi bi-music-note-beamed text-[6.5px] text-white"></i>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Nút (+) Đăng Story nhanh cho chính chủ nếu chưa có Story -->
+          ${isOwner && !hasStory ? `
             <button id="btn-quick-create-story" type="button" class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_8px_#FF2A85] flex items-center justify-center z-20 hover:scale-110 active:scale-90 transition-transform cursor-pointer" title="Đăng Story">
               <i class="bi bi-plus-lg text-[10px] font-bold"></i>
             </button>
+          ` : ''}
+
+          <!-- Huy hiệu số lượng Story nếu có từ 2 Story trở lên -->
+          ${hasStory && storyCount > 1 ? `
+            <span class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-black/85 text-white text-[8px] font-mono font-bold border border-white/30 shadow-md">
+              ${storyCount}
+            </span>
           ` : ''}
         </div>
         <!-- Bóng mờ tiếp đất nhẹ -->
@@ -103,20 +157,24 @@ export function getMarkerBodyHtml({
     `;
   }
 
-  // 1.4 PHONG CÁCH GIỌT NƯỚC CỔ ĐIỂN (CLASSIC TEARDROP)
+  // 1.3 PHONG CÁCH GIỌT NƯỚC CỔ ĐIỂN (CLASSIC TEARDROP)
   return `
-    <div class="vivu-teardrop-marker flex flex-col items-center select-none relative group cursor-pointer animate-in zoom-in-95 duration-200">
+    <div class="vivu-teardrop-marker flex flex-col items-center select-none relative group cursor-pointer animate-in zoom-in-95 duration-200 pointer-events-auto">
       <div class="relative w-11 h-11 rounded-full p-[2px] ${isOwner ? 'bg-white border-2 border-[#10FFA0] shadow-[0_0_14px_rgba(16,255,160,0.65)]' : 'bg-white border-2 border-[#00E5FF] shadow-[0_0_14px_rgba(0,229,255,0.75)]'} flex items-center justify-center transition-transform group-hover:scale-110 active:scale-95">
         <div class="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
           ${avatar ? `<img src="${avatar}" alt="${name}" class="w-full h-full object-cover" />` : `<div class="w-full h-full bg-white flex items-center justify-center text-neutral-400"><i class="bi bi-person-fill text-lg"></i></div>`}
         </div>
-        ${isOwner ? `
+        ${hasSong ? `
+          <div class="vivu-vinyl-disc absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#111116] border border-white/40 shadow-md flex items-center justify-center animate-spin-slow z-30 cursor-pointer pointer-events-auto">
+            <i class="bi bi-music-note-beamed text-[6px] text-[#FF2A85]"></i>
+          </div>
+        ` : ''}
+        ${isOwner && !hasStory ? `
           <button id="btn-quick-create-story" type="button" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_8px_#FF2A85] flex items-center justify-center z-20 hover:scale-110 active:scale-90 transition-transform cursor-pointer" title="Đăng Story">
             <i class="bi bi-plus-lg text-[10px] font-bold"></i>
           </button>
         ` : ''}
       </div>
-      <!-- Chóp nhọn cắm tim đường -->
       <div class="w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[6px] border-t-white -mt-0.5 filter drop-shadow-[0_2px_4px_rgba(0,229,255,0.4)]"></div>
     </div>
   `;
@@ -220,15 +278,10 @@ export function renderStoryBubbleBox(storiesOrSingle, isOwner = false, displayNa
 
 // 2. RENDER BONG BÓNG TRẠNG THÁI / BÀI HÁT / CHIBI CHO CHỦ SỞ HỮU (BẠN)
 export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statusText, chibiId, actionMascot, actionId, chibiExpiresAt }) {
-  const storyTarget = (myActiveStories && myActiveStories.length > 0) ? myActiveStories : myActiveStory;
-  if (storyTarget) {
-    return renderStoryBubbleBox(storyTarget, true, 'Bạn');
-  }
-
   // Khử tiêu đề mồ côi khi Story đã bị xóa
   const safeStatus = (statusText === 'Khoảnh khắc mới' || statusText === 'Tâm trạng') ? '' : statusText;
 
-  // ƯU TIÊN 2: BỘ CHIBI HÀNH ĐỘNG FB MESSENGER & ZALO (AMI, QOOBEE, QUỲNH AKA...)
+  // ƯU TIÊN 1: BỘ CHIBI HÀNH ĐỘNG FB MESSENGER & ZALO (AMI, QOOBEE, QUỲNH AKA...)
   if (actionMascot && actionId) {
     const actionUrl = getMascotActionDataUrl(actionMascot, actionId);
     return `
@@ -243,21 +296,14 @@ export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statu
             </div>
           ` : ''}
         </div>
-        ${song ? `
-          <div class="mt-0.5 px-2.5 py-0.5 bg-[#08202E]/90 text-[#00E5FF] rounded-full border border-[#FF2A85]/40 text-[9px] font-mono flex items-center gap-1 shadow-sm">
-            <i class="bi bi-music-note-beamed text-[#FF2A85]"></i>
-            <span class="truncate max-w-[100px]">${song.title || 'Bài hát'}</span>
-          </div>
-        ` : ''}
       </div>
     `;
   }
 
-  // ƯU TIÊN 3: BIỂU CẢM CHIBI MASCOT UNIVERSE
+  // ƯU TIÊN 2: BIỂU CẢM CHIBI MASCOT UNIVERSE
   const chibi = chibiId ? getChibiMascotById(chibiId) : null;
   if (chibi) {
     const chibiDataUrl = getChibiDataUrl(chibi);
-    const hasDetails = Boolean(safeStatus || song);
     const remainingTime = formatRemainingChibiTime(chibiExpiresAt);
     return `
       <div class="owner-bubble-wrapper mb-2 relative flex items-center gap-2 px-2.5 py-1.5 bg-[rgba(10,18,32,0.92)] border border-[#00E5FF]/40 rounded-2xl shadow-[0_8px_25px_rgba(0,0,0,0.7)] backdrop-blur-xl animate-in zoom-in-95 duration-200 select-none pointer-events-auto cursor-pointer group hover:border-[#00E5FF] transition-all">
@@ -266,58 +312,26 @@ export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statu
           <img src="${chibiDataUrl}" alt="${chibi.name}" class="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,229,255,0.4)] animate-chibi-float pointer-events-auto" />
         </div>
 
-        <!-- Cột Phải: Suy nghĩ + Nút phát nhạc MP3 thật -->
-        ${hasDetails ? `
-          <div class="flex flex-col min-w-0 max-w-[170px] pr-1">
-            <div class="flex items-center gap-1">
-              ${safeStatus ? `
-                <div class="text-[11px] font-bold text-white truncate leading-snug drop-shadow-sm">
-                  ${safeStatus}
-                </div>
-              ` : `
-                <div class="text-[10px] font-bold text-[#00E5FF] truncate leading-snug">
-                  ${chibi.name}
-                </div>
-              `}
-              ${remainingTime ? `<span class="text-[8.5px] text-amber-400 font-mono shrink-0 ml-auto inline-flex items-center gap-0.5"><i class="bi bi-hourglass-split text-[8px]"></i>${remainingTime}</span>` : ''}
-            </div>
-            ${song ? `
-              <div id="btn-play-owner-song" class="mt-0.5 flex items-center gap-1.5 text-[10px] text-[#00E5FF] hover:text-white cursor-pointer active:scale-95 transition-all group/song" title="Bấm để phát / dừng bài hát">
-                <span class="w-4 h-4 rounded-full bg-[#FF2A85] text-white flex items-center justify-center shadow-[0_0_8px_#FF2A85] shrink-0 group-hover/song:scale-110 transition-transform">
-                  <i class="bi bi-play-fill text-[9px]"></i>
-                </span>
-                <span class="truncate max-w-[130px] font-mono text-[9.5px] text-white/90">${song.title || 'Bài hát'}</span>
+        <!-- Cột Phải: Suy nghĩ hoặc tên Chibi -->
+        <div class="flex flex-col min-w-0 max-w-[160px] pr-1">
+          <div class="flex items-center gap-1">
+            ${safeStatus ? `
+              <div class="text-[11px] font-bold text-white truncate leading-snug drop-shadow-sm">
+                ${safeStatus}
               </div>
-            ` : ''}
-          </div>
-        ` : `
-          <span class="text-[10px] font-bold text-[#00E5FF] pr-1.5 inline-flex items-center gap-1">${chibi.name} ${remainingTime ? `<span class="text-[8.5px] text-amber-400 font-mono"><i class="bi bi-hourglass-split text-[8px]"></i>${remainingTime}</span>` : ''}</span>
-        `}
-      </div>
-    `;
-  }
-
-  // ƯU TIÊN 4: BÀI HÁT MP3
-  if (song && (safeStatus || song.title)) {
-    return `
-      <div class="owner-bubble-wrapper mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-pointer" title="Bài hát của bạn">
-        <div class="px-3 py-1.5 bg-[#08202E]/95 text-white rounded-2xl rounded-br-xs shadow-[0_4px_16px_rgba(255,42,133,0.35)] border border-[#FF2A85]/50 flex items-center gap-2 max-w-[220px]">
-          <button id="btn-play-owner-song" type="button" class="w-6 h-6 rounded-full bg-[#FF2A85] text-white flex items-center justify-center shrink-0 active:scale-90 transition-transform cursor-pointer" title="Phát bài hát của bạn">
-            <i class="bi bi-play-fill text-xs"></i>
-          </button>
-          <div class="overflow-hidden">
-            ${safeStatus ? `<div class="text-[11px] font-bold text-white truncate max-w-[150px]">${safeStatus}</div>` : ''}
-            <div class="text-[10px] text-[#00E5FF] truncate flex items-center gap-1 font-mono max-w-[150px]">
-              <i class="bi bi-music-note-beamed text-[#FF2A85] animate-bounce"></i>
-              <span class="truncate">${song.title || 'Bài hát'}</span>
-            </div>
+            ` : `
+              <div class="text-[10px] font-bold text-[#00E5FF] truncate leading-snug">
+                ${chibi.name}
+              </div>
+            `}
+            ${remainingTime ? `<span class="text-[8.5px] text-amber-400 font-mono shrink-0 ml-auto inline-flex items-center gap-0.5"><i class="bi bi-hourglass-split text-[8px]"></i>${remainingTime}</span>` : ''}
           </div>
         </div>
       </div>
     `;
   }
 
-  // ƯU TIÊN 5: SUY NGHĨ NGẮN (CYAN BUBBLE)
+  // ƯU TIÊN 3: SUY NGHĨ NGẮN (CYAN BUBBLE)
   if (safeStatus) {
     return `
       <div class="owner-bubble-wrapper mb-2 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-pointer" title="Suy nghĩ của Bạn">
@@ -329,6 +343,7 @@ export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statu
     `;
   }
 
+  // Khi không có status, không có Chibi -> Bong bóng rỗng, nhường toàn bộ vẻ đẹp cho Giọt Nước Story Ring V2
   return '';
 }
 
@@ -348,17 +363,10 @@ export function getPeerBubbleHtml(item, isCoLocated = false) {
     `;
   }
 
-  const targetStory = item.activeStory || (item.category === 'moment' || item.image || item.dual_image || item.bg_gradient ? item : null);
-  const storyTarget = (item.stories && item.stories.length > 0) ? item.stories : targetStory;
   const peerSong = item.custom_song || item.songData || item.music || null;
   const statusText = item.custom_status || (item.title && item.title !== 'Đang trực tuyến' && item.title !== 'Khoảnh khắc mới' ? item.title : '');
 
-  // 1. STORY KHOẢNH KHẮC (ĐƠN HOẶC NHIỀU TIN)
-  if (storyTarget) {
-    return renderStoryBubbleBox(storyTarget, false, displayName);
-  }
-
-  // 2. CHIBI HÀNH ĐỘNG FB/ZALO HOẶC MASCOT
+  // 1. CHIBI HÀNH ĐỘNG FB/ZALO HOẶC MASCOT
   const peerActionMascot = item.pin_mascot || item.actionMascot;
   const peerActionId = item.pin_action || item.actionId;
   if (peerActionMascot && peerActionId) {

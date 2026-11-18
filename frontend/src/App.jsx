@@ -2853,6 +2853,8 @@ export default function App() {
 
     // 5. Đồng bộ vị trí & thông tin Profile lên Backend
     if (currentUserId && userLat && userLng) {
+      const finalChibi = customChibi === null ? 'remove' : (customChibi !== undefined ? customChibi : userCustomChibi);
+      const finalChibiExp = customChibi === null ? 0 : (chibiExpiresAt !== undefined ? chibiExpiresAt : userCustomChibiExpiresAt);
       apiClient.updateGps(
         currentUserId,
         userLat,
@@ -2863,11 +2865,43 @@ export default function App() {
         currentUserCode,
         user?.phone,
         customSong !== undefined ? customSong : userCustomSong,
-        customChibi !== undefined ? customChibi : userCustomChibi,
+        finalChibi,
         userPinSkin,
         userPinMascot,
         userPinAction,
-        chibiExpiresAt !== undefined ? chibiExpiresAt : userCustomChibiExpiresAt
+        finalChibiExp
+      );
+    }
+  };
+
+  // Hàm gỡ bỏ Chibi mascot tức thì khỏi ghim bản đồ
+  const handleRemoveChibi = async () => {
+    setUserCustomChibi(null);
+    setUserCustomChibiExpiresAt(null);
+    try {
+      localStorage.removeItem("vivu_user_custom_chibi");
+      localStorage.removeItem("vivu_user_chibi_expires_at");
+      if (currentUserId) {
+        localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
+        localStorage.removeItem(`vivu_user_chibi_expires_at_${currentUserId}`);
+      }
+    } catch {}
+    if (currentUserId && userLat && userLng) {
+      await apiClient.updateGps(
+        currentUserId,
+        userLat,
+        userLng,
+        userCustomStatus,
+        currentUserName,
+        currentUserAvatar,
+        currentUserCode,
+        user?.phone,
+        userCustomSong,
+        'remove',
+        userPinSkin,
+        userPinMascot,
+        userPinAction,
+        0
       );
     }
   };
@@ -3783,7 +3817,9 @@ export default function App() {
               custom_song: song || null
             }).catch(() => {});
             if (userLat && userLng) {
-              apiClient.updateGps(currentUserId, userLat, userLng, status || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, chibiId || null, userPinSkin, userPinMascot, userPinAction, expiresAt || null);
+              const safeChibi = chibiId || 'remove';
+              const safeExp = chibiId ? (expiresAt || null) : 0;
+              apiClient.updateGps(currentUserId, userLat, userLng, status || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, safeChibi, userPinSkin, userPinMascot, userPinAction, safeExp);
             }
           }
           confetti({ particleCount: 25, spread: 40 });
@@ -3833,6 +3869,7 @@ export default function App() {
           }
           confetti({ particleCount: 20, spread: 35 });
         }}
+        onRemoveChibi={handleRemoveChibi}
         onRequestLocation={requestLocation}
       />
 

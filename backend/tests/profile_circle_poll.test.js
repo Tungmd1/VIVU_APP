@@ -754,5 +754,41 @@ describe('VIVU Profile, Avatar, Pin Icons, Live Location, Poll & Circle Test Sui
       const userAAfter = await dbService.getUserById(accA.id);
       assert.equal(userAAfter.custom_chibi, 'chibi-droplet-happy', 'A vẫn còn Chibi');
     });
+
+    it('Tài khoản A gỡ bỏ Chibi qua updateGps(customChibi: "remove") -> CSDL và Profile xóa sạch', async () => {
+      await dbService.updateGps(
+        accA.id,
+        16.05,
+        108.20,
+        '',
+        accA.full_name,
+        accA.avatar_url,
+        accA.user_code,
+        accA.phone,
+        null,
+        'remove',
+        'auto',
+        null,
+        null,
+        0
+      );
+
+      const userACheck = await dbService.getUserById(accA.id);
+      assert.equal(userACheck.custom_chibi, null, 'custom_chibi của A phải được xóa sạch sau khi gỡ');
+      assert.equal(userACheck.chibi_expires_at, null, 'chibi_expires_at của A phải được xóa sạch');
+    });
+
+    it('Tài khoản A gỡ bỏ Chibi qua updateGps(customChibi: null, chibiExpiresAt: 0) -> CSDL xóa sạch', async () => {
+      // Đầu tiên gán chibi lại
+      await dbService.updateGps(accA.id, 16.05, 108.20, '', accA.full_name, accA.avatar_url, accA.user_code, accA.phone, null, 'chibi-droplet-happy', 'auto', null, null, Date.now() + 3600000);
+      let userACheck = await dbService.getUserById(accA.id);
+      assert.equal(userACheck.custom_chibi, 'chibi-droplet-happy');
+
+      // Sau đó gửi customChibi = null và chibiExpiresAt = 0
+      await dbService.updateGps(accA.id, 16.05, 108.20, '', accA.full_name, accA.avatar_url, accA.user_code, accA.phone, null, null, 'auto', null, null, 0);
+      userACheck = await dbService.getUserById(accA.id);
+      assert.equal(userACheck.custom_chibi, null, 'custom_chibi phải là null');
+      assert.equal(userACheck.chibi_expires_at, null, 'chibi_expires_at phải là null');
+    });
   });
 });

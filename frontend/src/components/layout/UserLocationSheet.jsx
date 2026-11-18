@@ -35,6 +35,7 @@ export default function UserLocationSheet({
   onLogout,
   onSelectStatus, 
   onClearSong,
+  onRemoveChibi,
   onRequestLocation
 }) {
   const [customInput, setCustomInput] = useState(userCustomStatus || '');
@@ -264,19 +265,35 @@ export default function UserLocationSheet({
                   <div className="text-[10px] text-white/50">{chibi.description}</div>
                 </div>
               </div>
-              {onOpenQuickStatus && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose();
-                    onOpenQuickStatus();
-                  }}
-                  className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-[11px] shrink-0 border border-white/20 cursor-pointer active:scale-95 transition-all"
-                >
-                  Đổi Chibi
-                </button>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                {onRemoveChibi && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveChibi();
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white font-bold text-[11px] border border-rose-500/40 cursor-pointer active:scale-95 transition-all flex items-center gap-1"
+                    title="Gỡ bỏ Chibi khỏi ghim"
+                  >
+                    <i className="bi bi-trash3-fill text-[10px]"></i>
+                    <span>Gỡ</span>
+                  </button>
+                )}
+                {onOpenQuickStatus && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose();
+                      onOpenQuickStatus();
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-[11px] border border-white/20 cursor-pointer active:scale-95 transition-all"
+                  >
+                    Đổi Chibi
+                  </button>
+                )}
+              </div>
             </div>
           );
         })()}

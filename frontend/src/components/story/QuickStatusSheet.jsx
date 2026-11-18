@@ -269,14 +269,25 @@ export default function QuickStatusSheet({
                   <span className="font-bold text-white">{currentChibi.name}</span>
                   <span className="text-white/50 ml-1.5">({currentChibi.extrasDesc})</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => playChibiSound(currentChibi.soundType)}
-                  className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-[#00E5FF] flex items-center justify-center text-xs shrink-0 cursor-pointer"
-                  title="Nghe lại âm thanh"
-                >
-                  <i className="bi bi-volume-up-fill"></i>
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => playChibiSound(currentChibi.soundType)}
+                    className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-[#00E5FF] flex items-center justify-center text-xs cursor-pointer"
+                    title="Nghe lại âm thanh"
+                  >
+                    <i className="bi bi-volume-up-fill"></i>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedChibiId(null)}
+                    className="px-2 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white text-[10px] font-bold border border-rose-500/30 flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Gỡ bỏ Chibi này"
+                  >
+                    <i className="bi bi-trash3-fill text-[9px]"></i>
+                    <span>Gỡ</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

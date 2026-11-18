@@ -19,7 +19,10 @@ infra/cloudflared.exe
 frontend/.env
 backend/.env
 
-# Temporary database and runtime files
+# Uploads
+backend/uploads/*
+!backend/uploads/**/.gitkeep
+
 backend/data/*.tmp
 backend/data/*.bak
 backend/data/vivu_test_database.json*

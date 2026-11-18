@@ -194,12 +194,26 @@ export default function GoogleMapView({
       chibiExpiresAt: userCustomChibiExpiresAt
     });
 
+    const ownerStoriesList = (myActiveStories && myActiveStories.length > 0) ? myActiveStories : (myActiveStory ? [myActiveStory] : []);
+    const ownerHasStory = ownerStoriesList.length > 0;
+    const ownerStoryCount = ownerStoriesList.length;
+    const ownerFirstStory = ownerStoriesList[0]?.activeStory || ownerStoriesList[0] || null;
+    const ownerStoryPreview = ownerFirstStory?.image || ownerFirstStory?.dual_image || null;
+    const ownerStoryTitle = ownerFirstStory?.title || null;
+    const ownerHasSong = Boolean(song);
+    const ownerSongTitle = song?.title || song?.name || null;
+
     const bodyHtml = getMarkerBodyHtml({
       skinMode: ownerSkin,
       avatar: safeAvatar,
       name: 'BẠN',
       isOwner: true,
-      hasStory: Boolean(myActiveStory),
+      hasStory: ownerHasStory,
+      storyCount: ownerStoryCount,
+      storyPreviewImage: ownerStoryPreview,
+      storyTitle: ownerStoryTitle,
+      hasSong: ownerHasSong,
+      songTitle: ownerSongTitle,
       actionDataUrl: userPinMascot && userPinAction ? getMascotActionDataUrl(userPinMascot, userPinAction) : null,
       chibiDataUrl: userCustomChibi ? getChibiDataUrl(userCustomChibi) : null,
       actionSound: userPinAction || (userCustomChibi ? getChibiMascotById(userCustomChibi)?.soundType : null)
@@ -262,7 +276,7 @@ export default function GoogleMapView({
         });
       }
     }
-  }, [safeLat, safeLng, userAvatar, userCustomStatus, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction, myActiveStory]);
+  }, [safeLat, safeLng, userAvatar, userCustomStatus, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction, myActiveStory, myActiveStories]);
 
   // 5. Vòng Tròn Radar Quét Không Gian
   useEffect(() => {
@@ -360,11 +374,21 @@ export default function GoogleMapView({
       const isOffline = item.isOnline === false;
       const hostAvatar = item.hostAvatar || item.avatar || DEFAULT_WHITE_PERSON_AVATAR;
       const displayName = item.hostName || item.host_name || item.name || 'Người dùng VIVU';
-      const hasStory = Boolean(item.activeStory || item.image || item.bg_gradient);
+      const peerStoriesList = Array.isArray(item.stories) && item.stories.length > 0
+        ? item.stories
+        : (item.activeStory || (item.category === 'moment' || item.image || item.dual_image || item.bg_gradient ? [item] : []));
+      const peerHasStory = peerStoriesList.length > 0;
+      const peerStoryCount = peerStoriesList.length;
+      const peerFirstStory = peerStoriesList[0]?.activeStory || peerStoriesList[0] || null;
+      const peerStoryPreview = peerFirstStory?.image || peerFirstStory?.dual_image || null;
+      const peerStoryTitle = peerFirstStory?.title || null;
+      const peerSong = item.custom_song || item.songData || item.music || null;
+      const peerHasSong = Boolean(peerSong);
+      const peerSongTitle = peerSong?.title || peerSong?.name || null;
 
       const peerSkin = resolveMarkerSkin({
         manualSkin: item.pin_skin,
-        hasStory: Boolean(hasStory),
+        hasStory: Boolean(peerHasStory),
         hasChibi: Boolean(item.custom_chibi || item.chibiId),
         hasAction: Boolean(item.pin_mascot && item.pin_action)
       });
@@ -375,7 +399,12 @@ export default function GoogleMapView({
         avatar: hostAvatar,
         name: displayName,
         isOwner: false,
-        hasStory: Boolean(hasStory),
+        hasStory: peerHasStory,
+        storyCount: peerStoryCount,
+        storyPreviewImage: peerStoryPreview,
+        storyTitle: peerStoryTitle,
+        hasSong: peerHasSong,
+        songTitle: peerSongTitle,
         isOffline,
         actionDataUrl: peerActionDataUrl,
         chibiDataUrl: peerChibiDataUrl,

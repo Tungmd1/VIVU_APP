@@ -821,7 +821,18 @@ export const dbService = {
       updatePayload.custom_song = registeredUser.custom_song;
     }
 
-    if (customChibi !== undefined) {
+    const isExplicitChibiRemoval =
+      customChibi === 'remove' ||
+      customChibi === '' ||
+      customChibi === 'none' ||
+      (customChibi === null && (chibiExpiresAt === 0 || chibiExpiresAt === '0'));
+
+    if (isExplicitChibiRemoval) {
+      updatePayload.custom_chibi = null;
+      updatePayload.chibi_expires_at = null;
+      registeredUser.custom_chibi = null;
+      registeredUser.chibi_expires_at = null;
+    } else if (customChibi !== undefined) {
       if (customChibi === null && hasActiveServerChibi && (chibiExpiresAt === undefined || chibiExpiresAt === null)) {
         updatePayload.custom_chibi = registeredUser.custom_chibi;
         updatePayload.chibi_expires_at = registeredUser.chibi_expires_at;

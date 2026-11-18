@@ -71,7 +71,7 @@ export function bindOwnerMarkerEvents(el, {
     }
 
     // 2. Nút phát bài hát MP3 của chính Bạn
-    if (e.target.closest('#btn-play-owner-song')) {
+    if (e.target.closest('#btn-play-owner-song') || e.target.closest('.vivu-vinyl-disc')) {
       const curSong = userCustomSongRef.current;
       if (curSong && storyAudioPlayer) {
         const isPlaying = storyAudioPlayer.togglePlay(curSong);
@@ -88,8 +88,8 @@ export function bindOwnerMarkerEvents(el, {
       return;
     }
 
-    // 3. Xem Story của Bạn nếu bấm vào khung Story
-    const ownerStoryBox = e.target.closest('#btn-view-owner-story') || e.target.closest('.user-bubble-slot .story-preview') || e.target.closest('.vivu-polaroid-marker');
+    // 3. Xem Story của Bạn nếu bấm vào pin Story Ring hoặc khung Story
+    const ownerStoryBox = e.target.closest('[data-has-story="true"]') || e.target.closest('#btn-view-owner-story') || e.target.closest('.user-bubble-slot .story-preview') || e.target.closest('.vivu-polaroid-marker');
     if (ownerStoryBox) {
       if (onOpenStoryDetailRef.current) {
         const card = e.target.closest('.vivu-multi-story-card');
@@ -148,10 +148,10 @@ export function bindPeerMarkerEvents(el, {
       return;
     }
 
-    // 1. Nút phát bài hát của bạn bè
-    if (e.target.closest('#btn-play-peer-song')) {
+    // 1. Nút phát bài hát của bạn bè & Đĩa vinyl mini
+    if (e.target.closest('#btn-play-peer-song') || e.target.closest('.vivu-vinyl-disc')) {
       if (curSong && storyAudioPlayer) {
-        const isPlaying = storyAudioPlayer.togglePlay(curSong);
+        const isPlaying = storyAudioPlayer.togglePlay(curSong, { loop: true });
         const playIcon = el.querySelector('#btn-play-peer-song i');
         if (playIcon) playIcon.className = isPlaying ? 'bi bi-pause-fill text-[9px] text-[#10FFA0]' : 'bi bi-play-fill text-[9px]';
       }
@@ -184,8 +184,9 @@ export function bindPeerMarkerEvents(el, {
 
     if (!curItem) return;
 
-    // 3. Xem Story
-    const peerStoryBox = e.target.closest('#btn-view-peer-story') || e.target.closest('.vivu-story-gif-box');
+    // 3. Xem Story khi bấm vào pin Story Ring hoặc khung Story
+    const peerStoryPin = e.target.closest('[data-has-story="true"]');
+    const peerStoryBox = e.target.closest('#btn-view-peer-story') || e.target.closest('.vivu-story-gif-box') || peerStoryPin;
     if (peerStoryBox) {
       const card = e.target.closest('.vivu-multi-story-card');
       let curIdx = 0;

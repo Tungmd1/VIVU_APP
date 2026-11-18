@@ -466,19 +466,26 @@ export default function UnifiedCreationStudioModal({
                 </div>
               </div>
 
-              {/* Trạng thái Chibi đã chọn */}
-              <div className="p-3 bg-black/40 border border-white/10 rounded-2xl flex items-center justify-between">
-                <span className="text-xs text-white/80">
-                  {selectedChibiId ? `Đang chọn: ${getChibiMascotById(selectedChibiId)?.name}` : 'Chưa gắn linh vật'}
-                </span>
-                {selectedChibiId && (
+              {/* Trạng thái Chibi đã chọn & Nút Gỡ Chibi */}
+              <div className="p-3 bg-black/60 border border-white/15 rounded-2xl flex items-center justify-between shadow-inner">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                  <span className="text-xs text-white/90 font-medium">
+                    {selectedChibiId ? `Đang gắn: ${getChibiMascotById(selectedChibiId)?.name}` : 'Chưa gắn linh vật'}
+                  </span>
+                </div>
+                {selectedChibiId ? (
                   <button
                     type="button"
                     onClick={() => setSelectedChibiId(null)}
-                    className="text-xs text-rose-400 hover:underline"
+                    className="px-3 py-1.5 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500 hover:text-white flex items-center gap-1.5 font-bold text-xs transition-all cursor-pointer active:scale-95"
+                    title="Gỡ bỏ linh vật Chibi khỏi ghim"
                   >
-                    Gỡ bỏ
+                    <i className="bi bi-trash3-fill text-[11px]"></i>
+                    <span>Gỡ Chibi đang gắn</span>
                   </button>
+                ) : (
+                  <span className="text-[11px] text-white/40 italic">Chọn 1 linh vật ở trên để gắn</span>
                 )}
               </div>
             </div>

@@ -35,10 +35,15 @@ export default function UserLocationSheet({
   onLogout,
   onSelectStatus, 
   onClearSong,
+  onClearStatus,
   onRemoveChibi,
   onRequestLocation
 }) {
   const [customInput, setCustomInput] = useState(userCustomStatus || '');
+
+  useEffect(() => {
+    setCustomInput(userCustomStatus || '');
+  }, [userCustomStatus, isOpen]);
 
   if (!isOpen) return null;
 
@@ -54,7 +59,9 @@ export default function UserLocationSheet({
   const handleSaveStatus = (e) => {
     e.preventDefault();
     if (customInput.trim()) {
-      onSelectStatus(customInput.trim());
+      if (onSelectStatus) onSelectStatus(customInput.trim());
+    } else {
+      if (onClearStatus) onClearStatus();
     }
   };
 
@@ -324,12 +331,28 @@ export default function UserLocationSheet({
           </div>
         )}
 
-        {/* Nhập trực tiếp tâm trạng trên ghim */}
-        <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-1.5">
-          <label className="text-xs font-bold text-white flex items-center gap-1.5">
-            <i className="bi bi-chat-quote-fill text-[#FF2A85]"></i>
-            <span>Tâm trạng hiển thị trên ghim của bạn:</span>
-          </label>
+        {/* Nhập trực tiếp tâm trạng trên ghim & Nút Gỡ tâm trạng */}
+        <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-white flex items-center gap-1.5">
+              <i className="bi bi-chat-quote-fill text-[#00E5FF]"></i>
+              <span>Tâm trạng hiển thị trên ghim:</span>
+            </label>
+            {userCustomStatus && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomInput('');
+                  if (onClearStatus) onClearStatus();
+                }}
+                className="px-2.5 py-1 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white text-[11px] font-bold border border-rose-500/40 flex items-center gap-1 cursor-pointer active:scale-95 transition-all"
+                title="Gỡ bỏ tâm trạng khỏi ghim ngay lập tức"
+              >
+                <i className="bi bi-trash3-fill text-[10px]"></i>
+                <span>Gỡ tâm trạng</span>
+              </button>
+            )}
+          </div>
           <form onSubmit={handleSaveStatus} className="flex gap-2">
             <input
               type="text"
@@ -337,7 +360,7 @@ export default function UserLocationSheet({
               onChange={(e) => setCustomInput(e.target.value)}
               placeholder="Nhập suy nghĩ hiển thị trên bản đồ..."
               maxLength={60}
-              className="flex-1 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 focus:border-[#FF2A85] focus:ring-1 focus:ring-[#FF2A85]/40 text-white text-xs placeholder-white/40 outline-none font-medium"
+              className="flex-1 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]/40 text-white text-xs placeholder-white/40 outline-none font-medium"
             />
             <VivuButton
               variant="primary"

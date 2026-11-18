@@ -105,7 +105,7 @@ export default function QuickStatusSheet({
     setSelectedChibiId(null);
 
     if (onSelectStatus) {
-      onSelectStatus('', null, null);
+      onSelectStatus('clear', null, 'remove');
     }
     onClose();
   };
@@ -298,6 +298,16 @@ export default function QuickStatusSheet({
               <span className="flex items-center gap-1.5">
                 <i className="bi bi-chat-quote-fill text-[#00E5FF]"></i>
                 <span>Suy nghĩ hiển thị kèm (Tùy chọn)</span>
+                {customInput && (
+                  <button
+                    type="button"
+                    onClick={() => setCustomInput('')}
+                    className="text-rose-400 hover:text-rose-300 font-bold ml-1.5 cursor-pointer text-[10px]"
+                    title="Xóa chữ"
+                  >
+                    (Xóa chữ)
+                  </button>
+                )}
               </span>
               <span className={`font-mono ${customInput.length > 50 ? 'text-[#FF2A85] font-bold' : 'text-white/40'}`}>
                 {customInput.length}/60

@@ -790,5 +790,35 @@ describe('VIVU Profile, Avatar, Pin Icons, Live Location, Poll & Circle Test Sui
       assert.equal(userACheck.custom_chibi, null, 'custom_chibi phải là null');
       assert.equal(userACheck.chibi_expires_at, null, 'chibi_expires_at phải là null');
     });
+
+    it('Tài khoản A xóa tâm trạng suy nghĩ qua updateGps(customStatus: "clear") -> CSDL và Profile xóa sạch', async () => {
+      // Đặt tâm trạng trước
+      await dbService.updateGps(accA.id, 16.05, 108.20, 'Tâm trạng đang vui', accA.full_name, accA.avatar_url, accA.user_code, accA.phone);
+      let userACheck = await dbService.getUserById(accA.id);
+      assert.equal(userACheck.custom_status, 'Tâm trạng đang vui');
+
+      // Gửi lệnh xóa tâm trạng 'clear'
+      await dbService.updateGps(accA.id, 16.05, 108.20, 'clear', accA.full_name, accA.avatar_url, accA.user_code, accA.phone);
+      userACheck = await dbService.getUserById(accA.id);
+      assert.equal(userACheck.custom_status, '', 'custom_status phải được xóa về chuỗi rỗng');
+
+      const profiles = await dbService.getProfiles();
+      const profA = profiles.find(p => p.id === accA.id);
+      assert.equal(profA.custom_status, '', 'profile trên bản đồ cũng phải xóa sạch tâm trạng');
+    });
+
+    it('Tài khoản A xóa tâm trạng qua updateUserProfile({ customStatus: "" }) -> CSDL và Profile xóa sạch', async () => {
+      await dbService.updateUserProfile(accA.id, { customStatus: 'Tâm trạng tạm' });
+      let userACheck = await dbService.getUserById(accA.id);
+      assert.equal(userACheck.custom_status, 'Tâm trạng tạm');
+
+      await dbService.updateUserProfile(accA.id, { customStatus: '' });
+      userACheck = await dbService.getUserById(accA.id);
+      assert.equal(userACheck.custom_status, '');
+
+      const profiles = await dbService.getProfiles();
+      const profA = profiles.find(p => p.id === accA.id);
+      assert.equal(profA.custom_status, '');
+    });
   });
 });

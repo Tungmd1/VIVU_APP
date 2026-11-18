@@ -699,7 +699,10 @@ export const dbService = {
     if (data.bio !== undefined) user.bio = data.bio;
     if (data.age !== undefined) user.age = data.age;
     if (data.job !== undefined) user.job = data.job;
-    if (data.customStatus !== undefined) user.custom_status = data.customStatus;
+    if (data.customStatus !== undefined) {
+      const cleanStatus = (data.customStatus === 'clear' || data.customStatus === 'remove' || data.customStatus === null) ? '' : data.customStatus;
+      user.custom_status = cleanStatus;
+    }
     if (data.messagePrivacy !== undefined) user.message_privacy = data.messagePrivacy;
     if (data.message_privacy !== undefined) user.message_privacy = data.message_privacy;
     if (data.locationConsent !== undefined) user.location_consent = data.locationConsent;
@@ -732,7 +735,10 @@ export const dbService = {
         inMemoryStore.profiles[pIdx].avatar_url = targetAvatar || null;
         inMemoryStore.profiles[pIdx].avatar = targetAvatar || null;
       }
-      if (data.customStatus) inMemoryStore.profiles[pIdx].custom_status = data.customStatus;
+      if (data.customStatus !== undefined) {
+        const cleanStatus = (data.customStatus === 'clear' || data.customStatus === 'remove' || data.customStatus === null) ? '' : data.customStatus;
+        inMemoryStore.profiles[pIdx].custom_status = cleanStatus;
+      }
       if (data.messagePrivacy || data.message_privacy) {
         inMemoryStore.profiles[pIdx].message_privacy = data.messagePrivacy || data.message_privacy;
       }
@@ -799,7 +805,16 @@ export const dbService = {
     const currentChibiExp = parseExpiryMs(registeredUser.chibi_expires_at, 24);
     const hasActiveServerChibi = Boolean(registeredUser.custom_chibi && currentChibiExp > Date.now());
 
-    if (customStatus !== undefined) {
+    const isExplicitStatusClear =
+      customStatus === 'clear' ||
+      customStatus === 'remove' ||
+      customStatus === null ||
+      customStatus === 'none';
+
+    if (isExplicitStatusClear) {
+      updatePayload.custom_status = '';
+      registeredUser.custom_status = '';
+    } else if (customStatus !== undefined) {
       if (!customStatus && registeredUser.custom_status) {
         updatePayload.custom_status = registeredUser.custom_status;
       } else {

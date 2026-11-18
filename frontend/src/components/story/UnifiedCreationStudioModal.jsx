@@ -323,7 +323,20 @@ export default function UnifiedCreationStudioModal({
                   className="w-full bg-transparent text-white placeholder-white/40 text-sm focus:outline-none resize-none leading-relaxed"
                 />
                 <div className="flex justify-between items-center pt-2 text-[11px] text-white/40 border-t border-white/5">
-                  <span>Tự động hiển thị kèm icon giọt nước</span>
+                  <div className="flex items-center gap-2">
+                    <span>Tự động hiển thị kèm icon giọt nước</span>
+                    {customStatusInput && (
+                      <button
+                        type="button"
+                        onClick={() => setCustomStatusInput('')}
+                        className="text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer"
+                        title="Xóa nội dung tâm trạng"
+                      >
+                        <i className="bi bi-x-circle-fill text-[10px]"></i>
+                        <span>Xóa chữ</span>
+                      </button>
+                    )}
+                  </div>
                   <span>{customStatusInput.length}/100</span>
                 </div>
               </div>

@@ -2906,6 +2906,75 @@ export default function App() {
     }
   };
 
+  // Hàm gỡ bỏ tâm trạng suy nghĩ tức thì khỏi ghim bản đồ
+  const handleClearCustomStatus = async () => {
+    setUserCustomStatus('');
+    try {
+      localStorage.removeItem("vivu_user_custom_status");
+      if (currentUserId) {
+        localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`);
+      }
+    } catch {}
+    if (currentUserId) {
+      updateProfile({ customStatus: 'clear' }).catch(() => {});
+      if (userLat && userLng) {
+        await apiClient.updateGps(
+          currentUserId,
+          userLat,
+          userLng,
+          'clear',
+          currentUserName,
+          currentUserAvatar,
+          currentUserCode,
+          user?.phone,
+          userCustomSong,
+          userCustomChibi,
+          userPinSkin,
+          userPinMascot,
+          userPinAction,
+          userCustomChibiExpiresAt
+        );
+      }
+    }
+  };
+
+  // Hàm lưu trạng thái tâm trạng từ UserLocationSheet đồng bộ tức thì lên CSDL & Bản đồ
+  const handleSaveLocationSheetStatus = async (status) => {
+    const trimmed = (status || '').trim();
+    if (!trimmed) {
+      await handleClearCustomStatus();
+      return;
+    }
+    setUserCustomStatus(trimmed);
+    try {
+      localStorage.setItem("vivu_user_custom_status", trimmed);
+      if (currentUserId) {
+        localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, trimmed);
+      }
+    } catch {}
+    if (currentUserId) {
+      updateProfile({ customStatus: trimmed }).catch(() => {});
+      if (userLat && userLng) {
+        await apiClient.updateGps(
+          currentUserId,
+          userLat,
+          userLng,
+          trimmed,
+          currentUserName,
+          currentUserAvatar,
+          currentUserCode,
+          user?.phone,
+          userCustomSong,
+          userCustomChibi,
+          userPinSkin,
+          userPinMascot,
+          userPinAction,
+          userCustomChibiExpiresAt
+        );
+      }
+    }
+  };
+
 
 
   // YÊU CẦU 5: XỬ LÝ POST LIỀN TỪ QUICK SNAP CAMERA LÊN STORY (ĐỒNG BỘ VỚI CÁC TRANG KHÁC)
@@ -3819,7 +3888,8 @@ export default function App() {
             if (userLat && userLng) {
               const safeChibi = chibiId || 'remove';
               const safeExp = chibiId ? (expiresAt || null) : 0;
-              apiClient.updateGps(currentUserId, userLat, userLng, status || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, safeChibi, userPinSkin, userPinMascot, userPinAction, safeExp);
+              const safeStatusParam = (status || '').trim() || 'clear';
+              apiClient.updateGps(currentUserId, userLat, userLng, safeStatusParam, currentUserName, currentUserAvatar, currentUserCode, user?.phone, song || null, safeChibi, userPinSkin, userPinMascot, userPinAction, safeExp);
             }
           }
           confetti({ particleCount: 25, spread: 40 });
@@ -3855,10 +3925,8 @@ export default function App() {
         }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onLogout={logout}
-        onSelectStatus={(status) => {
-          setUserCustomStatus(status);
-          confetti({ particleCount: 25, spread: 40 });
-        }}
+        onSelectStatus={handleSaveLocationSheetStatus}
+        onClearStatus={handleClearCustomStatus}
         onClearSong={() => {
           storyAudioPlayer.stop();
           setUserCustomSong(null);

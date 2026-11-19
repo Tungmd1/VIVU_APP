@@ -331,12 +331,12 @@ export default function GoogleMapView({
 
     if (isFriendsMode) {
       rawItems = (friends || []).filter(f => f && !isOwnerItem(f)).map(f => {
-        const fStories = (stories || []).filter(s => s && (s.hostId === f.id || s.host_id === f.id));
+        const fStories = (stories || []).filter(s => s && (s.hostId === f.id || s.host_id === f.id) && !s.id?.startsWith('live-peer-'));
         return fStories.length > 0 ? { ...f, stories: fStories } : f;
       });
     } else {
       const peerStoriesByHost = new Map();
-      (stories || []).filter(s => s && !isOwnerItem(s)).forEach(s => {
+      (stories || []).filter(s => s && !isOwnerItem(s) && !s.id?.startsWith('live-peer-')).forEach(s => {
         const hId = s.hostId || s.host_id || s.id;
         if (!peerStoriesByHost.has(hId)) {
           peerStoriesByHost.set(hId, { ...s, stories: [s] });
@@ -378,8 +378,8 @@ export default function GoogleMapView({
       const hostAvatar = item.hostAvatar || item.avatar || DEFAULT_WHITE_PERSON_AVATAR;
       const displayName = item.hostName || item.host_name || item.name || 'Người dùng VIVU';
       const peerStoriesList = Array.isArray(item.stories) && item.stories.length > 0
-        ? item.stories
-        : (item.activeStory || (item.category === 'moment' || item.image || item.dual_image || item.bg_gradient ? [item] : []));
+        ? item.stories.filter(s => s && !s.id?.startsWith('live-peer-'))
+        : (item.activeStory ? [item.activeStory] : ((item.image || item.dual_image || item.video || (item.bg_gradient && item.texts?.length > 0)) && !item.id?.startsWith('live-peer-') ? [item] : []));
       const peerHasStory = peerStoriesList.length > 0;
       const peerStoryCount = peerStoriesList.length;
       const peerFirstStory = peerStoriesList[0]?.activeStory || peerStoriesList[0] || null;

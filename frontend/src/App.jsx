@@ -949,7 +949,7 @@ export default function App() {
       console.log(`[Socket.IO Client] [OFFLINE] Đối phương đã thoát: ${userId}`);
       setNearbyOnlinePeers(prev => prev.filter(p => p.id !== userId));
       // Ở tab Xã Hội: Xóa giọt nước và story live của người này khi họ offline
-      setStories(prev => prev.filter(s => s.id !== `live-peer-${userId}` && s.hostId !== userId));
+      setStories(prev => prev.filter(s => s.hostId !== userId && s.host_id !== userId && !s.id?.startsWith('live-peer-')));
       // Ở tab Bạn Bè: Đánh dấu triệt để tất cả cờ isOnline, is_online, online = false
       setFriends(prev => prev.map(f => f.id === userId ? { ...f, isOnline: false, is_online: false, online: false } : f));
       // Cập nhật cả danh sách tin nhắn hội thoại
@@ -1720,22 +1720,22 @@ export default function App() {
           setFriends([]);
         }
 
-        // 4. Đồng bộ các nick online vào Mapbox Stories & LOẠI BỎ TRIỆT ĐỂ MỌI GHIM OFFLINE
+        // 4. Đồng bộ Story thật: Loại bỏ story hết hạn & triệt tiêu hoàn toàn Story mockup (live-peer)
         setStories(prevStories => {
           let hasChange = false;
-          // Loại bỏ toàn bộ ghim live-peer- hoặc story của tài khoản đã offline khỏi Tab Xã Hội
+          // Loại bỏ toàn bộ ghim live-peer- hoặc story của tài khoản đã hết hạn
           let updated = prevStories.filter(s => {
+            // Loại bỏ hoàn toàn mọi story mockup live-peer-
+            if (s.id?.startsWith('live-peer-')) {
+              hasChange = true;
+              return false;
+            }
             // BẢO VỆ STORY CỦA CHÍNH MÌNH (Không bao giờ bị xóa khỏi radar của mình)
             if (s.hostId === currentUserId || s.isOwnerStory || (s.userCode && s.userCode === currentUserCode)) {
               return true;
             }
-            if (s.id?.startsWith('live-peer-')) {
-              if (!s.hostId || !s.hostId.startsWith('user-') || !activePeerIds.has(s.hostId)) {
-                hasChange = true;
-                return false;
-              }
-            } else if (s.expires_at) {
-              // BẢO VỆ STORY THẬT: Chỉ loại bỏ khi thời hạn thực sự đã hết, KHÔNG xóa khi tác giả offline
+            if (s.expires_at) {
+              // BẢO VỆ STORY THẬT: Chỉ loại bỏ khi thời hạn thực sự đã hết
               const expMs = typeof s.expires_at === 'number' ? s.expires_at : (Number(s.expires_at) || new Date(s.expires_at).getTime());
               if (expMs && expMs <= Date.now()) {
                 hasChange = true;
@@ -1751,48 +1751,8 @@ export default function App() {
             return true;
           });
 
-          onlineOtherProfiles.forEach(p => {
-            const pLat = Number(p.lat);
-            const pLng = Number(p.lng);
-            const pName = p.full_name || p.name || 'Người dùng VIVU';
-            const pAvatar = p.avatar_url || p.avatar || DEFAULT_WHITE_PERSON_AVATAR;
-            const pStatus = p.custom_status || 'Đang trực tuyến gần bạn';
-            const sId = `live-peer-${p.id}`;
-            const existingIdx = updated.findIndex(s => s.id === sId || s.hostId === p.id);
-            if (existingIdx >= 0) {
-              const cur = updated[existingIdx];
-              if (cur.realLat !== pLat || cur.realLng !== pLng || cur.hostAvatar !== pAvatar || cur.hostName !== pName) {
-                hasChange = true;
-                updated[existingIdx] = {
-                  ...cur,
-                  hostName: pName,
-                  hostAvatar: pAvatar,
-                  title: pStatus,
-                  realLat: pLat,
-                  realLng: pLng,
-                  userCode: p.user_code || '',
-                  isOnline: true
-                };
-              }
-            } else {
-              hasChange = true;
-              updated.unshift({
-                id: sId,
-                hostId: p.id,
-                hostName: pName,
-                hostAvatar: pAvatar,
-                title: pStatus,
-                description: `Đang trực tuyến (${p.user_code || ''})`,
-                address: 'Gần vị trí của Bạn',
-                distanceText: 'Cách bạn vài mét',
-                realLat: pLat,
-                realLng: pLng,
-                privacy: 'public',
-                userCode: p.user_code || '',
-                isOnline: true
-              });
-            }
-          });
+          // TUYỆT ĐỐI KHÔNG TỰ ĐỘNG CHÈN MOCKUP STORY CHO NGƯỜI DÙNG ONLINE
+          // Người dùng online không có story đã được đưa vào nearbyOnlinePeers và hiển thị chuẩn qua nonStoryOnlinePeers.
           return hasChange ? updated : prevStories;
         });
 
@@ -1852,7 +1812,7 @@ export default function App() {
               remoteStories.forEach(rs => {
                 // Kiểm tra xem bài Story này có thuộc về một tài khoản đã có giọt nước hay không
                 const peerIdx = updated.findIndex(s => 
-                  (rs.host_id && (s.hostId === rs.host_id || s.host_id === rs.host_id || s.id === `live-peer-${rs.host_id}` || s.id === rs.host_id)) ||
+                  (rs.host_id && (s.hostId === rs.host_id || s.host_id === rs.host_id || s.id === rs.host_id)) ||
                   (rs.user_code && s.userCode && s.userCode === rs.user_code) ||
                   (rs.host_name && (s.hostName === rs.host_name || s.name === rs.host_name))
                 );

@@ -79,7 +79,7 @@ export default function StoryViewerModal({
 
   // Chuẩn hóa bài hát gắn kèm Story (Tự động fallback bài hát thịnh hành nếu Story chưa chọn nhạc)
   const resolvedStoryMusic = useMemo(() => {
-    if (!actualStory) return null;
+    if (!actualStory || actualStory.id?.startsWith('live-peer-')) return null;
     const song = actualStory.music || actualStory.song || actualStory.custom_song || actualStory.customSong || actualStory.host_custom_song || actualStory.hostCustomSong;
     return resolveSongMetadata(song);
   }, [actualStory]);
@@ -97,7 +97,7 @@ export default function StoryViewerModal({
     };
   }, [actualStory?.id, currentIndex, resolvedStoryMusic]);
 
-  if (!actualStory) return null;
+  if (!actualStory || actualStory.id?.startsWith('live-peer-')) return null;
 
   const remainingTime = formatRemainingTime(actualStory.expires_at || actualStory.expiresAt);
 

@@ -59,6 +59,15 @@ export function bindOwnerMarkerEvents(el, {
   if (!el || el._vivuOwnerEventsBound) return;
   el._vivuOwnerEventsBound = true;
 
+  // Chặn contextmenu và dừng nổi bọt kéo bản đồ khi chạm vào ghim của bản thân
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  el.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+  });
+
   el.addEventListener('click', (e) => {
     e.stopPropagation();
 
@@ -135,6 +144,12 @@ export function bindPeerMarkerEvents(el, {
   onOpenFriendDetailRef,
   onOpenGuestProfileRef
 }) {
+  // Ngăn chặn contextmenu mặc định trên ghim bạn bè (tránh kích hoạt cắm ghim nhảy vị trí trên mobile)
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
   // ================= 1. CƠ CHẾ NHẤN GIỮ 1.5S TRÊN GIỌT NƯỚC BẢN ĐỒ ĐỂ MỞ BẢNG TRÊU =================
   let longPressTimer = null;
   let startX = 0;
@@ -152,10 +167,18 @@ export function bindPeerMarkerEvents(el, {
       chargingRingEl = null;
     }
     isLongPressActive = false;
+    el._isLongPressActive = false;
+
+    // Khôi phục quyền kéo/di chuyển bản đồ Leaflet ngay khi thả tay hoặc hủy
+    try {
+      if (window.__vivu_map?.dragging) {
+        window.__vivu_map.dragging.enable();
+      }
+    } catch (_) {}
   };
 
   el.addEventListener('pointerdown', (e) => {
-    // Chỉ kích hoạt bằng chuột trái hoặc chạm màn hình
+    // Chỉ kích hoạt bằng chuột trái hoặc chạm ngón tay
     if (e.button !== undefined && e.button !== 0) return;
 
     // Không kích hoạt khi bấm vào các nút điều khiển nhỏ
@@ -170,10 +193,21 @@ export function bindPeerMarkerEvents(el, {
     const curItem = getItem ? getItem() : null;
     if (!curItem || curItem.isOwner) return;
 
+    // CHẶN NỔI BỌT: Không cho sự kiện lan lên map để Leaflet KHÔNG kéo bản đồ hay kích hoạt contextmenu
+    e.stopPropagation();
+
+    // Tạm thời vô hiệu hóa kéo bản đồ Leaflet trong lúc đang giữ ghim
+    try {
+      if (window.__vivu_map?.dragging) {
+        window.__vivu_map.dragging.disable();
+      }
+    } catch (_) {}
+
     cleanupLongPress();
     startX = e.clientX;
     startY = e.clientY;
     isLongPressActive = true;
+    el._isLongPressActive = true;
 
     // Gắn vòng sạc LED neon vào thân ghim (pin circle / zenly body / teardrop body)
     const pinTarget =
@@ -207,23 +241,24 @@ export function bindPeerMarkerEvents(el, {
 
   el.addEventListener('pointermove', (e) => {
     if (!isLongPressActive) return;
+    // Chặn map drag trong khi đang active long press
+    e.stopPropagation();
     const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
-    // Nếu người dùng rê tay kéo bản đồ quá 10px -> Hủy sạc ngay
-    if (dist > 10) {
+    // Ngưỡng 25px: Chấp nhận độ rung tự nhiên của ngón tay trên màn hình cảm ứng, chỉ hủy nếu vuốt kéo rõ rệt
+    if (dist > 25) {
       cleanupLongPress();
     }
   });
 
   el.addEventListener('pointerup', cleanupLongPress);
   el.addEventListener('pointercancel', cleanupLongPress);
-  el.addEventListener('pointerleave', cleanupLongPress);
 
   // ================= 2. SỰ KIỆN CLICK THÔNG THƯỜNG TRÊN MARKER =================
   el.addEventListener('click', (e) => {
     e.stopPropagation();
 
-    // Nếu vừa mới hoàn tất 1.5s long-press -> Triệt tiêu sự kiện click để không mở Profile/Story
-    if (Date.now() - (el.__longPressTriggeredTime || 0) < 500) {
+    // Nếu vừa mới hoàn tất 1.5s long-press -> Triệt tiêu sự kiện click trong 700ms để không mở Profile/Story
+    if (Date.now() - (el.__longPressTriggeredTime || 0) < 700) {
       e.preventDefault();
       return;
     }

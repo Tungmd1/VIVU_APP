@@ -123,10 +123,19 @@ export default function GoogleMapView({
     mapRef.current = map;
     window.__vivu_map = map;
 
-    // Chuột phải cắm ghim nhanh
+    // Chuột phải cắm ghim nhanh - Chỉ khi đang bật chế độ chọn vị trí (isPickingLocation) trên PC
     map.on('contextmenu', (e) => {
-      if (onSetManualLocationRef.current) {
+      const orig = e.originalEvent;
+      // Tuyệt đối không can thiệp cử chỉ chạm/nhấn giữ trên màn hình cảm ứng để tránh di chuyển giọt nước linh tinh
+      if (orig && (orig.pointerType === 'touch' || orig.type === 'touchstart' || orig.touches?.length)) {
+        if (orig.preventDefault) orig.preventDefault();
+        return;
+      }
+      if (isPickingLocationRef.current && onSetManualLocationRef.current) {
         onSetManualLocationRef.current(e.latlng.lat, e.latlng.lng, 'Vị trí đã chọn trên Google Maps');
+        if (setIsPickingLocationRef.current) {
+          setIsPickingLocationRef.current(false);
+        }
       }
     });
 
@@ -417,7 +426,7 @@ export default function GoogleMapView({
       const cached = itemMarkersMapRef.current.get(markerKey);
       if (cached) {
         cached.marker.setLatLng([iLat, iLng]);
-        if (cached.el) {
+        if (cached.el && !cached.el._isLongPressActive) {
           const bubbleSlot = cached.el.querySelector('.peer-bubble-slot');
           if (bubbleSlot) bubbleSlot.innerHTML = getPeerBubbleHtml(item, isCoLocated);
           const bodySlot = cached.el.querySelector('.peer-body-slot');

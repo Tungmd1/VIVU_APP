@@ -28,7 +28,7 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
 
   if (!isOpen || !targetUser) return null;
 
-  const targetName = targetUser.name || targetUser.displayName || targetUser.hostName || 'Bạn bè';
+  const targetName = targetUser.name || targetUser.displayName || targetUser.hostName || targetUser.full_name || 'Bạn bè';
   const targetAvatar = targetUser.avatar || targetUser.avatarUrl || targetUser.hostAvatar || DEFAULT_WHITE_PERSON_AVATAR;
 
   // Khi chọn một vật phẩm mới: Đổi câu thoại mẫu và phát âm thanh thử nghiệm

@@ -2,170 +2,174 @@ import React, { useState, useMemo } from 'react';
 import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 import { recordMemeTroll } from '../../utils/personalityAnalytics';
 import { 
-  CHIBI_MASCOT_FAMILIES, 
-  CHIBI_MASCOTS, 
-  getChibiDataUrl, 
-  playChibiSound 
-} from '../../data/chibiMascotData';
-
-const QUICK_CHIBI_QUOTES = [
-  'Lêu lêu đồ con gà!',
-  'Alo bạn êi, đứng im đó coi!',
-  'Đói meo mốc mỏ rồi nè!',
-  'Tức nước vỡ bờ rồi đấy nha!',
-  'Lười quá hổng thèm rep!',
-  'Ngủ một giấc tới mai luôn!',
-  'Thả cho trái tim bự chảng nè!',
-  'Hú hồn chưa bà dà!',
-  'Cool ngầu thế này ai đọ lại?',
-  'Flex nhẹ bữa nay bao tất!'
-];
+  TROLL_CATEGORIES, 
+  TROLL_ITEMS, 
+  getTrollItemsByCategory 
+} from './TrollItemCatalog';
+import { playTrollSound } from './trollSoundSynth';
 
 /**
- * MemeTrollModal - Vũ Trụ Chibi Mascot Trêu Chọc & Lời Thoại Nhây VIVU
- * - 36 Biểu cảm Chibi độc bản (Giọt Nước VIVU, Thú Cưng Meme, Bạn Trẻ Anime)
- * - 100% Bootstrap Icons (Rule 5), Rule 7 (< 450 dòng)
- * - Tích hợp Web Audio Synth âm thanh chân thực theo 12 sắc thái biểu cảm
+ * MemeTrollModal - Bảng Vũ Khí Trêu Bạn Bè Độc Quyền VIVU (Phong cách Zenly & Jagat)
+ * - Tối ưu cử chỉ Bottom Sheet di động (kéo vuốt, bo góc lớn, nền kính mờ)
+ * - 4 Danh mục đặc sắc: Con vật, Đồ vật/Đồ dùng, Cây cối, Meme Hot
+ * - 100% Bootstrap Icons (Rule 5) | Tối ưu < 450 dòng (Rule 7)
+ * - Tự động phát âm thanh Web Audio Synth khi chạm thử từng món đồ
  */
 export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onClose, onMemeSent }) {
-  const [activeFamily, setActiveFamily] = useState('droplet');
-  const [selectedMascot, setSelectedMascot] = useState(CHIBI_MASCOTS[0]);
-  const [customQuote, setCustomQuote] = useState(QUICK_CHIBI_QUOTES[0]);
+  const [activeCategory, setActiveCategory] = useState('animals');
+  const [selectedItem, setSelectedItem] = useState(() => TROLL_ITEMS[0]);
+  const [customQuote, setCustomQuote] = useState(() => TROLL_ITEMS[0].quotes[0]);
   const [isSending, setIsSending] = useState(false);
 
-  const familyMascots = useMemo(() => {
-    return CHIBI_MASCOTS.filter(m => m.family === activeFamily);
-  }, [activeFamily]);
+  // Lọc danh sách món đồ theo Tab đang chọn
+  const categoryItems = useMemo(() => {
+    return getTrollItemsByCategory(activeCategory);
+  }, [activeCategory]);
 
   if (!isOpen || !targetUser) return null;
 
   const targetName = targetUser.name || targetUser.displayName || targetUser.hostName || 'Bạn bè';
   const targetAvatar = targetUser.avatar || targetUser.avatarUrl || targetUser.hostAvatar || DEFAULT_WHITE_PERSON_AVATAR;
 
-  const handleSelectMascot = (mascot) => {
-    setSelectedMascot(mascot);
-    playChibiSound(mascot.soundType);
+  // Khi chọn một vật phẩm mới: Đổi câu thoại mẫu và phát âm thanh thử nghiệm
+  const handleSelectItem = (item) => {
+    setSelectedItem(item);
+    if (item.quotes && item.quotes.length > 0) {
+      setCustomQuote(item.quotes[0]);
+    }
+    playTrollSound(item.soundType);
   };
 
   const handleSendTroll = () => {
-    if (!selectedMascot) return;
+    if (!selectedItem) return;
     setIsSending(true);
 
     try {
-      recordMemeTroll(currentUserId, targetUser.id, selectedMascot.id);
-      playChibiSound(selectedMascot.soundType);
+      recordMemeTroll(currentUserId, targetUser.id, selectedItem.id);
+      playTrollSound(selectedItem.soundType);
 
       if (onMemeSent) {
         onMemeSent({
           meme: {
-            id: selectedMascot.id,
-            name: selectedMascot.name,
-            emotion: selectedMascot.emotion,
-            soundType: selectedMascot.soundType,
-            chibiDataUrl: getChibiDataUrl(selectedMascot),
-            caption: customQuote.trim() || selectedMascot.description,
+            id: selectedItem.id,
+            name: selectedItem.name,
+            category: selectedItem.category,
+            emotion: selectedItem.emotion,
+            soundType: selectedItem.soundType,
+            icon: selectedItem.icon,
+            color: selectedItem.color,
+            badge: selectedItem.badge,
+            previewEmoji: selectedItem.previewEmoji,
+            caption: customQuote.trim() || selectedItem.name,
             subtext: `Vừa ném trêu ${targetName}!`,
-            badge: selectedMascot.emotion,
-            isChibi: true
+            isTrollItem: true
           },
           targetUser,
-          quote: customQuote.trim() || selectedMascot.description
+          quote: customQuote.trim() || selectedItem.name
         });
       }
     } catch (err) {
-      console.error('Lỗi khi ném Chibi troll:', err);
+      console.error('[MemeTrollModal] Lỗi khi ném trêu:', err);
     } finally {
       setTimeout(() => {
         setIsSending(false);
         onClose();
-      }, 300);
+      }, 350);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none font-sans">
+    <div className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-none font-sans">
+      {/* Vùng bấm mờ bên ngoài để đóng */}
       <div className="absolute inset-0" onClick={onClose} />
 
       <div
-        className="relative z-10 w-full sm:max-w-md bg-[#0E0E10] border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] flex flex-col max-h-[92vh] overflow-hidden text-white space-y-3.5"
+        className="relative z-10 w-full sm:max-w-md bg-[#0D0E12] border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] flex flex-col max-h-[92vh] overflow-hidden text-white space-y-3.5 animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-10 h-1 bg-white/20 rounded-full mx-auto -mt-1 sm:hidden shrink-0" />
+        {/* Thanh gạt nhỏ ở đỉnh cho thao tác vuốt di động */}
+        <div className="w-10 h-1 bg-white/25 rounded-full mx-auto -mt-1 sm:hidden shrink-0" />
 
-        {/* 1. Header Bảng Trêu */}
+        {/* 1. Header Bảng Trêu - Phong cách Zenly */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-11 h-11 rounded-full overflow-hidden border-2 border-[#FF2A85] shadow-[0_0_15px_rgba(255,42,133,0.4)] shrink-0 bg-white flex items-center justify-center">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#FF2A85] shadow-[0_0_16px_rgba(255,42,133,0.45)] shrink-0 bg-neutral-900 flex items-center justify-center">
               <img src={targetAvatar} alt={targetName} className="w-full h-full object-cover" />
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#00E5FF] border-2 border-[#0E0E10]" />
+              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#10FFA0] border-2 border-[#0D0E12] animate-pulse" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-white truncate max-w-[170px]">{targetName}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FF2A85]/20 text-[#FF2A85] border border-[#FF2A85]/30 font-bold uppercase shrink-0">
-                  Trêu Chibi
+                <span className="text-sm font-black text-white truncate max-w-[160px] tracking-wide">{targetName}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-[#FF2A85]/25 to-purple-600/25 text-[#FF529D] border border-[#FF2A85]/40 font-bold uppercase shrink-0">
+                  Trêu Bạn
                 </span>
               </div>
-              <p className="text-[11px] text-[#8E8E93] truncate">Chọn biểu cảm Chibi ném bùng nổ màn hình</p>
+              <p className="text-[11px] text-neutral-400 truncate">Chọn vũ khí ném rung chuyển màn hình đối phương!</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[#8E8E93] hover:text-white transition-colors cursor-pointer shrink-0"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-neutral-300 hover:text-white transition-all cursor-pointer shrink-0"
             title="Đóng bảng trêu"
           >
             <i className="bi bi-x-lg text-xs" />
           </button>
         </div>
 
-        {/* 2. Thanh 3 Tab Bộ Sưu Tập Chibi */}
-        <div className="grid grid-cols-3 gap-1.5 p-1 bg-black/60 rounded-2xl border border-white/10 shrink-0">
-          {CHIBI_MASCOT_FAMILIES.map((fam) => {
-            const isActive = activeFamily === fam.id;
+        {/* 2. Thanh 4 Tab Phân Loại (Con vật, Đồ dùng, Cây cối, Meme) */}
+        <div className="grid grid-cols-4 gap-1.5 p-1 bg-black/60 rounded-2xl border border-white/10 shrink-0">
+          {TROLL_CATEGORIES.map((cat) => {
+            const isActive = activeCategory === cat.id;
             return (
               <button
-                key={fam.id}
+                key={cat.id}
                 type="button"
-                onClick={() => setActiveFamily(fam.id)}
-                className={`py-1.5 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                onClick={() => {
+                  setActiveCategory(cat.id);
+                  const firstInCat = getTrollItemsByCategory(cat.id)[0];
+                  if (firstInCat) handleSelectItem(firstInCat);
+                }}
+                className={`py-1.5 px-1 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer active:scale-95 ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white shadow-md'
-                    : 'text-[#8E8E93] hover:text-white hover:bg-white/5'
+                    ? 'bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white shadow-[0_0_12px_rgba(255,42,133,0.4)]'
+                    : 'text-neutral-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <i className={`bi ${fam.icon} text-xs`}></i>
-                <span className="truncate">{fam.label.split(' ')[0]}</span>
+                <i className={`bi ${cat.icon} text-xs`} />
+                <span className="truncate text-[10px] sm:text-xs">{cat.name}</span>
               </button>
             );
           })}
         </div>
 
-        {/* 3. Lưới 12 Biểu Cảm Chibi của Tab Hiện Tại */}
+        {/* 3. Lưới Các Biểu Tượng & Vũ Khí Trêu Chọc Trong Tab */}
         <div className="space-y-1.5 overflow-y-auto no-scrollbar pr-0.5 flex-1 max-h-[220px]">
           <div className="grid grid-cols-3 gap-2">
-            {familyMascots.map((mascot) => {
-              const isSelected = selectedMascot?.id === mascot.id;
-              const dataUrl = getChibiDataUrl(mascot);
+            {categoryItems.map((item) => {
+              const isSelected = selectedItem?.id === item.id;
               return (
                 <div
-                  key={mascot.id}
-                  onClick={() => handleSelectMascot(mascot)}
-                  className={`p-2 rounded-2xl cursor-pointer transition-all border flex flex-col items-center text-center relative group active:scale-95 ${
+                  key={item.id}
+                  onClick={() => handleSelectItem(item)}
+                  className={`p-2.5 rounded-2xl cursor-pointer transition-all border flex flex-col items-center text-center relative group active:scale-95 ${
                     isSelected
-                      ? 'bg-white/15 border-cyan-400 shadow-[0_0_15px_rgba(0,229,255,0.35)] ring-1 ring-cyan-400'
-                      : 'bg-[#151619] border-white/10 hover:border-white/25 hover:bg-[#1A1A1E]'
+                      ? 'bg-gradient-to-b from-white/20 to-white/5 border-cyan-400 shadow-[0_0_18px_rgba(0,229,255,0.4)] ring-1 ring-cyan-400'
+                      : 'bg-[#15161B] border-white/10 hover:border-white/25 hover:bg-[#1A1C22]'
                   }`}
                 >
-                  <div className="w-12 h-12 flex items-center justify-center mb-1 group-hover:scale-115 transition-transform">
-                    <img src={dataUrl} alt={mascot.name} className="w-full h-full object-contain pointer-events-none" />
+                  {/* Emoji / Vector Icon nổi bật */}
+                  <div className="w-12 h-12 flex items-center justify-center text-3xl mb-1 group-hover:scale-120 group-hover:rotate-6 transition-transform">
+                    <span>{item.previewEmoji}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-white truncate max-w-full leading-tight">
-                    {mascot.name}
+
+                  <span className="text-[11px] font-bold text-white truncate max-w-full leading-tight">
+                    {item.name}
                   </span>
-                  <span className="text-[9px] text-[#8E8E93] font-mono mt-0.5">
-                    {mascot.emotion}
+                  <span className="text-[9px] text-[#00E5FF] font-semibold mt-0.5 flex items-center gap-1">
+                    <i className={`bi ${item.icon} text-[8px]`} />
+                    <span>{item.badge}</span>
                   </span>
                 </div>
               );
@@ -173,27 +177,28 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
           </div>
         </div>
 
-        {/* 4. Lời Thoại Nhây */}
+        {/* 4. Lời Thoại Nhây & Banter Cà Khịa */}
         <div className="space-y-2 shrink-0 pt-2 border-t border-white/10">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-[#8E8E93] uppercase tracking-wider">
-              Lời Thoại Nhây
+            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
+              <i className="bi bi-chat-quote-fill text-pink-500" />
+              <span>Lời Thoại Cà Khịa</span>
             </span>
             <span className="text-[10px] text-pink-400 font-bold">
-              {selectedMascot?.name || 'Chibi'}
+              {selectedItem?.name || 'Vũ khí'}
             </span>
           </div>
 
-          {/* Dải cuộn các câu thoại mẫu */}
+          {/* Dải cuộn nhanh các câu thoại gợi ý */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            {QUICK_CHIBI_QUOTES.map((q, idx) => (
+            {selectedItem?.quotes?.map((q, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setCustomQuote(q)}
-                className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
+                className={`text-[11px] px-3 py-1 rounded-full whitespace-nowrap transition-all border shrink-0 cursor-pointer active:scale-95 ${
                   customQuote === q
-                    ? 'bg-white text-black font-bold border-white shadow-sm'
+                    ? 'bg-white text-black font-black border-white shadow-sm'
                     : 'bg-white/5 border-white/10 text-white/70 hover:text-white hover:bg-white/10'
                 }`}
               >
@@ -202,23 +207,24 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
             ))}
           </div>
 
+          {/* Ô nhập tùy chỉnh lời thoại trêu chọc */}
           <input
             type="text"
             value={customQuote}
             onChange={(e) => setCustomQuote(e.target.value)}
             maxLength={60}
-            placeholder="Tự nhập câu thoại trêu người ta..."
-            className="w-full px-3.5 py-2 rounded-xl bg-[#151619] border border-white/10 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white text-xs outline-none font-medium placeholder-white/30"
+            placeholder="Tự nhập câu cà khịa hài hước..."
+            className="w-full px-3.5 py-2 rounded-xl bg-[#15161B] border border-white/10 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white text-xs outline-none font-medium placeholder-white/30"
           />
         </div>
 
-        {/* 5. Nút Bắn Vũ Khí */}
+        {/* 5. Nút Ném Vũ Khí Trêu Bạn Bè */}
         <div className="pt-1 shrink-0">
           <button
             type="button"
             onClick={handleSendTroll}
-            disabled={isSending || !selectedMascot}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF2A85] via-purple-600 to-[#00E5FF] text-white font-black text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(255,42,133,0.6)] hover:opacity-95 active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={isSending || !selectedItem}
+            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF2A85] via-purple-600 to-[#00E5FF] text-white font-black text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(255,42,133,0.6)] hover:opacity-95 active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSending ? (
               <>
@@ -227,8 +233,8 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
               </>
             ) : (
               <>
-                <i className="bi bi-send-fill text-sm" />
-                <span>Ném Chibi Trêu {targetName}!</span>
+                <i className="bi bi-send-fill text-sm animate-bounce" />
+                <span>Ném {selectedItem?.name} Trêu {targetName}!</span>
               </>
             )}
           </button>

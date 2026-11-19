@@ -14,7 +14,6 @@ export default function GuestProfileModal({
   onDirectChat,
   onToggleFriend,
   onStartNavigation,
-  onOpenMemeTroll,
   isFriend = false
 }) {
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
@@ -168,8 +167,8 @@ export default function GuestProfileModal({
             </p>
           )}
 
-          {/* 4 Nút hành động chính */}
-          <div className="grid grid-cols-4 gap-1.5 pt-1">
+          {/* 3 Nút hành động chính (Nhắn tin, Kết bạn, Chỉ đường) */}
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
             {/* 1. Nhắn tin */}
             <button
               onClick={() => {
@@ -197,20 +196,7 @@ export default function GuestProfileModal({
               <span>{isFriend ? 'Đã bạn' : 'Kết bạn'}</span>
             </button>
 
-            {/* 3. Ném Meme Troll */}
-            <button
-              onClick={() => {
-                onClose();
-                if (onOpenMemeTroll) onOpenMemeTroll(profile);
-              }}
-              className="py-2.5 px-1.5 rounded-2xl bg-[#FF2A85]/20 hover:bg-[#FF2A85]/30 text-[#FF529D] font-bold text-[11px] border border-[#FF2A85]/40 flex items-center justify-center gap-1 active:scale-95 transition-all shadow-[0_0_10px_rgba(255,42,133,0.25)] cursor-pointer"
-              title="Ném Meme Troll bạn bè"
-            >
-              <i className="bi bi-fire text-xs"></i>
-              <span>Troll</span>
-            </button>
-
-            {/* 4. Chỉ đường */}
+            {/* 3. Chỉ đường */}
             <button
               onClick={() => {
                 onClose();

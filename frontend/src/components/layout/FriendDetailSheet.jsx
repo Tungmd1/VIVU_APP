@@ -13,7 +13,6 @@ export default function FriendDetailSheet({
   onClose, 
   onOpenDirectChat, 
   onStartNavigation,
-  onOpenMemeTroll,
   onOpenStoryDetail,
   onOpenUserProfile
 }) {
@@ -114,19 +113,6 @@ export default function FriendDetailSheet({
 
         {/* Cặp nút hành động: Chỉ đường & Nhắn tin (Bootstrap VivuButtons) */}
         <div className="pt-1 flex gap-2">
-          {/* Nút Ném Meme Troll */}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              if (onOpenMemeTroll) onOpenMemeTroll(friend);
-            }}
-            className="w-10 h-10 rounded-full bg-[#FF2A85]/20 hover:bg-[#FF2A85]/30 border border-[#FF2A85]/40 text-[#FF529D] flex items-center justify-center shrink-0 active:scale-95 transition-all shadow-[0_0_12px_rgba(255,42,133,0.3)]"
-            title="Ném Meme Troll bạn bè"
-          >
-            <i className="bi bi-fire text-base" />
-          </button>
-
           {/* Nút Chỉ đường */}
           <VivuButton
             variant="secondary"

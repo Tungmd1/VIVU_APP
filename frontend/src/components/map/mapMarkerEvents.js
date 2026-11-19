@@ -135,8 +135,98 @@ export function bindPeerMarkerEvents(el, {
   onOpenFriendDetailRef,
   onOpenGuestProfileRef
 }) {
+  // ================= 1. CƠ CHẾ NHẤN GIỮ 1.5S TRÊN GIỌT NƯỚC BẢN ĐỒ ĐỂ MỞ BẢNG TRÊU =================
+  let longPressTimer = null;
+  let startX = 0;
+  let startY = 0;
+  let isLongPressActive = false;
+  let chargingRingEl = null;
+
+  const cleanupLongPress = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    if (chargingRingEl) {
+      chargingRingEl.remove();
+      chargingRingEl = null;
+    }
+    isLongPressActive = false;
+  };
+
+  el.addEventListener('pointerdown', (e) => {
+    // Chỉ kích hoạt bằng chuột trái hoặc chạm màn hình
+    if (e.button !== undefined && e.button !== 0) return;
+
+    // Không kích hoạt khi bấm vào các nút điều khiển nhỏ
+    if (
+      e.target.closest('#btn-play-peer-song') ||
+      e.target.closest('.vivu-story-nav-btn') ||
+      e.target.closest('.vivu-vinyl-disc')
+    ) {
+      return;
+    }
+
+    const curItem = getItem ? getItem() : null;
+    if (!curItem || curItem.isOwner) return;
+
+    cleanupLongPress();
+    startX = e.clientX;
+    startY = e.clientY;
+    isLongPressActive = true;
+
+    // Gắn vòng sạc LED neon vào thân ghim (pin circle / zenly body / teardrop body)
+    const pinTarget =
+      el.querySelector('.vivu-pin-circle') ||
+      el.querySelector('.vivu-zenly-marker') ||
+      el.querySelector('.vivu-teardrop-marker') ||
+      el;
+
+    chargingRingEl = document.createElement('div');
+    chargingRingEl.className = 'vivu-troll-charging-ring pointer-events-none';
+    pinTarget.appendChild(chargingRingEl);
+
+    longPressTimer = setTimeout(() => {
+      cleanupLongPress();
+      // Đánh dấu thời điểm kích hoạt long-press để triệt tiêu click xem Story / Profile
+      el.__longPressTriggeredTime = Date.now();
+
+      // Rung phản hồi xúc giác trên thiết bị di động
+      try {
+        if (navigator?.vibrate) {
+          navigator.vibrate([60, 40, 60]);
+        }
+      } catch (_) {}
+
+      // Mở bảng chọn trêu bạn bè
+      if (onOpenMemeTrollRef?.current) {
+        onOpenMemeTrollRef.current(curItem);
+      }
+    }, 1500);
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if (!isLongPressActive) return;
+    const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
+    // Nếu người dùng rê tay kéo bản đồ quá 10px -> Hủy sạc ngay
+    if (dist > 10) {
+      cleanupLongPress();
+    }
+  });
+
+  el.addEventListener('pointerup', cleanupLongPress);
+  el.addEventListener('pointercancel', cleanupLongPress);
+  el.addEventListener('pointerleave', cleanupLongPress);
+
+  // ================= 2. SỰ KIỆN CLICK THÔNG THƯỜNG TRÊN MARKER =================
   el.addEventListener('click', (e) => {
     e.stopPropagation();
+
+    // Nếu vừa mới hoàn tất 1.5s long-press -> Triệt tiêu sự kiện click để không mở Profile/Story
+    if (Date.now() - (el.__longPressTriggeredTime || 0) < 500) {
+      e.preventDefault();
+      return;
+    }
 
     const curItem = getItem ? getItem() : null;
     const curSong = curItem?.custom_song || curItem?.songData || curItem?.music || null;
@@ -201,15 +291,7 @@ export function bindPeerMarkerEvents(el, {
       }
     }
 
-    // 4. Troll bạn bè
-    if (e.target.closest('#btn-peer-troll')) {
-      if (onOpenMemeTrollRef.current) {
-        onOpenMemeTrollRef.current(curItem);
-        return;
-      }
-    }
-
-    // 5. Mở hồ sơ người dùng
+    // 4. Mở hồ sơ người dùng
     if (onOpenUserProfileRef.current) {
       onOpenUserProfileRef.current(curItem);
       return;

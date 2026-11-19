@@ -439,10 +439,7 @@ export function getPeerBubbleHtml(item, isCoLocated = false) {
   return `
     <div class="peer-bubble-wrapper mb-1 px-2.5 py-1 bg-white/95 border-[#D2D9F4] text-[#131315] backdrop-blur-md rounded-xl shadow-[0_4px_14px_rgba(0,0,0,0.12)] border text-[11px] font-semibold flex items-center gap-1.5 whitespace-nowrap pointer-events-auto">
       <span class="w-1.5 h-1.5 rounded-full ${isOffline ? 'bg-neutral-400' : 'bg-[#10FFA0] animate-pulse'}"></span>
-      <span class="truncate max-w-[95px]">${displayName}</span>
-      <button id="btn-peer-troll" type="button" class="ml-0.5 px-1.5 py-0.2 rounded-full bg-[#FF2A85]/15 hover:bg-[#FF2A85]/30 text-[#FF2A85] text-[9px] font-bold border border-[#FF2A85]/30 flex items-center gap-0.5 active:scale-90 transition-transform cursor-pointer" title="Trêu bạn bè">
-        <i class="bi bi-fire text-[9px]"></i><span>Trêu</span>
-      </button>
+      <span class="truncate max-w-[120px]">${displayName}</span>
       ${isCoLocated ? '<span class="text-[9px] text-[#FFAA00] font-bold">[GẦN BẠN]</span>' : ''}
     </div>
   `;

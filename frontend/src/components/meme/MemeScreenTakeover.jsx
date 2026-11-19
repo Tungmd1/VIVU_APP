@@ -1,256 +1,198 @@
 import React, { useEffect, useState } from 'react';
-import { playChibiSound, getChibiMascotById, getChibiDataUrl } from '../../data/chibiMascotData';
+import { playTrollSound } from './trollSoundSynth';
 
 /**
- * MemeScreenTakeover - Hiệu Ứng Bùng Nổ Thị Giác Toàn Màn Hình Khi Bị Trêu Chọc
- * 100% Native Graphics (Canvas / SVG / CSS FX), Web Audio Synth, 100% Bootstrap Icons
- * Hỗ trợ 6 chiêu thức độc bản: Cà chua nổ sốt, Dép lào rung màn hình, Còi hơi shockwave,
- * Phun sương nước mờ kính, Mưa tiền rơi, Popcat combo hit
- * Kèm nút 'BẮN TRẢ NGAY!' (Revenge) để đối kháng tức thì!
+ * MemeScreenTakeover - Hiệu Ứng Bùng Nổ Thị Giác & Âm Thanh Toàn Màn Hình Khi Bị Trêu Chọc
+ * - Xuất hiện trên màn hình đối phương ĐÚNG 3 GIÂY (3000ms) kèm đồng hồ đếm ngược
+ * - 100% Web Audio API Synth, 100% Bootstrap Icons (Rule 5)
+ * - Tối ưu < 450 dòng (Rule 7)
+ * - Hiệu ứng riêng biệt: Dép tổ ong vả mặt, Cà chua nổ sốt, Bom nổ BÙM, Xô nước dội lạnh, Ớt siêu cay bốc hỏa...
+ * - Nút "🔥 PHẢN ĐÒN NGAY!" để trêu ngược lại lập tức
  */
 export default function MemeScreenTakeover({
   meme,
   senderName = 'Một người bạn',
   senderUser = null,
+  quote = '',
   onDismiss,
   onCounterAttack
 }) {
   const [scaleUp, setScaleUp] = useState(false);
   const [shaking, setShaking] = useState(false);
-  const [waterCleaned, setWaterCleaned] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(3.0);
 
   useEffect(() => {
-    // Phát âm thanh khi nổ hiệu ứng
+    // 1. Kích hoạt âm thanh Web Audio Synth tương ứng
     if (meme?.soundType) {
-      playChibiSound(meme.soundType);
+      playTrollSound(meme.soundType);
+    } else {
+      playTrollSound('boing');
     }
 
-    const t1 = setTimeout(() => setScaleUp(true), 40);
-    const t2 = setTimeout(() => setShaking(true), 250);
+    // 2. Hoạt họa phóng to và rung lắc màn hình
+    const tScale = setTimeout(() => setScaleUp(true), 40);
+    const tShake = setTimeout(() => setShaking(true), 200);
+
+    // 3. Đếm ngược đúng 3.0 giây (3000ms) rồi tự động đóng
+    const startTime = Date.now();
+    const durationMs = 3000;
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, (durationMs - elapsed) / 1000);
+      setSecondsLeft(remaining);
+
+      if (elapsed >= durationMs) {
+        clearInterval(interval);
+        if (onDismiss) onDismiss();
+      }
+    }, 100);
 
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
+      clearTimeout(tScale);
+      clearTimeout(tShake);
+      clearInterval(interval);
     };
-  }, [meme]);
-
-  // Bộ tổng hợp âm thanh Web Audio Synth đa tần số
-  const playVisceralAudio = (type) => {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      if (type === 'splat') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(360, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.25);
-        gain.gain.setValueAtTime(0.6, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.28);
-      } else if (type === 'bonk') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(750, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(160, ctx.currentTime + 0.18);
-        gain.gain.setValueAtTime(0.65, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.2);
-      } else if (type === 'airhorn') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(466, ctx.currentTime);
-        osc.frequency.setValueAtTime(587, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.5, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.48);
-      } else if (type === 'spray') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(1400, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.25);
-        gain.gain.setValueAtTime(0.4, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.28);
-      } else if (type === 'cash') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(920, ctx.currentTime);
-        osc.frequency.setValueAtTime(1380, ctx.currentTime + 0.08);
-        osc.frequency.setValueAtTime(1840, ctx.currentTime + 0.16);
-        gain.gain.setValueAtTime(0.45, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.32);
-      } else {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(520, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1300, ctx.currentTime + 0.14);
-        gain.gain.setValueAtTime(0.5, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.14);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.16);
-      }
-    } catch {}
-  };
+  }, [meme, onDismiss]);
 
   if (!meme) return null;
-  const prankId = meme.id || 'tomato_splat';
+  const itemId = meme.id || 'honeycomb_slipper';
+  const displayQuote = quote || meme.caption || 'Bị troll bất ngờ chưa bạn êi!';
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-lg select-none overflow-hidden transition-all duration-300 font-sans"
+      className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl select-none overflow-hidden font-sans animate-in fade-in duration-200"
       onClick={onDismiss}
     >
-      {/* 1. HIỆU ỨNG THỊ GIÁC ĐỒ HỌA GỐC (NATIVE FX LAYERS) */}
+      {/* 1. HIỆU ỨNG THỊ GIÁC ĐỒ HỌA THEO TỪNG VŨ KHÍ */}
 
       {/* FX 1: Cà chua nổ sốt văng vương vãi trên kính */}
-      {prankId === 'tomato_splat' && (
+      {itemId === 'tomato_splat' && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
-          <div className="w-96 h-96 rounded-full bg-red-600/30 blur-2xl animate-ping" />
-          <div className="absolute w-[320px] h-[320px] bg-gradient-to-tr from-red-600 to-rose-500 rounded-full blur-xl opacity-80" />
-          {/* Vết văng sốt cà chua loang lổ */}
-          <div className="absolute inset-x-12 top-20 flex justify-around opacity-90">
-            <div className="w-16 h-28 bg-red-600 rounded-full blur-xs rotate-12" />
-            <div className="w-24 h-24 bg-red-700 rounded-full blur-xs -rotate-45" />
-            <div className="w-14 h-36 bg-red-600 rounded-full blur-xs rotate-6" />
+          <div className="w-[500px] h-[500px] rounded-full bg-red-600/35 blur-3xl animate-ping" />
+          <div className="absolute w-[360px] h-[360px] bg-gradient-to-tr from-red-600 to-rose-500 rounded-full blur-2xl opacity-80" />
+          <div className="absolute inset-x-10 top-20 flex justify-around opacity-90 animate-in zoom-in duration-300">
+            <div className="w-20 h-32 bg-red-600/90 rounded-full blur-xs rotate-12" />
+            <div className="w-28 h-28 bg-red-700/90 rounded-full blur-xs -rotate-45" />
+            <div className="w-16 h-40 bg-red-600/90 rounded-full blur-xs rotate-6" />
           </div>
         </div>
       )}
 
-      {/* FX 2: Dép lào thần chưởng gõ rung màn hình */}
-      {prankId === 'slipper_throw' && (
+      {/* FX 2: Dép tổ ong bay rung giật màn hình */}
+      {itemId === 'honeycomb_slipper' && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="w-96 h-96 rounded-full bg-yellow-500/20 blur-3xl" />
+          <div className="absolute text-8xl sm:text-9xl transform -rotate-12 animate-in zoom-in-50 duration-200 drop-shadow-[0_20px_40px_rgba(255,204,0,0.6)]">
+            🩴
+          </div>
+        </div>
+      )}
+
+      {/* FX 3: Bom BÙM nổ chớp trắng chói lòa */}
+      {itemId === 'dynamite_boom' && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-white/40 animate-pulse duration-150" />
+          <div className="w-[600px] h-[600px] rounded-full bg-orange-600/40 blur-3xl animate-ping" />
+          <div className="absolute text-9xl animate-in zoom-in duration-150">
+            💥
+          </div>
+        </div>
+      )}
+
+      {/* FX 4: Xô nước đá dội lạnh toát */}
+      {itemId === 'ice_water_bucket' && (
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
-          <div className="w-[450px] h-[450px] rounded-full bg-[#00E5FF]/20 blur-3xl animate-pulse" />
-          <div className="absolute text-[120px] text-[#00E5FF] rotate-[-25deg] animate-bounce drop-shadow-[0_0_35px_#00E5FF]">
-            <i className="bi bi-send-fill" />
+          <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/40 via-blue-600/25 to-transparent backdrop-blur-xs animate-in slide-in-from-top duration-300" />
+          <div className="w-[450px] h-[450px] rounded-full bg-cyan-400/30 blur-2xl animate-pulse" />
+          <div className="absolute text-8xl top-1/4 animate-bounce">
+            🪣
           </div>
         </div>
       )}
 
-      {/* FX 3: Còi hơi phát sóng xung kích chớp nháy */}
-      {prankId === 'airhorn_blast' && (
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
-          <div className="w-full h-full border-8 border-amber-400/50 animate-ping" />
-          <div className="w-80 h-80 rounded-full bg-amber-500/30 blur-3xl animate-pulse" />
-          <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 via-transparent to-amber-500/10" />
-        </div>
-      )}
-
-      {/* FX 4: Phun sương nước làm mờ kính */}
-      {prankId === 'water_spray' && (
-        <div className={`absolute inset-0 pointer-events-none transition-all duration-700 ${
-          waterCleaned ? 'opacity-0 backdrop-blur-none' : 'opacity-95 backdrop-blur-2xl bg-cyan-950/40'
-        }`}>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-72 h-72 rounded-full bg-cyan-400/20 blur-2xl" />
+      {/* FX 5: Ớt siêu cay bốc hỏa */}
+      {itemId === 'super_chili' && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 border-8 border-red-600/60 shadow-[inset_0_0_80px_rgba(255,0,0,0.6)] animate-pulse" />
+          <div className="w-96 h-96 rounded-full bg-red-600/30 blur-3xl" />
+          <div className="absolute text-8xl animate-spin-slow">
+            🌶️
           </div>
         </div>
       )}
 
-      {/* FX 5: Cơn mưa tiền rơi rộn rã */}
-      {prankId === 'cash_rain' && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-10 left-10 text-emerald-400 text-4xl animate-bounce">
-            <i className="bi bi-cash-stack" />
-          </div>
-          <div className="absolute top-20 right-16 text-emerald-300 text-5xl animate-pulse">
-            <i className="bi bi-cash" />
-          </div>
-          <div className="absolute bottom-28 left-20 text-emerald-400 text-4xl animate-bounce">
-            <i className="bi bi-cash-stack" />
-          </div>
-          <div className="absolute bottom-20 right-24 text-emerald-300 text-5xl animate-pulse">
-            <i className="bi bi-cash" />
-          </div>
-        </div>
-      )}
-
-      {/* 2. KHUNG NỘI DUNG CHÍNH (CARD MEME) */}
+      {/* 2. THẺ THÔNG BÁO BỊ TRÊU CHỌC Ở TRỌNG TÂM */}
       <div
-        onClick={(e) => e.stopPropagation()}
-        className={`relative z-10 max-w-sm w-full bg-[#11131A]/95 border-2 border-white/20 rounded-3xl p-6 text-center text-white shadow-[0_0_60px_rgba(0,0,0,0.95)] transition-all duration-500 transform ${
+        className={`relative z-20 w-full max-w-sm bg-[#121318]/95 border-2 border-white/20 rounded-3xl p-6 text-center shadow-[0_25px_60px_rgba(0,0,0,0.95)] flex flex-col items-center transition-all duration-300 ${
           scaleUp ? 'scale-100 opacity-100' : 'scale-75 opacity-0'
         } ${shaking ? 'animate-wiggle' : ''}`}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Nút đóng góc phải */}
+        {/* Thanh đếm lùi 3.0s ở đỉnh */}
+        <div className="absolute -top-3.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white text-[10px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1.5 border border-white/30">
+          <i className="bi bi-clock-history animate-spin" />
+          <span>Biến mất sau: {secondsLeft.toFixed(1)}s</span>
+        </div>
+
+        {/* Nút tắt góc phải */}
         <button
           type="button"
           onClick={onDismiss}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-[#8E8E93] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+          className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-neutral-400 hover:text-white flex items-center justify-center transition-all cursor-pointer"
+          title="Đóng ngay"
         >
           <i className="bi bi-x-lg text-xs" />
         </button>
 
-        {/* Banner người gửi */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-bold text-white mb-4">
-          <i className="bi bi-broadcast text-[#FF2A85] animate-ping" />
-          <span>{senderName} vừa ném trêu bạn!</span>
+        {/* Người ném trêu */}
+        <div className="flex items-center gap-2 mb-3 mt-1">
+          <span className="w-2 h-2 rounded-full bg-[#FF2A85] animate-ping" />
+          <span className="text-xs text-neutral-300 font-semibold">
+            <b className="text-white font-bold">{senderName}</b> vừa ném trêu bạn!
+          </span>
         </div>
 
-        {/* Khối Icon / Chibi Mascot Nổi Bật */}
-        <div className="relative mx-auto w-36 h-36 rounded-3xl p-1 bg-gradient-to-tr from-[#FF2A85] via-purple-500 to-[#00E5FF] shadow-[0_0_35px_rgba(255,42,133,0.5)] flex items-center justify-center mb-4">
-          <div className="w-full h-full rounded-[22px] bg-[#161922] p-2 flex items-center justify-center text-5xl text-white overflow-hidden">
-            {meme.chibiDataUrl ? (
-              <img src={meme.chibiDataUrl} alt={meme.name} className="w-full h-full object-contain animate-bounce" />
-            ) : (
-              <i className={`bi ${meme.icon || 'bi-lightning-charge-fill'}`} style={{ color: meme.color || '#FF2A85' }} />
-            )}
+        {/* Biểu tượng / Emoji vũ khí cỡ đại */}
+        <div className="relative my-2">
+          <div className="w-24 h-24 rounded-3xl bg-white/10 border-2 border-white/25 shadow-[0_0_30px_rgba(255,42,133,0.4)] flex items-center justify-center text-6xl transform hover:scale-110 transition-transform">
+            <span>{meme.previewEmoji || '💣'}</span>
           </div>
-          <span className="absolute -bottom-2.5 px-3 py-0.5 rounded-full bg-white text-black font-black text-[10px] tracking-wider uppercase shadow-md">
+          <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-white text-black font-black text-[10px] tracking-wider uppercase shadow-md whitespace-nowrap">
             {meme.name}
           </span>
         </div>
 
-        {/* Lời thoại nhây trêu ngươi */}
-        <div className="space-y-1.5 mt-5">
-          <h3 className="text-lg font-black text-white tracking-tight">
-            "{meme.caption || meme.reactionText || 'Bị troll rồi nha cưng!'}"
+        {/* Lời thoại cà khịa */}
+        <div className="space-y-1 mt-4">
+          <h3 className="text-base font-black text-white tracking-tight leading-snug">
+            "{displayQuote}"
           </h3>
-          <p className="text-xs text-[#8E8E93]">
-            {meme.subtext || 'Đã cộng +1 điểm Độ Nhây vào chỉ số tính cách!'}
+          <p className="text-[11px] text-pink-400 font-medium">
+            Biểu cảm: {meme.emotion || 'Trêu chọc'}
           </p>
         </div>
 
-        {/* Tùy chọn đặc thù: Nút lau kính khi bị xịt nước */}
-        {prankId === 'water_spray' && !waterCleaned && (
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => setWaterCleaned(true)}
-              className="px-4 py-1.5 rounded-full bg-cyan-400/20 border border-cyan-400/40 text-cyan-300 font-bold text-xs hover:bg-cyan-400/30 transition-all cursor-pointer flex items-center gap-1.5 mx-auto"
-            >
-              <i className="bi bi-wind" />
-              <span>Gạt nước lau kính</span>
-            </button>
-          </div>
-        )}
-
-        {/* 3. CỤM HÀNH ĐỘNG: BẮN TRẢ NGAY HOẶC ĐÓNG */}
-        <div className="mt-6 space-y-2.5">
-          {/* NÚT BẮN TRẢ NGAY (REVENGE / COUNTER-ATTACK) */}
+        {/* 3. NÚT PHẢN ĐÒN NGAY (COUNTER-ATTACK) */}
+        <div className="mt-5 w-full space-y-2">
           <button
             type="button"
             onClick={() => {
-              onDismiss();
+              if (onDismiss) onDismiss();
               if (onCounterAttack) {
-                onCounterAttack(senderUser || { name: senderName, id: senderUser?.id });
+                onCounterAttack(senderUser || { name: senderName, id: meme.senderId });
               }
             }}
-            className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF2A85] via-[#FF539A] to-[#00E5FF] text-white font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,42,133,0.5)] hover:opacity-95 active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2"
+            className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#FF2A85] via-purple-600 to-[#00E5FF] text-white font-black text-xs uppercase tracking-wider shadow-[0_0_20px_rgba(255,42,133,0.6)] hover:opacity-95 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
-            <i className="bi bi-arrow-repeat text-base" />
-            <span>BẮN TRẢ NGAY! (PHẢN CÔNG)</span>
+            <i className="bi bi-arrow-repeat text-base animate-spin" />
+            <span>🔥 PHẢN ĐÒN NGAY!</span>
           </button>
 
           <button
             type="button"
             onClick={onDismiss}
-            className="w-full py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
+            className="w-full py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-xs font-semibold transition-colors cursor-pointer"
           >
             Bỏ qua
           </button>

@@ -349,3 +349,40 @@ body {
   min-height: 108px !important;
   max-height: 108px !important;
 }
+
+/* 7. HIỆU ỨNG VÒNG SẠC TRÊU BẠN KHI GIỮ 1.5S TRÊN BẢN ĐỒ (ZENLY STYLE) */
+.vivu-troll-charging-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 3.5px solid transparent;
+  border-top-color: #FF2A85;
+  border-right-color: #00E5FF;
+  border-bottom-color: #10FFA0;
+  border-left-color: #7928CA;
+  box-shadow: 0 0 18px rgba(255, 42, 133, 0.85), inset 0 0 10px rgba(0, 229, 255, 0.6);
+  animation: vivuChargeSpin 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards, vivuChargePulse 0.35s ease-in-out infinite alternate;
+  pointer-events: none !important;
+  z-index: 60;
+}
+
+@keyframes vivuChargeSpin {
+  0% {
+    transform: rotate(0deg) scale(0.92);
+    opacity: 0.7;
+  }
+  100% {
+    transform: rotate(720deg) scale(1.22);
+    opacity: 1;
+  }
+}
+
+@keyframes vivuChargePulse {
+  0% {
+    filter: drop-shadow(0 0 6px #FF2A85);
+  }
+  100% {
+    filter: drop-shadow(0 0 14px #00E5FF);
+  }
+}
+

@@ -19,7 +19,6 @@ export default function UserProfileViewModal({
   allFriends = [],
   onDirectChat,
   onToggleFriend,
-  onOpenMemeTroll,
   onStartNavigation,
   onOpenStoryDetail
 }) {
@@ -239,8 +238,8 @@ export default function UserProfileViewModal({
             </span>
           </div>
 
-          {/* 3. Lưới 4 Nút Hành Động Trực Tiếp */}
-          <div className="grid grid-cols-4 gap-2 mt-5 w-full">
+          {/* 3. Lưới 3 Nút Hành Động Trực Tiếp (Nhắn tin, Kết bạn, Chỉ đường) */}
+          <div className="grid grid-cols-3 gap-2 mt-5 w-full">
             
             {/* Nút 1: Nhắn tin */}
             <button
@@ -279,22 +278,7 @@ export default function UserProfileViewModal({
               </span>
             </button>
 
-            {/* Nút 3: Trêu chọc Meme */}
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                if (onOpenMemeTroll) onOpenMemeTroll(profile);
-              }}
-              className="flex flex-col items-center justify-center gap-1.5 py-2.5 px-1 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 border border-white/10 transition-all cursor-pointer group"
-            >
-              <div className="w-9 h-9 rounded-full bg-[#FF2A85]/15 text-[#FF2A85] flex items-center justify-center group-hover:scale-110 transition-transform">
-                <i className="bi bi-lightning-charge-fill text-base" />
-              </div>
-              <span className="text-[11px] font-bold text-white">Trêu</span>
-            </button>
-
-            {/* Nút 4: Chỉ đường GPS */}
+            {/* Nút 3: Chỉ đường GPS */}
             <button
               type="button"
               onClick={() => {

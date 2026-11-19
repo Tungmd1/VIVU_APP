@@ -1231,6 +1231,21 @@ export default function App() {
       }
     };
 
+    const handleTrollReceive = (data) => {
+      if (!data || !data.meme) return;
+      setActiveTakeoverMeme({
+        meme: data.meme,
+        quote: data.quote || data.meme.caption || '',
+        senderName: data.senderName || 'Một người bạn',
+        senderUser: data.senderUser || {
+          id: data.senderId,
+          name: data.senderName || 'Một người bạn',
+          avatar: data.senderAvatar || ''
+        },
+        targetUser: data.targetUser || null
+      });
+    };
+
     socket.on('user:offline', handleUserOffline);
     socket.on('gps:peer-update', handlePeerUpdate);
     socket.on('notification:new', handleNotificationNew);
@@ -1250,6 +1265,8 @@ export default function App() {
     socket.on('circle:member_kicked', handleCircleMemberKicked);
     socket.on('circle:disbanded', handleCircleDisbanded);
     socket.on('circle:updated', handleCircleUpdated);
+    socket.on('troll:receive', handleTrollReceive);
+    socket.on('meme_troll', handleTrollReceive);
 
     return () => {
       socket.off('user:offline', handleUserOffline);
@@ -1268,6 +1285,8 @@ export default function App() {
       socket.off('circle:invite', handleCircleInvite);
       socket.off('circle:member_joined', handleCircleMemberJoined);
       socket.off('circle:member_left', handleCircleMemberLeft);
+      socket.off('troll:receive', handleTrollReceive);
+      socket.off('meme_troll', handleTrollReceive);
       socket.off('circle:member_kicked', handleCircleMemberKicked);
       socket.off('circle:disbanded', handleCircleDisbanded);
       socket.off('circle:updated', handleCircleUpdated);
@@ -3838,10 +3857,6 @@ export default function App() {
           onToggleFriend={(profile) => {
             handleStoryToggleFriend(profile);
           }}
-          onOpenMemeTroll={(profile) => {
-            setSelectedUserProfile(null);
-            setTrollTargetUser(profile);
-          }}
           onStartNavigation={(profile) => {
             setSelectedUserProfile(null);
             setNavTarget(profile);
@@ -3865,10 +3880,6 @@ export default function App() {
           }}
           onToggleFriend={(profile) => {
             handleStoryToggleFriend(profile);
-          }}
-          onOpenMemeTroll={(profile) => {
-            setSelectedGuestProfile(null);
-            setTrollTargetUser(profile);
           }}
           onStartNavigation={(profile) => {
             setSelectedGuestProfile(null);
@@ -3954,10 +3965,6 @@ export default function App() {
           onOpenDirectChat={(f) => {
             setSelectedFriend(null);
             handleStoryDirectChat(f);
-          }}
-          onOpenMemeTroll={(f) => {
-            setSelectedFriend(null);
-            setTrollTargetUser(f);
           }}
           onStartNavigation={(f) => {
             setNavTarget(f);
@@ -4555,24 +4562,29 @@ export default function App() {
             // Gửi thông báo thời gian thực qua socket
             try {
               if (socketRef.current?.connected) {
-                socketRef.current.emit('meme_troll', {
+                const sendPayload = {
                   senderId: currentUserId,
                   senderName: currentUserName,
-                  targetId: targetUser?.id || targetUser?.hostId,
+                  senderAvatar: currentUserAvatar,
+                  targetUserId: targetId,
+                  targetId,
                   meme,
                   quote
-                });
+                };
+                socketRef.current.emit('troll:send', sendPayload);
+                socketRef.current.emit('meme_troll', sendPayload);
               }
             } catch {}
           }}
         />
       )}
 
-      {/* 28. HIỆU ỨNG MEME BAY LƯỢN TOÀN MÀN HÌNH (SCREEN TAKEOVER) */}
+      {/* 28. HIỆU ỨNG MEME BAY LƯỢN TOÀN MÀN HÌNH (SCREEN TAKEOVER ĐÚNG 3S) */}
       {activeTakeoverMeme && (
         <MemeScreenTakeover
           meme={activeTakeoverMeme.meme}
           senderName={activeTakeoverMeme.senderName}
+          senderUser={activeTakeoverMeme.senderUser}
           quote={activeTakeoverMeme.quote}
           onDismiss={() => setActiveTakeoverMeme(null)}
           onCounterAttack={(sender) => {

@@ -332,6 +332,75 @@ export function initSocketIO(httpServer) {
     });
 
     // ================================================================
+    // TROLL / MEME REALTIME EVENTS
+    // ================================================================
+    socket.on('troll:send', async (data) => {
+      try {
+        const { targetUserId, meme, quote, senderName, senderAvatar } = data || {};
+        if (!targetUserId || !meme) return;
+
+        const payload = {
+          senderId: userId,
+          senderName: senderName || 'Một người bạn',
+          senderAvatar: senderAvatar || '',
+          senderUser: {
+            id: userId,
+            name: senderName || 'Một người bạn',
+            avatar: senderAvatar || ''
+          },
+          meme,
+          quote: quote || meme.caption || '',
+          timestamp: Date.now()
+        };
+
+        // 1. Gửi trực tiếp hiệu ứng Screen Takeover tới client đối phương
+        emitToUser(targetUserId, 'troll:receive', payload);
+        emitToUser(targetUserId, 'meme_troll', payload);
+
+        // 2. Tạo thông báo trong ứng dụng cho người nhận
+        try {
+          notificationService.createNotification({
+            type: 'troll',
+            fromUserId: userId,
+            toUserId: targetUserId,
+            title: `😜 ${senderName || 'Bạn bè'} vừa trêu bạn!`,
+            body: `Đã ném ${meme.name || 'vũ khí'}: "${quote || meme.caption || ''}"`,
+            avatar: senderAvatar || '',
+            actionData: payload
+          });
+        } catch (notifErr) {
+          console.warn('[Socket.IO] Troll notification warning:', notifErr.message);
+        }
+      } catch (err) {
+        console.warn('[Socket.IO] troll:send error:', err.message);
+      }
+    });
+
+    socket.on('meme_troll', async (data) => {
+      try {
+        const targetUserId = data?.targetId || data?.targetUserId;
+        if (!targetUserId) return;
+        const payload = {
+          senderId: userId,
+          senderName: data.senderName || 'Một người bạn',
+          senderAvatar: data.senderAvatar || '',
+          senderUser: {
+            id: userId,
+            name: data.senderName || 'Một người bạn',
+            avatar: data.senderAvatar || ''
+          },
+          meme: data.meme,
+          quote: data.quote || data.meme?.caption || '',
+          timestamp: Date.now()
+        };
+        emitToUser(targetUserId, 'troll:receive', payload);
+        emitToUser(targetUserId, 'meme_troll', payload);
+      } catch (err) {
+        console.warn('[Socket.IO] meme_troll error:', err.message);
+      }
+    });
+
+    // ================================================================
     // FRIEND REQUEST EVENTS
     // ================================================================
     socket.on('friend:send-request', async (data) => {

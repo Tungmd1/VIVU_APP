@@ -4552,6 +4552,8 @@ export default function App() {
                 memeId: meme.id,
                 memeName: meme.name,
                 memeIcon: meme.icon,
+                image3d: meme.image3d,
+                particleColor: meme.particleColor,
                 soundType: meme.soundType,
                 caption: quote || meme.caption,
                 sender: 'me'

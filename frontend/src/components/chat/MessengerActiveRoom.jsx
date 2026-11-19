@@ -209,10 +209,12 @@ export default function MessengerActiveRoom({
                             if (onOpenTakeoverMeme) {
                               onOpenTakeoverMeme({
                                 meme: {
-                                  id: msg.prankId || msg.memeId || 'tomato_splat',
+                                  id: msg.prankId || msg.memeId || 'honeycomb_slipper',
                                   name: msg.memeName || 'Trêu Chọc',
-                                  icon: msg.memeIcon || 'bi-egg-fill',
-                                  soundType: msg.soundType || 'splat',
+                                  icon: msg.memeIcon || 'bi-lightning-charge-fill',
+                                  image3d: msg.image3d,
+                                  particleColor: msg.particleColor,
+                                  soundType: msg.soundType || 'punch',
                                   caption: msg.text || msg.caption
                                 },
                                 senderName: isMe ? 'Bạn' : (activeConversation?.name || 'Bạn bè'),

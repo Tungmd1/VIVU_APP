@@ -5,6 +5,8 @@
  * - 100% Bootstrap Icons (Rule 5) | Tối ưu < 450 dòng (Rule 7)
  */
 
+import { VIVU_STICKERS } from '../stickers/VivuStickerCatalog';
+
 const FLUENT_CDN = 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets';
 
 // Dép tổ ong 3D vàng bóng bẩy độc quyền cho VIVU
@@ -408,7 +410,21 @@ export const TROLL_ITEMS = [
     badge: 'Cháy khét lẹt',
     image3d: `${FLUENT_CDN}/Fire/3D/fire_3d.png`,
     quotes: ['Cháy quá rồi cứu tôi với!', 'Bùng cháy ngọn lửa tình bạn!', 'Hot hòn họt luôn!']
-  }
+  },
+  // Bộ Sticker Độc Quyền VIVU tích hợp trực tiếp vào kho vũ khí 3D
+  ...VIVU_STICKERS.map((s) => ({
+    id: s.id,
+    name: s.name,
+    category: 'memes',
+    emotion: s.badge,
+    soundType: s.soundType,
+    icon: 'bi-stickies-fill',
+    color: s.particleColor,
+    particleColor: s.particleColor,
+    badge: s.badge,
+    image3d: s.image,
+    previewEmoji: '🐰'
+  }))
 ];
 
 export function getTrollItemById(id) {

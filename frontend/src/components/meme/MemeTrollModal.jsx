@@ -9,18 +9,14 @@ import {
 import { playTrollSound } from './trollSoundSynth';
 
 /**
- * MemeTrollModal - Bảng Vũ Khí Trêu Bạn Bè Độc Quyền VIVU
- * - Giao diện Bento 3D hiện đại theo Stitch Design Taste
- * - Sử dụng bộ biểu tượng 3D Ultra-HD Microsoft Fluent & Dép tổ ong 3D vàng
- * - 4 Danh mục: Con vật, Đồ vật/Đồ dùng, Cây cối, Meme Hot
- * - 100% Bootstrap Icons (Rule 5) | Tối ưu < 320 dòng (Rule 7)
- * - Tự động phát âm thanh Web Audio Synth khi chạm thử từng món đồ
+ * MemeTrollModal - Bảng Vũ Khí Trêu Bạn Bè Độc Quyền VIVU (Instant 1-Tap Minimalist Edition)
+ * - Tinh giản tối đa: Xóa sạch ô nhập văn bản, câu thoại cà khịa và nút bấm xác nhận rườm rà
+ * - Cơ chế 1 Chạm Tức Thì (Instant 1-Tap): Ấn vào bất kỳ icon 3D nào là lập tức bắn chiêu thức và đóng bảng
+ * - Bộ biểu tượng 3D Ultra-HD Microsoft Fluent & Dép tổ ong 3D vàng độc quyền
+ * - 100% Bootstrap Icons (Rule 5) | Tối ưu < 200 dòng (Rule 7)
  */
 export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onClose, onMemeSent }) {
   const [activeCategory, setActiveCategory] = useState('animals');
-  const [selectedItem, setSelectedItem] = useState(() => TROLL_ITEMS[0]);
-  const [customQuote, setCustomQuote] = useState(() => TROLL_ITEMS[0].quotes[0]);
-  const [isSending, setIsSending] = useState(false);
 
   // Lọc danh sách món đồ theo Tab đang chọn
   const categoryItems = useMemo(() => {
@@ -32,90 +28,83 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
   const targetName = targetUser.name || targetUser.displayName || targetUser.hostName || targetUser.full_name || 'Bạn bè';
   const targetAvatar = targetUser.avatar || targetUser.avatarUrl || targetUser.hostAvatar || DEFAULT_WHITE_PERSON_AVATAR;
 
-  // Khi chọn một vật phẩm mới: Đổi câu thoại mẫu và phát âm thanh thử nghiệm
-  const handleSelectItem = (item) => {
-    setSelectedItem(item);
-    if (item.quotes && item.quotes.length > 0) {
-      setCustomQuote(item.quotes[0]);
-    }
-    playTrollSound(item.soundType);
-  };
-
-  const handleSendTroll = () => {
-    if (!selectedItem) return;
-    setIsSending(true);
-
+  // CHẠM 1 CHẠM TỨC THÌ: Bắn chiêu thức ngay & đóng bảng chọn trong chớp mắt
+  const handleInstantSend = (item) => {
     try {
-      recordMemeTroll(currentUserId, targetUser.id, selectedItem.id);
-      playTrollSound(selectedItem.soundType);
-
-      if (onMemeSent) {
-        onMemeSent({
-          meme: {
-            id: selectedItem.id,
-            name: selectedItem.name,
-            category: selectedItem.category,
-            emotion: selectedItem.emotion,
-            soundType: selectedItem.soundType,
-            icon: selectedItem.icon,
-            color: selectedItem.color,
-            particleColor: selectedItem.particleColor,
-            badge: selectedItem.badge,
-            image3d: selectedItem.image3d,
-            previewEmoji: selectedItem.previewEmoji,
-            caption: customQuote.trim() || selectedItem.name,
-            subtext: `Vừa ném trêu ${targetName}!`,
-            isTrollItem: true
-          },
-          targetUser,
-          quote: customQuote.trim() || selectedItem.name
-        });
+      if (navigator?.vibrate) {
+        navigator.vibrate([45]);
       }
-    } catch (err) {
-      console.error('[MemeTrollModal] Lỗi khi ném trêu:', err);
-    } finally {
-      setTimeout(() => {
-        setIsSending(false);
-        onClose();
-      }, 350);
+    } catch (_) {}
+
+    // 1. Phát âm thanh Web Audio Synth tương ứng
+    playTrollSound(item.soundType);
+
+    // 2. Ghi nhận phân tích hành vi
+    recordMemeTroll(currentUserId, targetUser.id, item.id);
+
+    // 3. Bắn payload trêu chọc sang đối phương
+    if (onMemeSent) {
+      onMemeSent({
+        meme: {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          emotion: item.emotion,
+          soundType: item.soundType,
+          icon: item.icon,
+          color: item.color,
+          particleColor: item.particleColor,
+          badge: item.badge,
+          image3d: item.image3d,
+          previewEmoji: item.previewEmoji,
+          caption: `Vừa ném ${item.name}!`,
+          subtext: `Vừa ném trêu ${targetName}!`,
+          isTrollItem: true
+        },
+        targetUser,
+        quote: `Vừa ném ${item.name}!`
+      });
     }
+
+    // 4. Đóng bảng chọn ngay lập tức
+    onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-none font-sans">
+    <div className="fixed inset-0 z-[115] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200 select-none font-sans">
       {/* Vùng bấm mờ bên ngoài để đóng */}
       <div className="absolute inset-0" onClick={onClose} />
 
       <div
-        className="relative z-10 w-full sm:max-w-md bg-[#0A0B0E]/95 border border-white/15 rounded-t-3xl sm:rounded-3xl p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] backdrop-blur-2xl flex flex-col max-h-[92vh] overflow-hidden text-white space-y-3.5 animate-in slide-in-from-bottom duration-300"
+        className="relative z-10 w-full sm:max-w-md bg-[#0A0B0E]/95 border border-white/15 rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] backdrop-blur-2xl flex flex-col max-h-[85vh] overflow-hidden text-white space-y-3 animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Thanh gạt nhỏ ở đỉnh cho thao tác vuốt di động */}
         <div className="w-10 h-1 bg-white/20 rounded-full mx-auto -mt-1 sm:hidden shrink-0" />
 
-        {/* 1. Header Bảng Trêu - Phong cách Zenly */}
-        <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-[#FF2A85] shadow-[0_0_16px_rgba(255,42,133,0.45)] shrink-0 bg-neutral-900 flex items-center justify-center">
+        {/* 1. Header Tinh Giản: Avatar bạn bè + Nhãn Trêu Bạn + Nút đóng nhanh */}
+        <div className="flex items-center justify-between pb-2 border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-[#FF2A85] shadow-[0_0_12px_rgba(255,42,133,0.4)] shrink-0 bg-neutral-900 flex items-center justify-center">
               <img src={targetAvatar} alt={targetName} className="w-full h-full object-cover" />
-              <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#10FFA0] border-2 border-[#0A0B0E] animate-pulse" />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#10FFA0] border-2 border-[#0A0B0E] animate-pulse" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-black text-white truncate max-w-[160px] tracking-wide">{targetName}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-[#FF2A85]/25 to-purple-600/25 text-[#FF529D] border border-[#FF2A85]/40 font-bold uppercase shrink-0 flex items-center gap-1">
-                  <i className="bi bi-lightning-charge-fill text-[9px]" />
-                  <span>Trêu Bạn</span>
+                <span className="text-sm font-black text-white truncate max-w-[150px] tracking-wide">{targetName}</span>
+                <span className="text-[9px] px-2 py-0.5 rounded-full bg-gradient-to-r from-[#FF2A85]/25 to-purple-600/25 text-[#FF529D] border border-[#FF2A85]/40 font-bold uppercase shrink-0 flex items-center gap-1">
+                  <i className="bi bi-lightning-charge-fill text-[8px]" />
+                  <span>Chạm là bắn</span>
                 </span>
               </div>
-              <p className="text-[11px] text-neutral-400 truncate">Chọn vũ khí 3D ném rung chuyển màn hình đối phương!</p>
+              <p className="text-[10px] text-neutral-400 truncate">Chạm 1 chạm vào bất kỳ icon nào để ném ngay!</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-neutral-300 hover:text-white transition-all cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-neutral-300 hover:text-white transition-all cursor-pointer shrink-0"
             title="Đóng bảng trêu"
           >
             <i className="bi bi-x-lg text-xs" />
@@ -123,21 +112,17 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
         </div>
 
         {/* 2. Thanh 4 Tab Phân Loại (Con vật, Đồ dùng, Cây cối, Meme) */}
-        <div className="grid grid-cols-4 gap-1.5 p-1 bg-black/60 rounded-2xl border border-white/10 shrink-0">
+        <div className="grid grid-cols-4 gap-1 p-1 bg-black/60 rounded-2xl border border-white/10 shrink-0">
           {TROLL_CATEGORIES.map((cat) => {
             const isActive = activeCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => {
-                  setActiveCategory(cat.id);
-                  const firstInCat = getTrollItemsByCategory(cat.id)[0];
-                  if (firstInCat) handleSelectItem(firstInCat);
-                }}
-                className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer active:scale-95 ${
+                onClick={() => setActiveCategory(cat.id)}
+                className={`py-1.5 px-1 rounded-xl text-xs font-bold transition-all flex flex-col sm:flex-row items-center justify-center gap-1 cursor-pointer active:scale-95 ${
                   isActive
-                    ? 'bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white shadow-[0_0_15px_rgba(255,42,133,0.45)]'
+                    ? 'bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white shadow-[0_0_12px_rgba(255,42,133,0.45)]'
                     : 'text-neutral-400 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -148,37 +133,30 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
           })}
         </div>
 
-        {/* 3. Lưới Các Biểu Tượng 3D Bento Card Trong Tab */}
-        <div className="space-y-1.5 overflow-y-auto no-scrollbar pr-0.5 flex-1 max-h-[240px]">
-          <div className="grid grid-cols-3 gap-2.5">
+        {/* 3. Lưới Các Biểu Tượng 3D Bento Card (Chạm 1 chạm để bắn tức thì) */}
+        <div className="space-y-1 overflow-y-auto no-scrollbar pr-0.5 flex-1 max-h-[340px]">
+          <div className="grid grid-cols-3 gap-2.5 py-1">
             {categoryItems.map((item) => {
-              const isSelected = selectedItem?.id === item.id;
               const glowColor = item.particleColor || '#FF2A85';
               return (
                 <div
                   key={item.id}
-                  onClick={() => handleSelectItem(item)}
-                  className={`p-3 rounded-2xl cursor-pointer transition-all duration-200 border flex flex-col items-center text-center relative group active:scale-95 overflow-hidden ${
-                    isSelected
-                      ? 'bg-gradient-to-b from-white/15 to-white/5 border-white/40 shadow-lg ring-2'
-                      : 'bg-[#12141A] border-white/10 hover:border-white/25 hover:bg-[#181B22]'
-                  }`}
+                  onClick={() => handleInstantSend(item)}
+                  className="p-3 rounded-2xl cursor-pointer transition-all duration-200 border bg-[#12141A] border-white/10 hover:border-white/30 hover:bg-[#181B22] flex flex-col items-center text-center relative group active:scale-90 overflow-hidden shadow-sm"
                   style={{
-                    borderColor: isSelected ? glowColor : undefined,
-                    boxShadow: isSelected ? `0 0 20px ${glowColor}50` : undefined,
-                    ringColor: isSelected ? glowColor : undefined
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)'
                   }}
                 >
-                  {/* Ambient Glow nền nhẹ */}
+                  {/* Ambient Glow nền nhẹ khi hover */}
                   <div
-                    className="absolute inset-0 pointer-events-none opacity-20 group-hover:opacity-35 transition-opacity"
+                    className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-35 transition-opacity"
                     style={{
                       background: `radial-gradient(circle at center, ${glowColor} 0%, transparent 70%)`
                     }}
                   />
 
-                  {/* Icon 3D Ultra-HD */}
-                  <div className="relative w-14 h-14 flex items-center justify-center mb-1 group-hover:scale-125 transition-transform duration-300">
+                  {/* Icon 3D Ultra-HD bóng bẩy */}
+                  <div className="relative w-14 h-14 flex items-center justify-center mb-1.5 group-hover:scale-125 transition-transform duration-200">
                     {item.image3d ? (
                       <img
                         src={item.image3d}
@@ -191,10 +169,12 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
                     )}
                   </div>
 
+                  {/* Tên vật phẩm */}
                   <span className="text-[11px] font-bold text-white truncate max-w-full leading-tight z-10">
                     {item.name}
                   </span>
 
+                  {/* Huy hiệu mini */}
                   <span
                     className="text-[9px] font-bold mt-1 px-1.5 py-0.5 rounded-full z-10 flex items-center gap-1 border"
                     style={{
@@ -210,69 +190,6 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
               );
             })}
           </div>
-        </div>
-
-        {/* 4. Lời Thoại Nhây & Banter Cà Khịa */}
-        <div className="space-y-2 shrink-0 pt-2 border-t border-white/10">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
-              <i className="bi bi-chat-quote-fill text-pink-500" />
-              <span>Lời Thoại Cà Khịa</span>
-            </span>
-            <span className="text-[10px] text-pink-400 font-bold">
-              {selectedItem?.name || 'Vũ khí'}
-            </span>
-          </div>
-
-          {/* Dải cuộn nhanh các câu thoại gợi ý */}
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-            {selectedItem?.quotes?.map((q, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setCustomQuote(q)}
-                className={`text-[11px] px-3 py-1 rounded-full whitespace-nowrap transition-all border shrink-0 cursor-pointer active:scale-95 ${
-                  customQuote === q
-                    ? 'bg-white text-black font-black border-white shadow-sm'
-                    : 'bg-white/5 border-white/10 text-white/70 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-
-          {/* Ô nhập tùy chỉnh lời thoại trêu chọc */}
-          <input
-            type="text"
-            value={customQuote}
-            onChange={(e) => setCustomQuote(e.target.value)}
-            maxLength={60}
-            placeholder="Tự nhập câu cà khịa hài hước..."
-            className="w-full px-3.5 py-2 rounded-xl bg-[#12141A] border border-white/10 focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400/40 text-white text-xs outline-none font-medium placeholder-white/30"
-          />
-        </div>
-
-        {/* 5. Nút Ném Vũ Khí Trêu Bạn Bè */}
-        <div className="pt-1 shrink-0">
-          <button
-            type="button"
-            onClick={handleSendTroll}
-            disabled={isSending || !selectedItem}
-            className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-[#FF2A85] via-purple-600 to-[#00E5FF] text-white font-black text-xs uppercase tracking-wider shadow-[0_0_25px_rgba(255,42,133,0.6)] hover:opacity-95 active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {isSending ? (
-              <>
-                <i className="bi bi-arrow-repeat animate-spin text-sm" />
-                <span>Đang Bắn Chiêu Thức...</span>
-              </>
-            ) : (
-              <>
-                <i className="bi bi-send-fill text-sm animate-bounce" />
-                <span>Ném {selectedItem?.name} Trêu {targetName}!</span>
-              </>
-            )}
-          </button>
         </div>
 
       </div>

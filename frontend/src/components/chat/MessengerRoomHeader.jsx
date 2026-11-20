@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 
 /**
@@ -14,8 +14,12 @@ export default function MessengerRoomHeader({
   setIsProfileModalOpen,
   onStartCall,
   onBackToMap,
-  setIsGroupMembersModalOpen
+  setIsGroupMembersModalOpen,
+  onToggleArchive,
+  onOpenClearModal,
+  isArchived = false
 }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   return (
     <div className="flex items-center justify-between px-3.5 py-3 bg-[rgba(20,20,30,0.85)] backdrop-blur-xl border-b border-white/10 shrink-0 z-30 shadow-sm select-none">
       <div className="flex items-center gap-2.5">
@@ -112,6 +116,64 @@ export default function MessengerRoomHeader({
             <i className="bi bi-people-fill text-xs text-[#00E5FF]"></i>
           </button>
         )}
+
+        {/* Nút Tùy chọn cuộc trò chuyện (Menu Lưu trữ & Xóa toàn bộ tin nhắn) */}
+        <div className="relative">
+          <button 
+            type="button"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`w-8 h-8 rounded-full border text-white flex items-center justify-center transition-all active:scale-90 cursor-pointer shadow-sm ${
+              isMenuOpen ? 'bg-[#FF2A85] border-[#FF2A85] shadow-[0_0_10px_rgba(255,42,133,0.4)]' : 'bg-white/5 border-white/10 hover:bg-white/10'
+            }`}
+            title="Tùy chọn cuộc trò chuyện"
+            aria-label="Tùy chọn cuộc trò chuyện"
+          >
+            <i className="bi bi-three-dots-vertical text-xs text-white"></i>
+          </button>
+
+          {/* Menu Dropdown F1 Glass */}
+          {isMenuOpen && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsMenuOpen(false)}
+              />
+              <div className="absolute right-0 top-10 w-56 rounded-2xl bg-[#141625]/95 backdrop-blur-2xl border border-white/15 shadow-2xl p-1.5 z-50 text-xs space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onToggleArchive?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-white/10 text-white transition-colors cursor-pointer text-left"
+                >
+                  <i className={`bi ${isArchived ? 'bi-box-arrow-up text-[#00E5FF]' : 'bi-archive text-[#00E5FF]'} text-sm`}></i>
+                  <div>
+                    <div className="font-semibold">{isArchived ? 'Bỏ lưu trữ đoạn chat' : 'Lưu trữ cuộc trò chuyện'}</div>
+                    <div className="text-[10px] text-white/50">{isArchived ? 'Đưa về hộp thư chính' : 'Ẩn khỏi hộp thư chính'}</div>
+                  </div>
+                </button>
+
+                <div className="border-t border-white/10 my-1"></div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onOpenClearModal?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-red-500/20 text-[#FF2A85] hover:text-red-300 transition-colors cursor-pointer text-left"
+                >
+                  <i className="bi bi-trash3 text-sm"></i>
+                  <div>
+                    <div className="font-semibold">Xóa toàn bộ tin nhắn</div>
+                    <div className="text-[10px] text-white/50">Dọn sạch lịch sử trò chuyện</div>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

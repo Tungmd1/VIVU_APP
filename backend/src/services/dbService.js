@@ -1286,7 +1286,12 @@ export const dbService = {
         console.warn('[DB Service] Cloud messages error, fallback to memory:', err.message);
       }
     }
-    const msgs = inMemoryStore.messages.filter(m => m.conversation_id === conversationId);
+    const msgs = inMemoryStore.messages.filter(m => {
+      if (m.conversation_id !== conversationId) return false;
+      if (m.deleted_for_everyone) return false;
+      if (requesterId && Array.isArray(m.deleted_for) && m.deleted_for.includes(requesterId)) return false;
+      return true;
+    });
     return msgs.map(m => ({
       ...m,
       isLocation: Boolean(m.is_location || m.isLocation),
@@ -1326,6 +1331,8 @@ export const dbService = {
 
     // 2. Lấy toàn bộ tin nhắn mà user này là người gửi hoặc người nhận (kể cả tin nhắn trong các nhóm mà user tham gia)
     const userMessages = inMemoryStore.messages.filter(m => {
+      if (m.deleted_for_everyone) return false;
+      if (Array.isArray(m.deleted_for) && m.deleted_for.includes(userId)) return false;
       if (m.sender === userId) return true;
       if (m.conversation_id && m.conversation_id.includes(userId)) return true;
       if (m.conversation_id && userCircleIds.has(m.conversation_id)) return true;
@@ -1371,6 +1378,9 @@ export const dbService = {
 
         const ageMs = combinedPartner.last_seen_at ? Date.now() - new Date(combinedPartner.last_seen_at).getTime() : Infinity;
         const isOnline = partnerProfile.is_online !== false && ageMs < 15000;
+        const isArchived = Boolean(
+          (inMemoryStore.archivedConversations || []).some(a => a.userId === userId && a.conversationId === convId)
+        );
 
         conversations.push({
           id: convId,
@@ -1388,6 +1398,7 @@ export const dbService = {
           isStranger,
           isFriend,
           hasReplied,
+          isArchived,
           lastMessage: lastMsg.text || (lastMsg.is_location ? 'Đã chia sẻ vị trí GPS' : lastMsg.image ? 'Đã gửi hình ảnh' : lastMsg.video ? 'Đã gửi video' : 'Đã gửi tin nhắn'),
           time: lastMsg.created_at,
           unread: unreadCount > 0,
@@ -1424,6 +1435,10 @@ export const dbService = {
           const lastMsg = sortedMsgs[sortedMsgs.length - 1];
           const unreadCount = sortedMsgs.filter(m => m.sender !== userId && m.status !== 'read').length;
 
+          const circleArchived = Boolean(
+            (inMemoryStore.archivedConversations || []).some(a => a.userId === userId && a.conversationId === convId)
+          );
+
           conversations.push({
             id: convId,
             type: 'group',
@@ -1436,6 +1451,7 @@ export const dbService = {
             isStranger: false,
             isFriend: false,
             hasReplied: true,
+            isArchived: circleArchived,
             lastMessage: lastMsg.text || 'Hoạt động mới',
             time: lastMsg.created_at,
             unread: unreadCount > 0,
@@ -1471,6 +1487,9 @@ export const dbService = {
     // Bổ sung các nhóm mà user là thành viên nhưng chưa có tin nhắn nào
     for (const circle of userCircles) {
       if (!conversations.some(c => c.id === circle.id)) {
+        const circleArchived = Boolean(
+          (inMemoryStore.archivedConversations || []).some(a => a.userId === userId && a.conversationId === circle.id)
+        );
         conversations.push({
           id: circle.id,
           type: 'group',
@@ -1483,6 +1502,7 @@ export const dbService = {
           isStranger: false,
           isFriend: false,
           hasReplied: true,
+          isArchived: circleArchived,
           lastMessage: 'Nhóm mới tạo',
           time: circle.created_at || new Date().toISOString(),
           unread: false,
@@ -1613,6 +1633,115 @@ export const dbService = {
     inMemoryStore.messages.push(newMsg);
     dbStore.persist();
     return newMsg;
+  },
+
+  async deleteMessage(messageId, userId, deleteForEveryone = false) {
+    if (!messageId) throw new Error('messageId là bắt buộc');
+    const msg = inMemoryStore.messages.find(m => m.id === messageId);
+    if (!msg) {
+      return { success: true, alreadyDeleted: true, messageId };
+    }
+
+    // Kiểm tra quyền: phải là người gửi hoặc người trong cuộc trò chuyện
+    const isSender = msg.sender === userId;
+    const isDirectRecipient = msg.conversation_id?.startsWith('conv-direct-') && msg.conversation_id.includes(userId);
+    let isCircleMember = false;
+    if (msg.conversation_id?.startsWith('circle-')) {
+      const circle = inMemoryStore.circles?.find(c => c.id === msg.conversation_id);
+      isCircleMember = Array.isArray(circle?.member_ids) && circle.member_ids.includes(userId);
+    }
+
+    if (!isSender && !isDirectRecipient && !isCircleMember) {
+      const err = new Error('Bạn không có quyền thao tác trên tin nhắn này');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (deleteForEveryone) {
+      // Chỉ người gửi mới được thu hồi cho tất cả mọi người
+      if (!isSender) {
+        const err = new Error('Chỉ người gửi mới có thể thu hồi tin nhắn cho tất cả mọi người');
+        err.statusCode = 403;
+        throw err;
+      }
+      // Xóa hoàn toàn tin nhắn khỏi danh sách
+      inMemoryStore.messages = inMemoryStore.messages.filter(m => m.id !== messageId);
+      dbStore.persist();
+      return { success: true, messageId, conversationId: msg.conversation_id, deleteForEveryone: true };
+    } else {
+      // Xóa ở phía tôi: thêm userId vào deleted_for
+      if (!Array.isArray(msg.deleted_for)) {
+        msg.deleted_for = [];
+      }
+      if (!msg.deleted_for.includes(userId)) {
+        msg.deleted_for.push(userId);
+      }
+      dbStore.persist();
+      return { success: true, messageId, conversationId: msg.conversation_id, deleteForEveryone: false };
+    }
+  },
+
+  async clearConversationMessages(conversationId, userId, clearForEveryone = true) {
+    if (!conversationId) throw new Error('conversationId là bắt buộc');
+
+    // Kiểm tra quyền
+    if (conversationId.startsWith('conv-direct-')) {
+      const parts = conversationId.replace('conv-direct-', '').split('--');
+      if (userId && !parts.includes(userId)) {
+        const err = new Error('Bạn không thuộc cuộc trò chuyện này');
+        err.statusCode = 403;
+        throw err;
+      }
+    } else if (conversationId.startsWith('circle-')) {
+      const circle = inMemoryStore.circles?.find(c => c.id === conversationId);
+      if (userId && circle && Array.isArray(circle.member_ids) && !circle.member_ids.includes(userId)) {
+        const err = new Error('Bạn không phải thành viên nhóm này');
+        err.statusCode = 403;
+        throw err;
+      }
+    }
+
+    if (clearForEveryone) {
+      inMemoryStore.messages = inMemoryStore.messages.filter(m => m.conversation_id !== conversationId);
+    } else if (userId) {
+      inMemoryStore.messages.forEach(m => {
+        if (m.conversation_id === conversationId) {
+          m.deleted_for = m.deleted_for || [];
+          if (!m.deleted_for.includes(userId)) {
+            m.deleted_for.push(userId);
+          }
+        }
+      });
+    }
+    dbStore.persist();
+    return { success: true, conversationId, clearedAt: new Date().toISOString() };
+  },
+
+  async toggleArchiveConversation(conversationId, userId, isArchived = true) {
+    if (!conversationId || !userId) throw new Error('conversationId và userId là bắt buộc');
+    if (!Array.isArray(inMemoryStore.archivedConversations)) {
+      inMemoryStore.archivedConversations = [];
+    }
+
+    const shouldArchive = Boolean(isArchived);
+    if (shouldArchive) {
+      const exists = inMemoryStore.archivedConversations.some(
+        a => a.userId === userId && a.conversationId === conversationId
+      );
+      if (!exists) {
+        inMemoryStore.archivedConversations.push({
+          userId,
+          conversationId,
+          archivedAt: new Date().toISOString()
+        });
+      }
+    } else {
+      inMemoryStore.archivedConversations = inMemoryStore.archivedConversations.filter(
+        a => !(a.userId === userId && a.conversationId === conversationId)
+      );
+    }
+    dbStore.persist();
+    return { success: true, conversationId, userId, isArchived: shouldArchive };
   },
 
   async voteMessagePoll(messageId, optionId, userId) {

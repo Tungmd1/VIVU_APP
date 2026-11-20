@@ -10,5 +10,8 @@ router.post('/messages', chatController.sendMessage);
 router.post('/messages/stop-live-location', chatController.stopLiveLocation);
 router.post('/messages/:messageId/poll-vote', chatController.votePoll);
 router.post('/messages/read', chatController.markAsRead);
+router.delete('/messages/:messageId', chatController.deleteMessage);
+router.delete('/conversations/:conversationId/clear', chatController.clearConversationMessages);
+router.post('/conversations/:conversationId/archive', chatController.toggleArchiveConversation);
 
 export default router;

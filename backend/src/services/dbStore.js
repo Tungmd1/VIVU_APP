@@ -18,7 +18,8 @@ const INITIAL_DB = {
   friendRequests: [],
   friendships: [],
   notifications: [],
-  highlights: []
+  highlights: [],
+  archivedConversations: []
 };
 
 class DatabaseStore {
@@ -299,6 +300,9 @@ class DatabaseStore {
 
   get notifications() { return this.data.notifications || []; }
   set notifications(val) { this.data.notifications = val; this.saveToDisk(); }
+
+  get archivedConversations() { return this.data.archivedConversations || []; }
+  set archivedConversations(val) { this.data.archivedConversations = val; this.saveToDisk(); }
 
   scheduleSave() {
     if (this._saveTimer) return;

@@ -1216,6 +1216,34 @@ export default function App() {
       });
     };
 
+    // 17. Sự kiện Xóa/Thu hồi tin nhắn Realtime (CHAT:MESSAGE_DELETED)
+    const handleChatMessageDeleted = (data) => {
+      if (!data?.messageId) return;
+      setConversations(prev => prev.map(c => {
+        if (data.conversationId && c.id !== data.conversationId) return c;
+        const updatedMsgs = (c.messages || []).filter(m => m.id !== data.messageId);
+        const lastMsg = updatedMsgs[updatedMsgs.length - 1];
+        return {
+          ...c,
+          messages: updatedMsgs,
+          lastMessage: lastMsg ? (lastMsg.text || (lastMsg.is_location ? 'Đã chia sẻ vị trí GPS' : lastMsg.image ? 'Đã gửi hình ảnh' : lastMsg.video ? 'Đã gửi video' : 'Đã gửi tin nhắn')) : ''
+        };
+      }));
+    };
+
+    // 18. Sự kiện Dọn sạch lịch sử tin nhắn Realtime (CHAT:CONVERSATION_CLEARED)
+    const handleChatConversationCleared = (data) => {
+      if (!data?.conversationId) return;
+      setConversations(prev => prev.map(c => {
+        if (c.id !== data.conversationId) return c;
+        return {
+          ...c,
+          messages: [],
+          lastMessage: ''
+        };
+      }));
+    };
+
     socket.on('user:offline', handleUserOffline);
     socket.on('gps:peer-update', handlePeerUpdate);
     socket.on('notification:new', handleNotificationNew);
@@ -1225,6 +1253,8 @@ export default function App() {
     socket.on('friend-request:incoming', handleIncomingFriendRequest);
     socket.on('friend:unfriended', handleUnfriended);
     socket.on('chat:read', handleChatRead);
+    socket.on('chat:message_deleted', handleChatMessageDeleted);
+    socket.on('chat:conversation_cleared', handleChatConversationCleared);
     socket.on('spatial:bump-trigger', handleBumpTrigger);
     socket.on('spatial:bump-peer-ready', handleBumpPeerReady);
     socket.on('spatial:bump-clink', handleBumpClink);
@@ -1248,6 +1278,8 @@ export default function App() {
       socket.off('friend-request:incoming', handleIncomingFriendRequest);
       socket.off('friend:unfriended', handleUnfriended);
       socket.off('chat:read', handleChatRead);
+      socket.off('chat:message_deleted', handleChatMessageDeleted);
+      socket.off('chat:conversation_cleared', handleChatConversationCleared);
       socket.off('spatial:bump-trigger', handleBumpTrigger);
       socket.off('spatial:bump-peer-ready', handleBumpPeerReady);
       socket.off('spatial:bump-clink', handleBumpClink);
@@ -4289,6 +4321,38 @@ export default function App() {
           onOpenDirectChat={handleStoryDirectChat}
           onOpenMemeTroll={(target) => setTrollTargetUser(target)}
           onOpenTakeoverMeme={(takeoverData) => setActiveTakeoverMeme(takeoverData)}
+          onDeleteMessage={(messageId, deleteForEveryone) => {
+            setConversations(prev => prev.map(c => {
+              const hasMsg = c.messages?.some(m => m.id === messageId);
+              if (!hasMsg) return c;
+              const updatedMsgs = c.messages.filter(m => m.id !== messageId);
+              const lastMsg = updatedMsgs[updatedMsgs.length - 1];
+              return {
+                ...c,
+                messages: updatedMsgs,
+                lastMessage: lastMsg ? (lastMsg.text || (lastMsg.is_location ? 'Đã chia sẻ vị trí GPS' : lastMsg.image ? 'Đã gửi hình ảnh' : lastMsg.video ? 'Đã gửi video' : 'Đã gửi tin nhắn')) : ''
+              };
+            }));
+          }}
+          onClearConversation={(convId) => {
+            setConversations(prev => prev.map(c => {
+              if (c.id !== convId) return c;
+              return {
+                ...c,
+                messages: [],
+                lastMessage: ''
+              };
+            }));
+          }}
+          onToggleArchive={(convId, isArchived) => {
+            setConversations(prev => prev.map(c => {
+              if (c.id !== convId) return c;
+              return {
+                ...c,
+                isArchived
+              };
+            }));
+          }}
         />
       )}
 

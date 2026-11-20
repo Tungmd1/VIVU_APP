@@ -396,6 +396,60 @@ export const apiClient = {
     return 0;
   },
 
+  async deleteMessage(messageId, userId, deleteForEveryone = false) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId || ''
+        },
+        body: JSON.stringify({ userId, deleteForEveryone })
+      });
+      const json = await res.json();
+      return json;
+    } catch (err) {
+      console.warn('[API Client] deleteMessage error:', err.message);
+      return { success: false, message: err.message };
+    }
+  },
+
+  async clearConversationMessages(conversationId, userId, clearForEveryone = true) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/clear`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId || ''
+        },
+        body: JSON.stringify({ userId, clearForEveryone })
+      });
+      const json = await res.json();
+      return json;
+    } catch (err) {
+      console.warn('[API Client] clearConversationMessages error:', err.message);
+      return { success: false, message: err.message };
+    }
+  },
+
+  async archiveConversation(conversationId, userId, isArchived = true) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/conversations/${conversationId}/archive`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': userId || ''
+        },
+        body: JSON.stringify({ userId, isArchived })
+      });
+      const json = await res.json();
+      return json;
+    } catch (err) {
+      console.warn('[API Client] archiveConversation error:', err.message);
+      return { success: false, message: err.message };
+    }
+  },
+
   // ------------------------------------------------------------------
   // FRIENDSHIP & USER DISCOVERY APIS
   // ------------------------------------------------------------------

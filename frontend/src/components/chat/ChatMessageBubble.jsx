@@ -16,10 +16,11 @@ export default function ChatMessageBubble({
   onOpenTakeoverMeme,
   onOpenMapForStory,
   onStartNavigation,
-  setSelectedLightboxMedia
+  setSelectedLightboxMedia,
+  onSelectMessageForDelete
 }) {
   return (
-    <div className={`flex items-end gap-2 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : 'flex-row'}`}>
+    <div className={`group relative flex items-end gap-1.5 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : 'flex-row'}`}>
       {!isMe && (
         <img 
           src={msg.senderAvatar || activeConversation?.avatar} 
@@ -28,9 +29,28 @@ export default function ChatMessageBubble({
         />
       )}
 
+      {/* Nút hành động nhanh: Mở menu Xóa / Thu hồi tin nhắn */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelectMessageForDelete?.(msg);
+        }}
+        className={`w-6 h-6 rounded-full bg-white/10 hover:bg-[#FF2A85]/20 text-white/40 hover:text-[#FF2A85] flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 self-center shrink-0 cursor-pointer ${
+          isMe ? 'order-first' : 'order-last'
+        }`}
+        title="Tùy chọn tin nhắn (Xóa / Thu hồi)"
+      >
+        <i className="bi bi-three-dots text-[10px]"></i>
+      </button>
+
       {/* 1. Tin nhắn Thả tim */}
       {(msg.isHeart || msg.is_heart || msg.text === '❤️') ? (
-        <div className="p-1 animate-bounce">
+        <div 
+          onClick={() => onSelectMessageForDelete?.(msg)}
+          title="Nhấn để xóa tin nhắn"
+          className="p-1 animate-bounce cursor-pointer"
+        >
           <i className="bi bi-heart-fill text-[#E10600] text-3xl drop-shadow"></i>
         </div>
       ) : msg.video ? (
@@ -38,7 +58,13 @@ export default function ChatMessageBubble({
         <div className="rounded-2xl overflow-hidden border border-white/15 max-w-[260px] bg-black shadow-md">
           <video src={msg.video} controls playsInline className="w-full max-h-60 object-cover rounded-2xl" />
           {msg.text && (
-            <p className="p-2.5 text-xs text-white/90 leading-relaxed break-words bg-black/60 border-t border-white/10">{msg.text}</p>
+            <p 
+              onClick={() => onSelectMessageForDelete?.(msg)}
+              title="Nhấn để xóa tin nhắn"
+              className="p-2.5 text-xs text-white/90 leading-relaxed break-words bg-black/60 border-t border-white/10 cursor-pointer"
+            >
+              {msg.text}
+            </p>
           )}
         </div>
       ) : (msg.image && !msg.type && !msg.isSticker && !msg.sticker) ? (
@@ -51,27 +77,40 @@ export default function ChatMessageBubble({
             onClick={() => setSelectedLightboxMedia?.({ type: 'image', url: msg.image })}
           />
           {msg.text && (
-            <p className="p-2.5 text-xs text-white/90 leading-relaxed break-words bg-black/60 border-t border-white/10">{msg.text}</p>
+            <p 
+              onClick={() => onSelectMessageForDelete?.(msg)}
+              title="Nhấn để xóa tin nhắn"
+              className="p-2.5 text-xs text-white/90 leading-relaxed break-words bg-black/60 border-t border-white/10 cursor-pointer"
+            >
+              {msg.text}
+            </p>
           )}
         </div>
       ) : (msg.type === 'sticker' || msg.isSticker || msg.sticker) ? (
         /* 4. Tin nhắn Sticker Độc Quyền VIVU Không Viền */
-        <div className="relative group cursor-pointer select-none py-1">
+        <div 
+          className="relative group/stk cursor-pointer select-none py-1"
+          onClick={() => onSelectMessageForDelete?.(msg)}
+          title="Nhấn để tùy chọn / xóa sticker"
+        >
           <img 
             src={msg.sticker?.image || msg.stickerImage || msg.image} 
             alt={msg.sticker?.name || 'Sticker VIVU'} 
             className="w-28 h-28 sm:w-32 sm:h-32 object-contain filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] transform hover:scale-110 active:scale-95 transition-all duration-200"
-            onClick={() => {
+            onClick={(e) => {
               if (msg.sticker?.soundType || msg.soundType) {
+                e.stopPropagation();
                 playTrollSound(msg.sticker?.soundType || msg.soundType);
               }
             }}
-            title={msg.sticker?.name || 'Chạm để phát âm thanh'}
           />
         </div>
       ) : (msg.type === 'troll' || msg.isTroll) ? (
         /* 5. Thẻ Tin Nhắn Troll Đặc Bản */
-        <div className="p-3 bg-gradient-to-br from-[#1c1224] to-[#121c24] backdrop-blur-xl rounded-2xl border-2 border-[#FF2A85]/50 space-y-1.5 max-w-[240px] text-white shadow-[0_0_15px_rgba(255,42,133,0.3)]">
+        <div 
+          onClick={() => onSelectMessageForDelete?.(msg)}
+          className="p-3 bg-gradient-to-br from-[#1c1224] to-[#121c24] backdrop-blur-xl rounded-2xl border-2 border-[#FF2A85]/50 space-y-1.5 max-w-[240px] text-white shadow-[0_0_15px_rgba(255,42,133,0.3)] cursor-pointer"
+        >
           <div className="flex items-center justify-between border-b border-white/10 pb-1 text-xs font-bold text-[#FF2A85]">
             <span className="flex items-center gap-1"><i className="bi bi-lightning-charge-fill animate-pulse" />{msg.memeName || 'Trêu Chọc'}</span>
             <span className="text-[9px] font-mono px-1 rounded-full bg-white/10 text-white/80">TROLL</span>
@@ -79,7 +118,8 @@ export default function ChatMessageBubble({
           <p className="text-xs font-bold text-white italic py-0.5 line-clamp-2">"{msg.text || msg.caption || 'Ném trêu bạn!'}"</p>
           <button
             type="button"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               if (onOpenTakeoverMeme) {
                 onOpenTakeoverMeme({
                   meme: {
@@ -121,7 +161,7 @@ export default function ChatMessageBubble({
       ) : (msg.isLocation || msg.is_location) ? (
         /* 8. Thẻ Vị trí Tĩnh GPS */
         <div 
-          onClick={() => {
+          onClick={(e) => {
             if (onOpenMapForStory) onOpenMapForStory({ lat: msg.lat, lng: msg.lng });
           }}
           className="p-3 bg-[#1c2438] hover:bg-[#222c44] border border-cyan-500/40 rounded-2xl cursor-pointer transition-all space-y-1.5 max-w-[220px]"
@@ -137,7 +177,10 @@ export default function ChatMessageBubble({
         </div>
       ) : (
         /* 9. Tin Nhắn Văn Bản Tiêu Chuẩn */
-        <div className={`p-3 rounded-2xl text-xs leading-relaxed max-w-full break-words shadow-sm ${
+        <div 
+          onClick={() => onSelectMessageForDelete?.(msg)}
+          title="Nhấn để xóa hoặc tùy chọn tin nhắn"
+          className={`p-3 rounded-2xl text-xs leading-relaxed max-w-full break-words shadow-sm cursor-pointer hover:opacity-95 transition-all ${
           isMe
             ? 'bg-gradient-to-r from-[#FF2A85] to-[#7928CA] text-white font-medium rounded-br-none'
             : 'bg-[#151926] text-white border border-white/10 rounded-bl-none'

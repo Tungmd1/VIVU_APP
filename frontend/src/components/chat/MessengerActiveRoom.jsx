@@ -8,6 +8,8 @@ import MediaPreviewModal from './MediaPreviewModal';
 import VivuStickerKeyboard from './VivuStickerKeyboard';
 import ChatMessageBubble from './ChatMessageBubble';
 import ChatLightboxModal from './ChatLightboxModal';
+import ChatMessageActionModal from './ChatMessageActionModal';
+import ClearChatModal from './ClearChatModal';
 import apiClient from '../../services/apiClient';
 
 /**
@@ -40,7 +42,10 @@ export default function MessengerActiveRoom({
   setIsToolsDrawerOpen,
   messageInputText,
   setMessageInputText,
-  handleSend
+  handleSend,
+  onDeleteMessage,
+  onClearConversation,
+  onToggleArchive
 }) {
   const chatFileInputRef = useRef(null);
   const chatVideoInputRef = useRef(null);
@@ -50,6 +55,49 @@ export default function MessengerActiveRoom({
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [selectedLightboxMedia, setSelectedLightboxMedia] = useState(null);
   const [isStickerKeyboardOpen, setIsStickerKeyboardOpen] = useState(false);
+  const [selectedMessageForAction, setSelectedMessageForAction] = useState(null);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+
+  // Xóa tin nhắn đơn lẻ ở phía tôi
+  const handleDeleteForMe = async (msg) => {
+    try {
+      await apiClient.deleteMessage(msg.id, currentUserId, false);
+      onDeleteMessage?.(msg.id, false);
+    } catch (e) {
+      console.warn('Lỗi khi xóa tin nhắn ở phía tôi:', e);
+    }
+  };
+
+  // Thu hồi tin nhắn với mọi người
+  const handleUnsendForEveryone = async (msg) => {
+    try {
+      await apiClient.deleteMessage(msg.id, currentUserId, true);
+      onDeleteMessage?.(msg.id, true);
+    } catch (e) {
+      console.warn('Lỗi khi thu hồi tin nhắn:', e);
+    }
+  };
+
+  // Dọn sạch toàn bộ lịch sử tin nhắn
+  const handleConfirmClear = async () => {
+    try {
+      await apiClient.clearConversationMessages(activeConversationId, currentUserId, true);
+      onClearConversation?.(activeConversationId);
+    } catch (e) {
+      console.warn('Lỗi khi dọn sạch tin nhắn:', e);
+    }
+  };
+
+  // Lưu trữ hoặc bỏ lưu trữ cuộc trò chuyện
+  const handleToggleArchive = async () => {
+    try {
+      const nextArchived = !Boolean(activeConversation?.isArchived);
+      await apiClient.archiveConversation(activeConversationId, currentUserId, nextArchived);
+      onToggleArchive?.(activeConversationId, nextArchived);
+    } catch (e) {
+      console.warn('Lỗi khi lưu trữ cuộc trò chuyện:', e);
+    }
+  };
 
   // Tính cấp Chuỗi Thân Thiết (Streak): Cứ mỗi 3 tin nhắn tăng 1 cấp chuỗi
   const currentMessageCount = messages.length || 0;
@@ -164,6 +212,9 @@ export default function MessengerActiveRoom({
             onStartCall={onStartCall}
             onBackToMap={onBackToMap}
             setIsGroupMembersModalOpen={setIsGroupMembersModalOpen}
+            onToggleArchive={handleToggleArchive}
+            onOpenClearModal={() => setIsClearModalOpen(true)}
+            isArchived={Boolean(activeConversation?.isArchived)}
           />
 
           {/* VÙNG TIN NHẮN CUỘN ĐỘC LẬP */}
@@ -181,6 +232,7 @@ export default function MessengerActiveRoom({
                     onOpenMapForStory={onOpenMapForStory}
                     onStartNavigation={onStartNavigation}
                     setSelectedLightboxMedia={setSelectedLightboxMedia}
+                    onSelectMessageForDelete={setSelectedMessageForAction}
                   />
 
                   {/* Thời gian tin nhắn */}
@@ -328,6 +380,24 @@ export default function MessengerActiveRoom({
       <ChatLightboxModal
         media={selectedLightboxMedia}
         onClose={() => setSelectedLightboxMedia(null)}
+      />
+
+      {/* Modal Tùy Chọn Xóa / Thu Hồi Từng Tin Nhắn */}
+      <ChatMessageActionModal
+        isOpen={Boolean(selectedMessageForAction)}
+        message={selectedMessageForAction}
+        isMe={selectedMessageForAction?.sender === 'me' || (currentUserId && selectedMessageForAction?.sender === currentUserId)}
+        onClose={() => setSelectedMessageForAction(null)}
+        onDeleteForMe={handleDeleteForMe}
+        onUnsendForEveryone={handleUnsendForEveryone}
+      />
+
+      {/* Modal Xác Nhận Xóa Toàn Bộ Lịch Sử Tin Nhắn */}
+      <ClearChatModal
+        isOpen={isClearModalOpen}
+        partnerName={activeConversation?.name}
+        onClose={() => setIsClearModalOpen(false)}
+        onConfirmClear={handleConfirmClear}
       />
     </main>
   );

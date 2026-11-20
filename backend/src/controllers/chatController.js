@@ -1,4 +1,5 @@
 import { dbService } from '../services/dbService.js';
+import { dbStore } from '../services/dbStore.js';
 import { emitToUser } from '../services/socketService.js';
 import { notificationService } from '../services/notificationService.js';
 
@@ -147,6 +148,115 @@ export const chatController = {
       }
 
       res.json({ success: true, data: updatedMsg });
+    } catch (err) {
+      if (err.statusCode === 403) {
+        return res.status(403).json({ success: false, message: err.message });
+      }
+      next(err);
+    }
+  },
+
+  async deleteMessage(req, res, next) {
+    try {
+      const { messageId } = req.params;
+      const { deleteForEveryone } = req.body || {};
+      const queryDeleteForEveryone = req.query.deleteForEveryone === 'true' || req.query.deleteForEveryone === true;
+      const shouldDeleteForEveryone = Boolean(deleteForEveryone || queryDeleteForEveryone);
+      const userId = req.body?.userId || req.query.userId || req.headers['x-user-id'];
+
+      const result = await dbService.deleteMessage(messageId, userId, shouldDeleteForEveryone);
+
+      // Phát realtime qua Socket.IO
+      if (result.conversationId) {
+        if (result.conversationId.startsWith('conv-direct-')) {
+          const parts = result.conversationId.replace('conv-direct-', '').split('--');
+          const recipientId = parts.find(p => p !== userId);
+          if (recipientId && shouldDeleteForEveryone) {
+            emitToUser(recipientId, 'chat:message_deleted', {
+              messageId,
+              conversationId: result.conversationId,
+              deleteForEveryone: true
+            });
+          }
+        } else if (result.conversationId.startsWith('circle-') && shouldDeleteForEveryone) {
+          const circle = dbStore.circles?.find(c => c.id === result.conversationId);
+          if (circle && Array.isArray(circle.member_ids)) {
+            circle.member_ids.forEach(mId => {
+              if (mId !== userId) {
+                emitToUser(mId, 'chat:message_deleted', {
+                  messageId,
+                  conversationId: result.conversationId,
+                  deleteForEveryone: true
+                });
+              }
+            });
+          }
+        }
+      }
+
+      res.json({ success: true, data: result });
+    } catch (err) {
+      if (err.statusCode === 403) {
+        return res.status(403).json({ success: false, message: err.message });
+      }
+      next(err);
+    }
+  },
+
+  async clearConversationMessages(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+      const { clearForEveryone } = req.body || {};
+      const queryClearForEveryone = req.query.clearForEveryone === 'true' || req.query.clearForEveryone === true;
+      const shouldClearForEveryone = clearForEveryone !== undefined ? Boolean(clearForEveryone) : (req.query.clearForEveryone !== undefined ? queryClearForEveryone : true);
+      const userId = req.body?.userId || req.query.userId || req.headers['x-user-id'];
+
+      const result = await dbService.clearConversationMessages(conversationId, userId, shouldClearForEveryone);
+
+      // Phát realtime qua Socket.IO nếu xóa ở cả hai bên
+      if (shouldClearForEveryone && conversationId) {
+        if (conversationId.startsWith('conv-direct-')) {
+          const parts = conversationId.replace('conv-direct-', '').split('--');
+          const recipientId = parts.find(p => p !== userId);
+          if (recipientId) {
+            emitToUser(recipientId, 'chat:conversation_cleared', {
+              conversationId,
+              clearedBy: userId
+            });
+          }
+        } else if (conversationId.startsWith('circle-')) {
+          const circle = dbStore.circles?.find(c => c.id === conversationId);
+          if (circle && Array.isArray(circle.member_ids)) {
+            circle.member_ids.forEach(mId => {
+              if (mId !== userId) {
+                emitToUser(mId, 'chat:conversation_cleared', {
+                  conversationId,
+                  clearedBy: userId
+                });
+              }
+            });
+          }
+        }
+      }
+
+      res.json({ success: true, data: result });
+    } catch (err) {
+      if (err.statusCode === 403) {
+        return res.status(403).json({ success: false, message: err.message });
+      }
+      next(err);
+    }
+  },
+
+  async toggleArchiveConversation(req, res, next) {
+    try {
+      const { conversationId } = req.params;
+      const { isArchived } = req.body || {};
+      const userId = req.body?.userId || req.query.userId || req.headers['x-user-id'];
+
+      const result = await dbService.toggleArchiveConversation(conversationId, userId, isArchived !== false);
+
+      res.json({ success: true, data: result });
     } catch (err) {
       if (err.statusCode === 403) {
         return res.status(403).json({ success: false, message: err.message });

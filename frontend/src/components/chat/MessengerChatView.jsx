@@ -60,7 +60,28 @@ export default function MessengerChatView({
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] = useState(false);
   const [isToolsDrawerOpen, setIsToolsDrawerOpen] = useState(false);
 
-  const activeConversation = conversations.find(c => c.id === activeConversationId);
+  // Đồng bộ hội thoại với danh sách bạn bè thực tế để bảo đảm trạng thái online/offline luôn chính xác
+  const enrichedConversations = conversations.map(conv => {
+    if (conv.type === 'group') return conv;
+    const partnerId = conv.friendId || conv.partnerId || conv.userId || conv.targetUserId || (
+      conv.id && conv.id.startsWith('conv-direct-')
+        ? conv.id.replace('conv-direct-', '').split('--').find(p => p !== currentUserId)
+        : null
+    );
+    const friend = friends.find(f => (partnerId && f.id === partnerId) || f.name === conv.name);
+    if (!friend) return conv;
+    const isFriendOnline = Boolean(friend.isOnline === true || friend.is_online === true || friend.online === true);
+    return {
+      ...conv,
+      online: isFriendOnline,
+      isOnline: isFriendOnline,
+      is_online: isFriendOnline,
+      avatar: friend.avatar || friend.avatar_url || conv.avatar,
+      name: friend.name || friend.full_name || conv.name
+    };
+  });
+
+  const activeConversation = enrichedConversations.find(c => c.id === activeConversationId);
   const activeFriend = friends.find(f => f.id === activeConversation?.friendId || f.name === activeConversation?.name);
 
   // Lọc hội thoại: Phải có tin nhắn mới hiện trong trang tin nhắn
@@ -68,7 +89,7 @@ export default function MessengerChatView({
     return Boolean((conv.messages && conv.messages.length > 0) || conv.lastMessage);
   };
 
-  const filteredConversations = conversations.filter(conv => {
+  const filteredConversations = enrichedConversations.filter(conv => {
     if (!hasValidMessages(conv)) return false;
     if (chatSearchQuery && !conv.name.toLowerCase().includes(chatSearchQuery.toLowerCase())) {
       return false;
@@ -78,7 +99,7 @@ export default function MessengerChatView({
     return !conv.isStranger;
   });
 
-  const validConvs = conversations.filter(hasValidMessages);
+  const validConvs = enrichedConversations.filter(hasValidMessages);
   const allCount = validConvs.filter(c => !c.isStranger).length;
   const groupCount = validConvs.filter(c => c.type === 'group').length;
   const spamCount = validConvs.filter(c => Boolean(c.isStranger)).length;

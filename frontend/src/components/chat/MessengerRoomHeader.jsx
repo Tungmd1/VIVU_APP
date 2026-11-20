@@ -61,16 +61,24 @@ export default function MessengerRoomHeader({
             </h2>
             <div className="text-[10px] text-white/50 flex items-center gap-1.5 font-mono">
               {hasStreak && !activeConversation?.isStranger && (
-                <span className="text-[#FF2A85] font-bold flex items-center gap-0.5 animate-pulse">
-                  <i className="bi bi-fire"></i>
-                  <span>Cấp {streakLevel}</span>
-                </span>
+                <>
+                  <span className="text-[#FF2A85] font-bold flex items-center gap-0.5 animate-pulse">
+                    <i className="bi bi-fire"></i>
+                    <span>Cấp {streakLevel}</span>
+                  </span>
+                  <span>•</span>
+                </>
               )}
-              <span>•</span>
               {isOnline ? (
-                <span className="text-[#00FF66] font-semibold">Đang hoạt động</span>
+                <span className="text-[#00FF66] font-semibold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#00FF66]"></span>
+                  <span>Đang hoạt động</span>
+                </span>
               ) : (
-                <span className="text-white/40">Ngoại tuyến</span>
+                <span className="text-white/40 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-500"></span>
+                  <span>Ngoại tuyến</span>
+                </span>
               )}
             </div>
           </div>

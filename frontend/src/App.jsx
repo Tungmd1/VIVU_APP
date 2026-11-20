@@ -929,7 +929,10 @@ export default function App() {
         custom_status: (f.custom_status === 'Đang hoạt động' ? 'Ngoại tuyến' : f.custom_status)
       } : f));
       // Cập nhật cả danh sách tin nhắn hội thoại
-      setConversations(prev => prev.map(c => (c.friendId === userId || c.id === userId) ? { ...c, online: false, isOnline: false, is_online: false } : c));
+      setConversations(prev => prev.map(c => {
+        const isPartner = c.friendId === userId || c.partnerId === userId || c.targetUserId === userId || c.id === userId || (c.id && c.id.startsWith('conv-direct-') && c.id.includes(userId));
+        return isPartner ? { ...c, online: false, isOnline: false, is_online: false } : c;
+      }));
     };
 
     // 2. Tọa độ GPS peer cập nhật realtime
@@ -1787,30 +1790,42 @@ export default function App() {
         });
 
 
-          // Đồng bộ trạng thái online và avatar cho các hội thoại 1-1
+          // Đồng bộ trạng thái online và avatar cho các hội thoại 1-1 theo profiles
           setConversations(prevConvs => {
-            let updatedConvs = [...prevConvs];
             let convChanged = false;
+            const updatedConvs = prevConvs.map(conv => {
+              if (conv.type === 'group') return conv;
+              const peerId = conv.friendId || conv.partnerId || conv.userId || conv.targetUserId || (
+                conv.id && conv.id.startsWith('conv-direct-')
+                  ? conv.id.replace('conv-direct-', '').split('--').find(p => p !== currentUserId)
+                  : null
+              );
+              if (!peerId) return conv;
 
-            onlineOtherProfiles.forEach(p => {
-              const pName = p.full_name || p.name || 'Người dùng VIVU';
-              const pAvatar = p.avatar_url || p.avatar || DEFAULT_WHITE_PERSON_AVATAR;
-              const directConvId = apiClient.getDirectConversationId(currentUserId, p.id);
-              const existingIdx = updatedConvs.findIndex(c => c.id === directConvId || c.friendId === p.id);
+              const livePeer = profiles.find(p => p.id === peerId);
+              const isPeerOnline = livePeer ? (livePeer.is_online === true) : false;
+              const peerName = livePeer?.full_name || livePeer?.name;
+              const peerAvatar = livePeer?.avatar_url || livePeer?.avatar;
 
-              if (existingIdx >= 0) {
-                const cur = updatedConvs[existingIdx];
-                if (!cur.online || cur.name !== pName || cur.avatar !== pAvatar) {
-                  convChanged = true;
-                  updatedConvs[existingIdx] = {
-                    ...cur,
-                    id: directConvId,
-                    name: pName,
-                    avatar: pAvatar,
-                    online: true
-                  };
-                }
+              const shouldUpdate =
+                conv.online !== isPeerOnline ||
+                conv.isOnline !== isPeerOnline ||
+                conv.is_online !== isPeerOnline ||
+                (peerName && conv.name !== peerName) ||
+                (peerAvatar && conv.avatar !== peerAvatar);
+
+              if (shouldUpdate) {
+                convChanged = true;
+                return {
+                  ...conv,
+                  online: isPeerOnline,
+                  isOnline: isPeerOnline,
+                  is_online: isPeerOnline,
+                  ...(peerName ? { name: peerName } : {}),
+                  ...(peerAvatar ? { avatar: peerAvatar } : {})
+                };
               }
+              return conv;
             });
 
             return convChanged ? updatedConvs : prevConvs;

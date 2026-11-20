@@ -33,7 +33,6 @@ export default function MessengerActiveRoom({
   onOpenUserProfile,
   onOpenMemeTroll,
   onOpenTakeoverMeme,
-  setIsProfileModalOpen,
   setIsGroupMembersModalOpen,
   onOpenMapForStory,
   onStartNavigation,

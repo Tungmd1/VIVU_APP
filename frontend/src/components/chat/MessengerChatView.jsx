@@ -181,7 +181,6 @@ export default function MessengerChatView({
         onOpenUserProfile={(target) => onOpenUserProfile && onOpenUserProfile(target, 'chat')}
         onOpenMemeTroll={onOpenMemeTroll}
         onOpenTakeoverMeme={onOpenTakeoverMeme}
-        setIsProfileModalOpen={setIsProfileModalOpen}
         setIsGroupMembersModalOpen={setIsGroupMembersModalOpen}
         onOpenMapForStory={onOpenMapForStory}
         onStartNavigation={onStartNavigation}

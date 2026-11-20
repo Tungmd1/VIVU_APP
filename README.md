@@ -264,7 +264,29 @@ VIVU_APP/
 
 ---
 
-### Phương thức 1: Khởi chạy Cục bộ (Local Development)
+### Phương thức 1: Khởi Chạy 1-Click Siêu Tốc (Khuyến Nghị Cho Người Mới Clone)
+
+Chỉ với **2 bước duy nhất** tại thư mục gốc của dự án:
+
+```bash
+# 1. Cài đặt toàn bộ thư viện cho cả Backend và Frontend
+npm run install:all
+
+# 2. Khởi chạy đồng thời cả Backend (5000) và Frontend (5173) bằng 1 lệnh duy nhất
+npm run dev
+```
+
+> Ứng dụng VIVU sẽ khởi chạy tại: **`http://localhost:5173`**  
+> Máy chủ Backend API tại: **`http://localhost:5000/api/health`**  
+>
+> 🔑 **Tài khoản trải nghiệm có sẵn trong Database**:
+> - **Email**: `ductungzz114@gmail.com`
+> - **Mật khẩu**: `123456`  
+> *(Hoặc bạn có thể bấm nút **Đăng Ký** để tạo tài khoản mới tức thì)*
+
+---
+
+### Phương thức 1B: Khởi Chạy Từng Cửa Sổ Dòng Lệnh Riêng (Truyền Thống)
 
 #### Bước 1: Khởi động Backend API & Socket.IO
 Mở một cửa sổ dòng lệnh (Terminal / PowerShell):

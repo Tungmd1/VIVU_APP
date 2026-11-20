@@ -30,10 +30,34 @@ app.set('io', io);
 // Phục vụ tệp tĩnh uploads (Ảnh / Video Chat & Highlights tối ưu cho VPS)
 app.use('/uploads', express.static(uploadsDir));
 
-// CORS setup
-const corsOrigin = process.env.CORS_ORIGIN || '*';
+// CORS setup - Phản chiếu linh hoạt (Dynamic Origin Reflection)
+// Tự động tương thích cả khi thiếu .env lẫn khi có cấu hình CORS_ORIGIN
+// Tuyệt đối không để xảy ra lỗi "wildcard '*' with credentials" làm chặn API trình duyệt
+const configuredOrigin = process.env.CORS_ORIGIN;
 app.use(cors({
-  origin: corsOrigin,
+  origin: (origin, callback) => {
+    // 1. Cho phép requests nội bộ, mobile apps hoặc không gửi header Origin (curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // 2. Nếu chưa cấu hình CORS_ORIGIN hoặc đặt là '*' -> Tự động phản chiếu origin của request
+    if (!configuredOrigin || configuredOrigin === '*') {
+      return callback(null, true);
+    }
+
+    // 3. Nếu có danh sách cấu hình cụ thể
+    const allowedOrigins = configuredOrigin.split(',').map(s => s.trim().toLowerCase());
+    const reqOriginLower = origin.toLowerCase();
+    if (allowedOrigins.includes(reqOriginLower) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+
+    // 4. Mặc định cho phép các cổng cục bộ (localhost/127.0.0.1) & trycloudflare.com
+    if (reqOriginLower.includes('localhost') || reqOriginLower.includes('127.0.0.1') || reqOriginLower.includes('trycloudflare.com')) {
+      return callback(null, true);
+    }
+
+    callback(null, true); // Fallback an toàn cho môi trường đồ án & phát triển
+  },
   credentials: true
 }));
 

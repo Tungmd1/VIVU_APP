@@ -32,7 +32,6 @@
     "autoprefixer": "^10.6.1",
     "esbuild-wasm": "^0.25.0",
     "lightningcss-wasm": "^1.33.0",
-    "lightningcss-win32-x64-msvc": "^1.32.0",
     "oxlint": "^1.88.0",
     "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",

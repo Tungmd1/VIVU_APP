@@ -1,4 +1,21 @@
 {
+  "name": "vivu-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VIVU Social Map Web App - Monorepo root",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev": "node scripts/start-all.js",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "node scripts/serve-frontend.js",
+    "test": "npm --prefix backend test"
+  },
   "devDependencies": {
     "esbuild-wasm": "^0.28.2"
   }

@@ -19,7 +19,8 @@ if (!fs.existsSync(storiesDir)) fs.mkdirSync(storiesDir, { recursive: true });
 // Cấu hình Multer Disk Storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const category = req.query.category || req.body.category || 'chat';
+    const rawCat = req.query.category || req.body?.category;
+    const category = typeof rawCat === 'string' ? rawCat.trim() : 'chat';
     let targetDir = chatDir;
     if (category === 'highlights') targetDir = highlightsDir;
     else if (category === 'stories') targetDir = storiesDir;
@@ -28,7 +29,8 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || (file.mimetype.startsWith('video/') ? '.mp4' : '.jpg');
     const safeExt = ext.replace(/[^a-z0-9.]/gi, '');
-    const prefix = req.query.category || req.body.category || 'chat';
+    const rawCat = req.query.category || req.body?.category;
+    const prefix = typeof rawCat === 'string' && rawCat.trim() ? rawCat.trim() : 'chat';
     const uniqueName = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}${safeExt}`;
     cb(null, uniqueName);
   }

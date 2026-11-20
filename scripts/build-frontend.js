@@ -37,11 +37,12 @@ async function build() {
   const outCss = path.join(assetsDir, 'index-CnGff0oW.css');
 
   try {
-    // 1. Compile Tailwind CSS
+    // 1. Compile Tailwind CSS (Cross-Platform)
     console.log('[Build] Compiling Tailwind CSS utilities...');
     const tailwindOut = path.join(assetsDir, 'tailwind.css');
+    const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
     try {
-      execSync('npx.cmd -y tailwindcss@3.4.17 -i src/index.css --config tailwind.config.cjs -o dist/assets/tailwind.css --minify', {
+      execSync(`${npxCmd} -y tailwindcss@3.4.17 -i src/index.css --config tailwind.config.cjs -o dist/assets/tailwind.css --minify`, {
         cwd: frontendDir,
         stdio: 'pipe'
       });
@@ -86,6 +87,27 @@ async function build() {
     fs.writeFileSync(outCss, assembledCss, 'utf8');
     console.log(`[Build] Assembled CSS written to index-CnGff0oW.css (${assembledCss.length} bytes)`);
 
+    // Load env variables from frontend/.env or process.env with safe defaults
+    let envVars = {};
+    const frontendEnvPath = path.resolve(frontendDir, '.env');
+    if (fs.existsSync(frontendEnvPath)) {
+      const content = fs.readFileSync(frontendEnvPath, 'utf8');
+      content.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+          const [k, ...v] = trimmed.split('=');
+          envVars[k.trim()] = v.join('=').trim();
+        }
+      });
+    }
+
+    const googleClientId = envVars.VITE_GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '1084460632224-dvame9ut47inno35lnom4afcai00k763.apps.googleusercontent.com';
+    const googleApiKey = envVars.VITE_GOOGLE_API_KEY || process.env.VITE_GOOGLE_API_KEY || '';
+    const supabaseUrl = envVars.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = envVars.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+    const apiBaseUrl = envVars.VITE_API_BASE_URL || process.env.VITE_API_BASE_URL || '/api';
+    const facebookAppId = envVars.VITE_FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID || '';
+
     // 3. Bundle JavaScript
     await esbuild.build({
       entryPoints: [path.resolve(frontendDir, 'src/main.jsx')],
@@ -99,12 +121,12 @@ async function build() {
       sourcemap: false,
       define: {
         'process.env.NODE_ENV': '"production"',
-        'import.meta.env.VITE_GOOGLE_CLIENT_ID': '""',
-        'import.meta.env.VITE_GOOGLE_API_KEY': '""',
-        'import.meta.env.VITE_SUPABASE_URL': '""',
-        'import.meta.env.VITE_SUPABASE_ANON_KEY': '""',
-        'import.meta.env.VITE_API_BASE_URL': '""',
-        'import.meta.env.VITE_FACEBOOK_APP_ID': '""',
+        'import.meta.env.VITE_GOOGLE_CLIENT_ID': JSON.stringify(googleClientId),
+        'import.meta.env.VITE_GOOGLE_API_KEY': JSON.stringify(googleApiKey),
+        'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
+        'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabaseAnonKey),
+        'import.meta.env.VITE_API_BASE_URL': JSON.stringify(apiBaseUrl),
+        'import.meta.env.VITE_FACEBOOK_APP_ID': JSON.stringify(facebookAppId),
       },
       loader: {
         '.png': 'dataurl',

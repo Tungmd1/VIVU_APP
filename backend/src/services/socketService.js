@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import { dbService } from './dbService.js';
 import { dbStore } from './dbStore.js';
 import { notificationService } from './notificationService.js';
+import { callSignalingService } from './callSignalingService.js';
 
 // Mapping: userId → Set<socketId> (hỗ trợ 1 user nhiều tab/thiết bị)
 const userSockets = new Map();
@@ -505,6 +506,29 @@ export function initSocketIO(httpServer) {
     });
 
     // ================================================================
+    // WEBRTC CALL SIGNALING: Cuộc gọi thoại & video phong cách Messenger
+    // ================================================================
+    socket.on('call:initiate', (data) => {
+      callSignalingService.handleCallInitiate(socket, userId, data, { emitToUser, isUserOnline });
+    });
+
+    socket.on('call:accept', (data) => {
+      callSignalingService.handleCallAccept(socket, userId, data, { emitToUser });
+    });
+
+    socket.on('call:reject', (data) => {
+      callSignalingService.handleCallReject(socket, userId, data, { emitToUser });
+    });
+
+    socket.on('call:end', (data) => {
+      callSignalingService.handleCallEnd(socket, userId, data, { emitToUser });
+    });
+
+    socket.on('call:signal', (data) => {
+      callSignalingService.handleCallSignal(socket, userId, data, { emitToUser });
+    });
+
+    // ================================================================
     // Tín hiệu chủ động ngắt kết nối (beforeunload)
     // ================================================================
     socket.on('user:going-offline', () => {
@@ -532,6 +556,8 @@ function handleUserDisconnect(socket, userId, io) {
   const sockets = userSockets.get(userId);
   if (sockets) {
     sockets.delete(socket.id);
+    // Dọn dẹp phiên gọi nếu người dùng ngắt kết nối
+    callSignalingService.handleUserCallDisconnect(userId, { emitToUser });
     if (sockets.size === 0) {
       userSockets.delete(userId);
 

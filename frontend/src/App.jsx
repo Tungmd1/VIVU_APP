@@ -28,7 +28,10 @@ import UserProfileViewModal from './components/profile/UserProfileViewModal';
 import CreateCircleModal from './components/circle/CreateCircleModal';
 import MessengerChatView from './components/chat/MessengerChatView';
 import CreatePollModal from './components/chat/CreatePollModal';
-import CallOverlayModal from './components/chat/CallOverlayModal';
+import MessengerIncomingCallModal from './components/call/MessengerIncomingCallModal';
+import MessengerActiveCallModal from './components/call/MessengerActiveCallModal';
+import CallFloatingBubble from './components/call/CallFloatingBubble';
+import { useWebRTCCall } from './hooks/useWebRTCCall';
 import ProfilePageView from './components/profile/ProfilePageView';
 import EditProfileModal from './components/profile/EditProfileModal';
 import SettingsModal from './components/profile/SettingsModal';
@@ -369,7 +372,6 @@ export default function App() {
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] = useState(false);
   const [isNavigationActive, setIsNavigationActive] = useState(false);
   const [navTarget, setNavTarget] = useState(null);
-  const [callingState, setCallingState] = useState(null);
 
   // Lắng nghe Magic Link recovery
   useEffect(() => {
@@ -558,6 +560,32 @@ export default function App() {
 
   // Khởi tạo kết nối Socket.IO realtime
   const { socketRef, socket, isConnected: isSocketConnected } = useSocket(currentUserId);
+
+  // WebRTC Messenger Voice & Video Calling
+  const {
+    activeCallSession,
+    incomingCallSession,
+    callDuration,
+    isCallMinimized,
+    localMediaStream,
+    remoteMediaStream,
+    isCallMuted,
+    isCallVideoOff,
+    startCall,
+    acceptCall,
+    declineCall,
+    endCall,
+    toggleMute,
+    toggleVideo,
+    switchCamera,
+    minimizeCall,
+    maximizeCall
+  } = useWebRTCCall({
+    socket,
+    currentUserId,
+    currentUserName,
+    currentUserAvatar
+  });
 
   // CÔ LẬP DỮ LIỆU: Khi đổi tài khoản hoặc đăng xuất, reset sạch toàn bộ state
   useEffect(() => {
@@ -4134,11 +4162,39 @@ export default function App() {
         initialCustomChibi={userCustomChibi}
       />
 
-      {/* 14. GIẢ LẬP CUỘC GỌI */}
-      <CallOverlayModal
-        callingState={callingState}
-        onEndCall={() => setCallingState(null)}
-      />
+      {/* 14. CUỘC GỌI THOẠI & VIDEO MESSENGER WEBRTC */}
+      {incomingCallSession && (
+        <MessengerIncomingCallModal
+          incomingCall={incomingCallSession}
+          onAccept={acceptCall}
+          onDecline={declineCall}
+        />
+      )}
+
+      {activeCallSession && !isCallMinimized && (
+        <MessengerActiveCallModal
+          callSession={activeCallSession}
+          localStream={localMediaStream}
+          remoteStream={remoteMediaStream}
+          duration={callDuration}
+          isMuted={isCallMuted}
+          isVideoOff={isCallVideoOff}
+          onToggleMute={toggleMute}
+          onToggleVideo={toggleVideo}
+          onSwitchCamera={switchCamera}
+          onMinimize={minimizeCall}
+          onEndCall={endCall}
+        />
+      )}
+
+      {activeCallSession && isCallMinimized && (
+        <CallFloatingBubble
+          callSession={activeCallSession}
+          duration={callDuration}
+          onExpand={maximizeCall}
+          onEndCall={endCall}
+        />
+      )}
 
       {/* 15. TAB TIN NHẮN MESSENGER (CHỈ ĐƯỜNG TRỰC TIẾP TRONG KHUNG TIN NHẮN) */}
       {activeTab === 'chat' && (
@@ -4179,7 +4235,17 @@ export default function App() {
           currentUserCode={currentUserCode}
           onSendMessage={handleSendMessage}
           onSendQuickHeart={handleSendQuickHeart}
-          onStartCall={(conv, type) => setCallingState({ name: conv.name, avatar: conv.avatar, type, status: 'Đang kết nối...' })}
+          onStartCall={(conv, type) => {
+            const targetId = conv?.peer_id || conv?.user_id || conv?.id;
+            if (targetId) {
+              startCall({
+                targetUserId: targetId,
+                targetName: conv.name,
+                targetAvatar: conv.avatar,
+                callType: type || 'video'
+              });
+            }
+          }}
           onOpenCreateCircle={() => setIsCreateCircleModalOpen(true)}
           onDeleteCircle={handleDisbandCircle}
           onAddMembers={handleAddMembersToCircle}
@@ -4255,7 +4321,17 @@ export default function App() {
           onUpdateProfile={handleUpdateFullProfile}
           onOpenRightFriendshipPanel={() => setIsRightFriendshipPanelOpen(true)}
           onDirectChat={handleStoryDirectChat}
-          onStartCall={(target) => handleStartCall('voice', target)}
+          onStartCall={(target) => {
+            const targetId = target?.id || target?.user_id;
+            if (targetId) {
+              startCall({
+                targetUserId: targetId,
+                targetName: target?.name || target?.full_name,
+                targetAvatar: target?.avatar || target?.avatar_url,
+                callType: 'voice'
+              });
+            }
+          }}
           onTriggerBump={(target) => handleInitiateBump(target)}
           onOpenMemeTroll={(target) => setTrollTargetUser(target)}
           onStartNavigation={(target) => {

@@ -4344,15 +4344,6 @@ export default function App() {
               };
             }));
           }}
-          onToggleArchive={(convId, isArchived) => {
-            setConversations(prev => prev.map(c => {
-              if (c.id !== convId) return c;
-              return {
-                ...c,
-                isArchived
-              };
-            }));
-          }}
         />
       )}
 

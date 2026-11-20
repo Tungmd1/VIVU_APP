@@ -4,7 +4,6 @@ import confetti from 'canvas-confetti';
 import MessengerInboxList from './MessengerInboxList';
 import MessengerActiveRoom from './MessengerActiveRoom';
 import GroupMembersModal from './GroupMembersModal';
-import ChatProfileModal from './ChatProfileModal';
 import CreatePollModal from './CreatePollModal';
 import { recordSentMessage } from '../../utils/personalityAnalytics';
 
@@ -49,15 +48,13 @@ export default function MessengerChatView({
   onOpenMemeTroll,
   onOpenTakeoverMeme,
   onDeleteMessage,
-  onClearConversation,
-  onToggleArchive
+  onClearConversation
 }) {
   const [chatSearchQuery, setChatSearchQuery] = useState('');
-  const [chatFilterTab, setChatFilterTab] = useState('all'); // 'all', 'group', 'spam', 'archived'
+  const [chatFilterTab, setChatFilterTab] = useState('all'); // 'all', 'group', 'spam'
   const [messageInputText, setMessageInputText] = useState('');
   const [groupToDelete, setGroupToDelete] = useState(null);
   const [isGroupMembersModalOpen, setIsGroupMembersModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] = useState(false);
   const [isToolsDrawerOpen, setIsToolsDrawerOpen] = useState(false);
 
@@ -74,21 +71,15 @@ export default function MessengerChatView({
     if (chatSearchQuery && !conv.name.toLowerCase().includes(chatSearchQuery.toLowerCase())) {
       return false;
     }
-    if (chatFilterTab === 'archived') {
-      return Boolean(conv.isArchived);
-    }
-    if (conv.isArchived) return false;
     if (chatFilterTab === 'group') return conv.type === 'group';
     if (chatFilterTab === 'spam') return Boolean(conv.isStranger);
     return !conv.isStranger;
   });
 
   const validConvs = conversations.filter(hasValidMessages);
-  const activeConvs = validConvs.filter(c => !c.isArchived);
-  const allCount = activeConvs.filter(c => !c.isStranger).length;
-  const groupCount = activeConvs.filter(c => c.type === 'group').length;
-  const spamCount = activeConvs.filter(c => Boolean(c.isStranger)).length;
-  const archivedCount = validConvs.filter(c => Boolean(c.isArchived)).length;
+  const allCount = validConvs.filter(c => !c.isStranger).length;
+  const groupCount = validConvs.filter(c => c.type === 'group').length;
+  const spamCount = validConvs.filter(c => Boolean(c.isStranger)).length;
 
   // Gửi tin nhắn văn bản & kích hoạt Streak & Phân tích hành vi tính cách
   const handleSend = () => {
@@ -204,7 +195,6 @@ export default function MessengerChatView({
         handleSend={handleSend}
         onDeleteMessage={onDeleteMessage}
         onClearConversation={onClearConversation}
-        onToggleArchive={onToggleArchive}
       />
 
       {/* MODAL XÓA NHÓM (Rule 12 Tương phản dark theme & style zIndex 99999) */}
@@ -244,22 +234,6 @@ export default function MessengerChatView({
           </div>
         </div>
       )}
-
-      {/* MODAL XEM HỒ SƠ BẠN CHAT */}
-      <ChatProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        conversation={activeConversation}
-        friend={activeFriend}
-        userLat={userLat}
-        userLng={userLng}
-        onStartCall={onStartCall}
-        onOpenMap={(f) => {
-          setIsProfileModalOpen(false);
-          setActiveConversationId(null);
-          if (onOpenMapForStory) onOpenMapForStory();
-        }}
-      />
 
       {/* MODAL TẠO BÌNH CHỌN LỊCH HẸN */}
       <CreatePollModal

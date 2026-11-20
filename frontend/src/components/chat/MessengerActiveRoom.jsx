@@ -10,6 +10,7 @@ import ChatMessageBubble from './ChatMessageBubble';
 import ChatLightboxModal from './ChatLightboxModal';
 import ChatMessageActionModal from './ChatMessageActionModal';
 import ClearChatModal from './ClearChatModal';
+import ChatProfileModal from './ChatProfileModal';
 import apiClient from '../../services/apiClient';
 
 /**
@@ -44,8 +45,7 @@ export default function MessengerActiveRoom({
   setMessageInputText,
   handleSend,
   onDeleteMessage,
-  onClearConversation,
-  onToggleArchive
+  onClearConversation
 }) {
   const chatFileInputRef = useRef(null);
   const chatVideoInputRef = useRef(null);
@@ -57,6 +57,7 @@ export default function MessengerActiveRoom({
   const [isStickerKeyboardOpen, setIsStickerKeyboardOpen] = useState(false);
   const [selectedMessageForAction, setSelectedMessageForAction] = useState(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
+  const [isChatProfileModalOpen, setIsChatProfileModalOpen] = useState(false);
 
   // Xóa tin nhắn đơn lẻ ở phía tôi
   const handleDeleteForMe = async (msg) => {
@@ -85,17 +86,6 @@ export default function MessengerActiveRoom({
       onClearConversation?.(activeConversationId);
     } catch (e) {
       console.warn('Lỗi khi dọn sạch tin nhắn:', e);
-    }
-  };
-
-  // Lưu trữ hoặc bỏ lưu trữ cuộc trò chuyện
-  const handleToggleArchive = async () => {
-    try {
-      const nextArchived = !Boolean(activeConversation?.isArchived);
-      await apiClient.archiveConversation(activeConversationId, currentUserId, nextArchived);
-      onToggleArchive?.(activeConversationId, nextArchived);
-    } catch (e) {
-      console.warn('Lỗi khi lưu trữ cuộc trò chuyện:', e);
     }
   };
 
@@ -208,13 +198,11 @@ export default function MessengerActiveRoom({
             hasStreak={hasStreak}
             streakLevel={streakLevel}
             onOpenUserProfile={onOpenUserProfile}
-            setIsProfileModalOpen={setIsProfileModalOpen}
+            setIsProfileModalOpen={setIsChatProfileModalOpen}
             onStartCall={onStartCall}
             onBackToMap={onBackToMap}
             setIsGroupMembersModalOpen={setIsGroupMembersModalOpen}
-            onToggleArchive={handleToggleArchive}
             onOpenClearModal={() => setIsClearModalOpen(true)}
-            isArchived={Boolean(activeConversation?.isArchived)}
           />
 
           {/* VÙNG TIN NHẮN CUỘN ĐỘC LẬP */}
@@ -233,6 +221,7 @@ export default function MessengerActiveRoom({
                     onStartNavigation={onStartNavigation}
                     setSelectedLightboxMedia={setSelectedLightboxMedia}
                     onSelectMessageForDelete={setSelectedMessageForAction}
+                    onOpenChatProfile={() => setIsChatProfileModalOpen(true)}
                   />
 
                   {/* Thời gian tin nhắn */}
@@ -398,6 +387,20 @@ export default function MessengerActiveRoom({
         partnerName={activeConversation?.name}
         onClose={() => setIsClearModalOpen(false)}
         onConfirmClear={handleConfirmClear}
+      />
+
+      {/* Modal Thông Tin Bạn Chat & KHO LƯU TRỮ PHƯƠNG TIỆN (Ảnh & Video giống Messenger) */}
+      <ChatProfileModal
+        isOpen={isChatProfileModalOpen}
+        onClose={() => setIsChatProfileModalOpen(false)}
+        conversation={activeConversation}
+        messages={messages}
+        onSelectLightboxMedia={(media) => setSelectedLightboxMedia(media)}
+        onStartCall={onStartCall}
+        onOpenMap={() => {
+          setIsChatProfileModalOpen(false);
+          if (onOpenMapForStory) onOpenMapForStory();
+        }}
       />
     </main>
   );

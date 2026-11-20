@@ -4,13 +4,14 @@ import React from 'react';
  * ChatLightboxModal - Modal phóng to Ảnh & Video trong phòng chat (Rule 7 Anti-Monolith)
  * - 100% Bootstrap Icons (Rule 5)
  */
-export default function ChatLightboxModal({ media, onClose }) {
-  if (!media) return null;
+export default function ChatLightboxModal({ media, selectedMedia, onClose }) {
+  const activeMedia = media || selectedMedia;
+  if (!activeMedia) return null;
 
   return (
     <div 
       onClick={onClose}
-      className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-fadeIn select-none"
+      className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 cursor-pointer animate-fadeIn select-none"
     >
       <button 
         type="button"
@@ -21,9 +22,9 @@ export default function ChatLightboxModal({ media, onClose }) {
         <i className="bi bi-x-lg" />
       </button>
 
-      {media.type === 'video' ? (
+      {activeMedia.type === 'video' ? (
         <video 
-          src={media.url} 
+          src={activeMedia.url} 
           controls 
           autoPlay 
           className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl" 
@@ -31,7 +32,7 @@ export default function ChatLightboxModal({ media, onClose }) {
         />
       ) : (
         <img 
-          src={media.url} 
+          src={activeMedia.url} 
           alt="Phóng to" 
           className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl" 
           onClick={(e) => e.stopPropagation()} 

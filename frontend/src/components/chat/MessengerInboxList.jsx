@@ -19,7 +19,6 @@ export default function MessengerInboxList({
   allCount = 0,
   groupCount = 0,
   spamCount = 0,
-  archivedCount = 0,
   userAvatar,
   friends = [],
   onOpenDirectChat,
@@ -175,8 +174,8 @@ export default function MessengerInboxList({
           </div>
         )}
 
-        {/* Bộ lọc 4 tab: Tất cả, Nhóm, Người lạ, Lưu trữ */}
-        <div className="flex items-center gap-1.5 border-b border-white/10 pb-2.5 overflow-x-auto no-scrollbar">
+        {/* Bộ lọc 3 tab: Tất cả, Nhóm, Người lạ */}
+        <div className="flex items-center gap-2 border-b border-white/10 pb-2.5">
           <button
             type="button"
             onClick={() => setChatFilterTab('all')}
@@ -226,26 +225,6 @@ export default function MessengerInboxList({
             {spamCount > 0 && (
               <span className="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-[#E10600] text-white">
                 {spamCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setChatFilterTab('archived')}
-            className={`py-1.5 px-3 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
-              chatFilterTab === 'archived'
-                ? 'bg-[#00E5FF] text-black font-bold shadow-[0_0_12px_rgba(0,229,255,0.4)]'
-                : 'bg-white/5 text-white/70 border border-white/10 hover:bg-white/10 hover:text-white'
-            }`}
-          >
-            <i className="bi bi-archive-fill text-xs"></i>
-            <span>Lưu trữ</span>
-            {archivedCount > 0 && (
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                chatFilterTab === 'archived' ? 'bg-black/20 text-black' : 'bg-cyan-500/20 text-[#00E5FF]'
-              }`}>
-                {archivedCount}
               </span>
             )}
           </button>

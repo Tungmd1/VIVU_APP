@@ -35,17 +35,13 @@ export default function MessengerRoomHeader({
           <i className="bi bi-arrow-left text-base font-bold text-[#FF2A85]"></i>
         </motion.button>
         
-        {/* Avatar & Tên: Chạm để mở Hồ sơ bạn chat */}
+        {/* Avatar & Tên: Chạm để mở Hồ sơ & Kho lưu trữ bạn chat */}
         <div 
           className="flex items-center gap-2.5 cursor-pointer group"
           onClick={() => {
-            if (onOpenUserProfile) {
-              onOpenUserProfile(activeConversation, 'chat');
-            } else {
-              setIsProfileModalOpen(true);
-            }
+            setIsProfileModalOpen?.(true);
           }}
-          title="Xem hồ sơ cá nhân"
+          title="Xem thông tin & Kho lưu trữ file phương tiện"
         >
           <div className="relative">
             <img 
@@ -138,19 +134,19 @@ export default function MessengerRoomHeader({
                 className="fixed inset-0 z-40" 
                 onClick={() => setIsMenuOpen(false)}
               />
-              <div className="absolute right-0 top-10 w-56 rounded-2xl bg-[#141625]/95 backdrop-blur-2xl border border-white/15 shadow-2xl p-1.5 z-50 text-xs space-y-1 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 top-10 w-52 rounded-2xl bg-[#141625]/95 backdrop-blur-2xl border border-white/15 shadow-2xl p-1.5 z-50 text-xs space-y-1 animate-in fade-in zoom-in-95 duration-150">
                 <button
                   type="button"
                   onClick={() => {
                     setIsMenuOpen(false);
-                    onToggleArchive?.();
+                    setIsProfileModalOpen?.(true);
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-white/10 text-white transition-colors cursor-pointer text-left"
                 >
-                  <i className={`bi ${isArchived ? 'bi-box-arrow-up text-[#00E5FF]' : 'bi-archive text-[#00E5FF]'} text-sm`}></i>
+                  <i className="bi bi-images text-[#00E5FF] text-sm"></i>
                   <div>
-                    <div className="font-semibold">{isArchived ? 'Bỏ lưu trữ đoạn chat' : 'Lưu trữ cuộc trò chuyện'}</div>
-                    <div className="text-[10px] text-white/50">{isArchived ? 'Đưa về hộp thư chính' : 'Ẩn khỏi hộp thư chính'}</div>
+                    <div className="font-semibold">Kho lưu trữ phương tiện</div>
+                    <div className="text-[10px] text-white/50">Xem ảnh, video đã chia sẻ</div>
                   </div>
                 </button>
 

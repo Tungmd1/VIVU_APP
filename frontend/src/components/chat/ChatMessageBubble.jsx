@@ -17,7 +17,8 @@ export default function ChatMessageBubble({
   onOpenMapForStory,
   onStartNavigation,
   setSelectedLightboxMedia,
-  onSelectMessageForDelete
+  onSelectMessageForDelete,
+  onOpenChatProfile
 }) {
   return (
     <div className={`group relative flex items-end gap-1.5 max-w-[85%] ${isMe ? 'ml-auto flex-row-reverse' : 'flex-row'}`}>
@@ -25,7 +26,9 @@ export default function ChatMessageBubble({
         <img 
           src={msg.senderAvatar || activeConversation?.avatar} 
           alt="" 
-          className="w-7 h-7 rounded-full object-cover shrink-0 border border-white/20"
+          onClick={onOpenChatProfile}
+          className="w-7 h-7 rounded-full object-cover shrink-0 border border-white/20 cursor-pointer hover:border-[#00E5FF] transition-colors"
+          title="Xem thông tin & Kho lưu trữ phương tiện"
         />
       )}
 
@@ -67,7 +70,7 @@ export default function ChatMessageBubble({
             </p>
           )}
         </div>
-      ) : (msg.image && !msg.type && !msg.isSticker && !msg.sticker) ? (
+      ) : (msg.image && msg.type !== 'sticker' && !msg.isSticker && !msg.is_sticker && !msg.sticker) ? (
         /* 3. Tin nhắn Ảnh thường */
         <div className="rounded-2xl overflow-hidden border border-white/15 max-w-[240px] bg-black/40 shadow-md">
           <img 

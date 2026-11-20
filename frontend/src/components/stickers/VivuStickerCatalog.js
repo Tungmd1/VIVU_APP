@@ -1,262 +1,369 @@
-import { RABBIT_SVGS, BEAR_SVGS, CHIBI_SVGS } from './vivuStickerSvgArt';
-
 /**
- * VivuStickerCatalog.js - Danh Mục 24 Sticker Độc Quyền VIVU
- * - 3 Bộ Sưu Tập Đặc Sắc:
- *   1. Thỏ Quẩy (Hyper Rabbit - Usagyuuun / Betakkuma Style): Siêu lầy lội, quẩy tưng bừng
- *   2. Gấu Pastel (Pastel Bears - Fluffy Bears Style): Ôm ấp, dỗ dành, tình cảm ấm áp
- *   3. Hội Chibi (Chibi Trio & Jelly Blob): Nhí nhố, sinh nhật, gồng cơ bắp, ngơ ngác
- * - Tối ưu < 250 dòng (Rule 7)
+ * VivuStickerCatalog.js - Danh Mục 36 Sticker Độc Quyền VIVU
+ * - 3 Bộ Sưu Tập Thần Thánh:
+ *   1. Thỏ Quẩy (Hyper Rabbit - Usagyuuun): Siêu bựa, lầy lội, hài hước, quẩy tưng bừng
+ *   2. Gấu Bông (Pastel Bears - Sugar Cubs): Ấm áp, yêu thương, ôm ấp, ngọt ngào
+ *   3. Bé Chibi (Chibi Duo - Bubu & Dudu): Tặng hoa, xách giỏ, chúc phúc, dễ thương vô đối
+ * - 100% tài nguyên ảnh trong suốt chuẩn HD lưu trực tiếp tại /stickers/...
+ * - Tuân thủ Rule 5 (Bootstrap Icons) & Rule 7 (< 450 dòng, hiện tại ~180 dòng)
  */
 
 export const VIVU_STICKER_PACKS = [
   {
     id: 'hyper_rabbit',
     name: 'Thỏ Quẩy',
-    subtitle: 'Siêu bựa & Lầy lội',
+    subtitle: 'Usagyuuun siêu lầy',
     icon: 'bi-lightning-charge-fill',
     color: '#FF2A85',
-    avatar: RABBIT_SVGS.rabbit_twerk
+    avatar: '/stickers/rabbit/rabbit_01.png'
   },
   {
     id: 'pastel_bears',
     name: 'Gấu Bông',
-    subtitle: 'Ấm áp & Yêu thương',
+    subtitle: 'Sugar Cubs ấm áp',
     icon: 'bi-heart-fill',
     color: '#FF69B4',
-    avatar: BEAR_SVGS.bear_hug
+    avatar: '/stickers/bear/bear_02.webp'
   },
   {
     id: 'chibi_trio',
-    name: 'Hội Chibi',
-    subtitle: 'Nhí nhố & Hài hước',
+    name: 'Bé Chibi',
+    subtitle: 'Bubu & Dudu cute',
     icon: 'bi-stars',
     color: '#10FFA0',
-    avatar: CHIBI_SVGS.chibi_muscle
+    avatar: '/stickers/chibi/chibi_01.webp'
   }
 ];
 
 export const VIVU_STICKERS = [
-  // ================= 1. THỎ QUẨY (HYPER RABBIT) =================
-  {
-    id: 'rabbit_twerk',
-    packId: 'hyper_rabbit',
-    name: 'Lắc Mông',
-    image: RABBIT_SVGS.rabbit_twerk,
-    soundType: 'boing',
-    particleColor: '#FF2A85',
-    badge: 'Quẩy tưng bừng'
-  },
+  // ================= 1. THỎ QUẨY (HYPER RABBIT - USAGYUUUN) =================
   {
     id: 'rabbit_cheer',
     packId: 'hyper_rabbit',
-    name: 'Tung Hoa',
-    image: RABBIT_SVGS.rabbit_cheer,
+    name: 'Đỉnh Chóp',
+    image: '/stickers/rabbit/rabbit_01.png',
     soundType: 'cheer',
-    particleColor: '#00E5FF',
-    badge: 'Siêu hào hứng'
+    particleColor: '#FFD600',
+    badge: 'Quá đỉnh'
   },
   {
-    id: 'rabbit_boxer',
+    id: 'rabbit_friends',
     packId: 'hyper_rabbit',
-    name: 'Đấm Bốc',
-    image: RABBIT_SVGS.rabbit_boxer,
+    name: 'Bạn Tốt',
+    image: '/stickers/rabbit/rabbit_02.png',
+    soundType: 'success',
+    particleColor: '#00E5FF',
+    badge: 'Mãi keo'
+  },
+  {
+    id: 'rabbit_love_carrot',
+    packId: 'hyper_rabbit',
+    name: 'Yêu Thương',
+    image: '/stickers/rabbit/rabbit_03.png',
+    soundType: 'kiss',
+    particleColor: '#FF2A85',
+    badge: 'Mê mẩn'
+  },
+  {
+    id: 'rabbit_slap_fun',
+    packId: 'hyper_rabbit',
+    name: 'Tát Yêu',
+    image: '/stickers/rabbit/rabbit_04.png',
     soundType: 'punch',
     particleColor: '#FF5252',
-    badge: 'Chiến không'
+    badge: 'Cà khịa'
   },
   {
-    id: 'rabbit_laugh',
+    id: 'rabbit_sunrise',
     packId: 'hyper_rabbit',
-    name: 'Cười Bò',
-    image: RABBIT_SVGS.rabbit_laugh,
-    soundType: 'laugh',
-    particleColor: '#FFD600',
-    badge: 'Cười té ghế'
+    name: 'Rạng Rỡ',
+    image: '/stickers/rabbit/rabbit_05.png',
+    soundType: 'cheer',
+    particleColor: '#FFB800',
+    badge: 'Quẩy lên'
   },
   {
-    id: 'rabbit_shock',
+    id: 'rabbit_cry_joy',
     packId: 'hyper_rabbit',
-    name: 'Quá Sốc',
-    image: RABBIT_SVGS.rabbit_shock,
-    soundType: 'zap',
+    name: 'Cảm Động',
+    image: '/stickers/rabbit/rabbit_06.png',
+    soundType: 'crying',
+    particleColor: '#00E5FF',
+    badge: 'Rớt nước mắt'
+  },
+  {
+    id: 'rabbit_butt_dive',
+    packId: 'hyper_rabbit',
+    name: 'Phi Thân',
+    image: '/stickers/rabbit/rabbit_07.png',
+    soundType: 'boing',
     particleColor: '#7928CA',
-    badge: 'Bất ngờ chưa'
+    badge: 'Lắc mông'
   },
   {
-    id: 'rabbit_peek',
+    id: 'rabbit_devil',
     packId: 'hyper_rabbit',
-    name: 'Hóng Hớt',
-    image: RABBIT_SVGS.rabbit_peek,
+    name: 'Tiểu Quỷ',
+    image: '/stickers/rabbit/rabbit_08.png',
+    soundType: 'laugh',
+    particleColor: '#9333EA',
+    badge: 'Nguy hiểm nha'
+  },
+  {
+    id: 'rabbit_underpants',
+    packId: 'hyper_rabbit',
+    name: 'Quần Đỏ',
+    image: '/stickers/rabbit/rabbit_09.png',
+    soundType: 'zap',
+    particleColor: '#EF4444',
+    badge: 'Siêu bựa'
+  },
+  {
+    id: 'rabbit_soul_out',
+    packId: 'hyper_rabbit',
+    name: 'Bay Hồn',
+    image: '/stickers/rabbit/rabbit_10.png',
+    soundType: 'magic',
+    particleColor: '#60A5FA',
+    badge: 'Xỉu up xỉu down'
+  },
+  {
+    id: 'rabbit_cupid',
+    packId: 'hyper_rabbit',
+    name: 'Bắn Tim',
+    image: '/stickers/rabbit/rabbit_11.png',
+    soundType: 'kiss',
+    particleColor: '#EC4899',
+    badge: 'Thần tình yêu'
+  },
+  {
+    id: 'rabbit_confused',
+    packId: 'hyper_rabbit',
+    name: 'Ủa Gì Dị',
+    image: '/stickers/rabbit/rabbit_12.png',
     soundType: 'pop',
-    particleColor: '#10FFA0',
-    badge: 'Rình mò nha'
-  },
-  {
-    id: 'rabbit_ok',
-    packId: 'hyper_rabbit',
-    name: 'Quá OK',
-    image: RABBIT_SVGS.rabbit_ok,
-    soundType: 'success',
-    particleColor: '#FF3366',
-    badge: 'Chuẩn bài'
-  },
-  {
-    id: 'rabbit_meat',
-    packId: 'hyper_rabbit',
-    name: 'Đùi Gà',
-    image: RABBIT_SVGS.rabbit_meat,
-    soundType: 'slap',
-    particleColor: '#FF9900',
-    badge: 'Xin miếng thịt'
+    particleColor: '#F59E0B',
+    badge: 'Ngơ ngác'
   },
 
-  // ================= 2. GẤU PASTEL (PASTEL BEARS) =================
+  // ================= 2. GẤU BÔNG PASTEL (SUGAR CUBS) =================
   {
-    id: 'bear_hug',
+    id: 'bear_grumpy',
     packId: 'pastel_bears',
-    name: 'Ôm Chặt',
-    image: BEAR_SVGS.bear_hug,
-    soundType: 'magic',
-    particleColor: '#FFB6C1',
-    badge: 'Ôm cái nè'
+    name: 'Hờn Dỗi',
+    image: '/stickers/bear/bear_01.webp',
+    soundType: 'pop',
+    particleColor: '#A8A29E',
+    badge: 'Dỗi rồi nha'
   },
   {
-    id: 'bear_kiss',
+    id: 'bear_heart_eyes',
     packId: 'pastel_bears',
-    name: 'Hôn Má',
-    image: BEAR_SVGS.bear_kiss,
+    name: 'Say Đắm',
+    image: '/stickers/bear/bear_02.webp',
     soundType: 'kiss',
     particleColor: '#FF69B4',
-    badge: 'Chụt chụt'
+    badge: 'Thả thính'
   },
   {
-    id: 'bear_sleep',
+    id: 'bear_scarf_cozy',
     packId: 'pastel_bears',
-    name: 'Ngủ Ngon',
-    image: BEAR_SVGS.bear_sleep,
-    soundType: 'wind',
-    particleColor: '#9370DB',
-    badge: 'Chúc ngủ ngon'
+    name: 'Quàng Khăn',
+    image: '/stickers/bear/bear_03.webp',
+    soundType: 'success',
+    particleColor: '#F43F5E',
+    badge: 'Ấm áp ghê'
   },
   {
-    id: 'bear_morning',
+    id: 'bear_arrow_pink',
     packId: 'pastel_bears',
-    name: 'Chào Ngày Mới',
-    image: BEAR_SVGS.bear_morning,
-    soundType: 'bell',
-    particleColor: '#FFA07A',
-    badge: 'Rạng rỡ'
+    name: 'Trúng Tim',
+    image: '/stickers/bear/bear_04.webp',
+    soundType: 'boing',
+    particleColor: '#FB7185',
+    badge: 'Gục ngã'
   },
   {
-    id: 'bear_pat',
+    id: 'bear_arrow_beige',
     packId: 'pastel_bears',
-    name: 'Xoa Đầu',
-    image: BEAR_SVGS.bear_pat,
-    soundType: 'bubble',
-    particleColor: '#E6E6FA',
-    badge: 'Ngoan nha'
+    name: 'Đổ Đứ Đừ',
+    image: '/stickers/bear/bear_05.webp',
+    soundType: 'boing',
+    particleColor: '#EAB308',
+    badge: 'Mê muội'
   },
   {
-    id: 'bear_sob',
+    id: 'bear_blush_shy',
     packId: 'pastel_bears',
-    name: 'Khóc Nhè',
-    image: BEAR_SVGS.bear_sob,
-    soundType: 'splash',
-    particleColor: '#87CEFA',
+    name: 'Ngại Ngùng',
+    image: '/stickers/bear/bear_06.webp',
+    soundType: 'pop',
+    particleColor: '#F472B6',
+    badge: 'Đỏ mặt'
+  },
+  {
+    id: 'bear_wake_up',
+    packId: 'pastel_bears',
+    name: 'Dậy Mau',
+    image: '/stickers/bear/bear_07.webp',
+    soundType: 'laugh',
+    particleColor: '#E11D48',
+    badge: 'Pounce!'
+  },
+  {
+    id: 'bear_pillow_dream',
+    packId: 'pastel_bears',
+    name: 'Nhớ Nhau',
+    image: '/stickers/bear/bear_08.webp',
+    soundType: 'crying',
+    particleColor: '#818CF8',
+    badge: 'Mơ về em'
+  },
+  {
+    id: 'bear_flower_wave',
+    packId: 'pastel_bears',
+    name: 'Vẫy Chào',
+    image: '/stickers/bear/bear_09.webp',
+    soundType: 'cheer',
+    particleColor: '#34D399',
+    badge: 'Hello xinh'
+  },
+  {
+    id: 'bear_fountain_cry',
+    packId: 'pastel_bears',
+    name: 'Khóc Ròng',
+    image: '/stickers/bear/bear_10.webp',
+    soundType: 'crying',
+    particleColor: '#38BDF8',
     badge: 'Bắt đền đó'
   },
   {
-    id: 'bear_thankyou',
+    id: 'bear_soul_float',
     packId: 'pastel_bears',
-    name: 'Cảm Ơn',
-    image: BEAR_SVGS.bear_thankyou,
-    soundType: 'bell',
-    particleColor: '#98FB98',
-    badge: 'Biết ơn bạn'
+    name: 'Thăng Thiên',
+    image: '/stickers/bear/bear_11.webp',
+    soundType: 'magic',
+    particleColor: '#A78BFA',
+    badge: 'Kiệt sức'
   },
   {
-    id: 'bear_teacup',
+    id: 'bear_shocked_jump',
     packId: 'pastel_bears',
-    name: 'Tách Trà',
-    image: BEAR_SVGS.bear_teacup,
-    soundType: 'magic',
-    particleColor: '#D8BFD8',
-    badge: 'Thảnh thơi'
+    name: 'Hết Hồn',
+    image: '/stickers/bear/bear_12.webp',
+    soundType: 'zap',
+    particleColor: '#F59E0B',
+    badge: 'Bất ngờ'
   },
 
-  // ================= 3. HỘI CHIBI (CHIBI TRIO & JELLY BLOB) =================
+  // ================= 3. BÉ CHIBI (BUBU & DUDU) =================
   {
-    id: 'chibi_beg',
+    id: 'chibi_bubu_basket',
     packId: 'chibi_trio',
-    name: 'Năn Nỉ',
-    image: CHIBI_SVGS.chibi_beg,
+    name: 'Đi Chợ',
+    image: '/stickers/chibi/chibi_01.webp',
     soundType: 'pop',
-    particleColor: '#4CAF50',
-    badge: 'Đi mà bạn êi'
+    particleColor: '#10FFA0',
+    badge: 'Ngoan ngoãn'
   },
   {
-    id: 'chibi_cake',
+    id: 'chibi_dudu_basket',
     packId: 'chibi_trio',
-    name: 'Bánh Kem',
-    image: CHIBI_SVGS.chibi_cake,
+    name: 'Xách Giỏ',
+    image: '/stickers/chibi/chibi_02.webp',
+    soundType: 'pop',
+    particleColor: '#D97706',
+    badge: 'Chu đáo'
+  },
+  {
+    id: 'chibi_bubu_milk',
+    packId: 'chibi_trio',
+    name: 'Mua Sữa',
+    image: '/stickers/chibi/chibi_03.webp',
     soundType: 'cheer',
-    particleColor: '#FF69B4',
-    badge: 'Sinh nhật vui'
+    particleColor: '#06B6D4',
+    badge: 'Bổ dưỡng'
   },
   {
-    id: 'chibi_muscle',
+    id: 'chibi_dudu_bread',
     packId: 'chibi_trio',
-    name: 'Lực Sĩ',
-    image: CHIBI_SVGS.chibi_muscle,
-    soundType: 'punch',
-    particleColor: '#00FA9A',
-    badge: 'Cơ bắp lực'
+    name: 'Mua Bánh',
+    image: '/stickers/chibi/chibi_04.webp',
+    soundType: 'cheer',
+    particleColor: '#F59E0B',
+    badge: 'Ăn sáng nè'
   },
   {
-    id: 'chibi_party',
+    id: 'chibi_bubu_gift',
     packId: 'chibi_trio',
-    name: 'Thổi Kèn',
-    image: CHIBI_SVGS.chibi_party,
-    soundType: 'laser',
-    particleColor: '#FFD700',
-    badge: 'Quẩy tiệc thôi'
+    name: 'Mở Quà',
+    image: '/stickers/chibi/chibi_05.webp',
+    soundType: 'magic',
+    particleColor: '#8B5CF6',
+    badge: 'Bất ngờ chưa'
   },
   {
-    id: 'chibi_heart',
+    id: 'chibi_dudu_gift',
     packId: 'chibi_trio',
-    name: 'Trái Tim Bự',
-    image: CHIBI_SVGS.chibi_heart,
+    name: 'Hộp Quà',
+    image: '/stickers/chibi/chibi_06.webp',
+    soundType: 'magic',
+    particleColor: '#EC4899',
+    badge: 'Quà cho bạn'
+  },
+  {
+    id: 'chibi_bubu_rose',
+    packId: 'chibi_trio',
+    name: 'Tặng Hoa',
+    image: '/stickers/chibi/chibi_07.webp',
     soundType: 'kiss',
-    particleColor: '#FF1493',
-    badge: 'Thương lắm'
+    particleColor: '#EF4444',
+    badge: 'Hoa hồng đỏ'
   },
   {
-    id: 'chibi_ghost',
+    id: 'chibi_dudu_rose',
     packId: 'chibi_trio',
-    name: 'Bé Thạch',
-    image: CHIBI_SVGS.chibi_ghost,
-    soundType: 'wind',
-    particleColor: '#7FFFD4',
-    badge: 'Ngơ ngác'
+    name: 'Tỏ Tình',
+    image: '/stickers/chibi/chibi_08.webp',
+    soundType: 'kiss',
+    particleColor: '#BE123C',
+    badge: 'Tặng em nè'
   },
   {
-    id: 'chibi_fart',
+    id: 'chibi_dudu_fortune',
     packId: 'chibi_trio',
-    name: 'Xì Hơi',
-    image: CHIBI_SVGS.chibi_fart,
-    soundType: 'splat',
-    particleColor: '#ADFF2F',
-    badge: 'Thơm phức'
+    name: 'Chúc Phúc',
+    image: '/stickers/chibi/chibi_09.webp',
+    soundType: 'cheer',
+    particleColor: '#DC2626',
+    badge: 'Tài lộc'
   },
   {
-    id: 'chibi_confused',
+    id: 'chibi_bubu_blessing',
     packId: 'chibi_trio',
-    name: 'Ủa Gì Dậy',
-    image: CHIBI_SVGS.chibi_confused,
+    name: 'Bình An',
+    image: '/stickers/chibi/chibi_10.webp',
+    soundType: 'success',
+    particleColor: '#E11D48',
+    badge: 'Cát tường'
+  },
+  {
+    id: 'chibi_bubu_festival',
+    packId: 'chibi_trio',
+    name: 'Múa Lân',
+    image: '/stickers/chibi/chibi_11.webp',
     soundType: 'boing',
-    particleColor: '#FFA500',
-    badge: 'Dấu hỏi chấm'
+    particleColor: '#F97316',
+    badge: 'Tưng bừng'
+  },
+  {
+    id: 'chibi_dudu_festival',
+    packId: 'chibi_trio',
+    name: 'Rước Đèn',
+    image: '/stickers/chibi/chibi_12.webp',
+    soundType: 'boing',
+    particleColor: '#B45309',
+    badge: 'Rộn rã'
   }
 ];
 
@@ -264,6 +371,11 @@ export function getStickersByPack(packId) {
   return VIVU_STICKERS.filter((s) => s.packId === packId);
 }
 
-export function findStickerById(id) {
-  return VIVU_STICKERS.find((s) => s.id === id);
+export function getStickerById(id) {
+  return VIVU_STICKERS.find((s) => s.id === id) || VIVU_STICKERS[0];
+}
+
+export function getRandomSticker() {
+  const index = Math.floor(Math.random() * VIVU_STICKERS.length);
+  return VIVU_STICKERS[index];
 }

@@ -52,6 +52,13 @@ export const HONEYCOMB_SLIPPER_3D_SVG = `data:image/svg+xml;utf8,${encodeURIComp
 
 export const TROLL_CATEGORIES = [
   {
+    id: 'stickers',
+    name: 'Sticker VIVU',
+    icon: 'bi-stickies-fill',
+    color: '#FF2A85',
+    description: 'Thỏ Quẩy, Gấu Bông & Bé Chibi độc quyền'
+  },
+  {
     id: 'animals',
     name: 'Con Vật',
     icon: 'bi-emoji-smile',
@@ -415,7 +422,7 @@ export const TROLL_ITEMS = [
   ...VIVU_STICKERS.map((s) => ({
     id: s.id,
     name: s.name,
-    category: 'memes',
+    category: 'stickers',
     emotion: s.badge,
     soundType: s.soundType,
     icon: 'bi-stickies-fill',
@@ -423,7 +430,7 @@ export const TROLL_ITEMS = [
     particleColor: s.particleColor,
     badge: s.badge,
     image3d: s.image,
-    previewEmoji: '🐰'
+    previewEmoji: '✨'
   }))
 ];
 

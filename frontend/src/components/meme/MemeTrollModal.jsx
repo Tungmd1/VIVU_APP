@@ -16,7 +16,7 @@ import { playTrollSound } from './trollSoundSynth';
  * - 100% Bootstrap Icons (Rule 5) | Tối ưu < 200 dòng (Rule 7)
  */
 export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onClose, onMemeSent }) {
-  const [activeCategory, setActiveCategory] = useState('animals');
+  const [activeCategory, setActiveCategory] = useState('stickers');
 
   // Lọc danh sách món đồ theo Tab đang chọn
   const categoryItems = useMemo(() => {

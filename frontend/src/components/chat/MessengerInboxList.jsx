@@ -26,7 +26,7 @@ export default function MessengerInboxList({
   onToggleRightFriendshipPanel,
   pendingFriendRequestsCount = 0,
   onOpenCreateCircle,
-  setGroupToDelete
+  onOpenClearConversation
 }) {
   const onlineFriends = (friends || []).filter(f => f && (f.isOnline === true || f.is_online === true));
 
@@ -301,20 +301,19 @@ export default function MessengerInboxList({
                     </div>
                   </div>
 
-                  {/* Nút Xóa Hội Thoại */}
-                  {isGroup && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setGroupToDelete(conv);
-                      }}
-                      className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-sm"
-                      title="Xóa nhóm"
-                    >
-                      <i className="bi bi-trash3-fill text-xs"></i>
-                    </button>
-                  )}
+                  {/* Nút Xóa Tất Cả Tin Nhắn trong cuộc trò chuyện */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenClearConversation?.(conv);
+                    }}
+                    className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-sm opacity-80 group-hover:opacity-100"
+                    title="Xóa tất cả tin nhắn"
+                    aria-label="Xóa tất cả tin nhắn"
+                  >
+                    <i className="bi bi-trash3-fill text-xs"></i>
+                  </button>
                 </div>
               );
             })

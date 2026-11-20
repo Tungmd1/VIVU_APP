@@ -13,7 +13,8 @@ export default function ChatProfileModal({
   messages = [],
   onStartCall,
   onOpenMap,
-  onSelectLightboxMedia
+  onSelectLightboxMedia,
+  onOpenClearModal
 }) {
   const [mediaFilter, setMediaFilter] = useState('all'); // 'all', 'image', 'video'
 
@@ -252,6 +253,21 @@ export default function ChatProfileModal({
                 </div>
               )}
             </div>
+
+            {/* 4. TÙY CHỌN: XÓA TẤT CẢ TIN NHẮN TRONG ĐOẠN CHAT */}
+            {onOpenClearModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenClearModal();
+                }}
+                className="w-full py-2.5 px-3 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-[#FF2A85] border border-red-500/20 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm active:scale-95"
+              >
+                <i className="bi bi-trash3 text-sm"></i>
+                <span>Xóa tất cả tin nhắn trong cuộc trò chuyện</span>
+              </button>
+            )}
 
           </div>
         </motion.div>

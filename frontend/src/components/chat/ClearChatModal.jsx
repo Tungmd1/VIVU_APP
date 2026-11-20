@@ -38,9 +38,9 @@ export default function ClearChatModal({
             <div className="w-12 h-12 rounded-full bg-red-500/20 text-[#FF2A85] flex items-center justify-center border border-red-500/30 shadow-[0_0_15px_rgba(255,42,133,0.3)]">
               <i className="bi bi-trash3-fill text-xl"></i>
             </div>
-            <h3 className="text-base font-bold tracking-tight">Xóa toàn bộ tin nhắn?</h3>
+            <h3 className="text-base font-bold tracking-tight">Xóa tất cả tin nhắn?</h3>
             <p className="text-xs text-white/70 leading-relaxed px-2">
-              Tất cả lịch sử tin nhắn trong cuộc trò chuyện với <span className="font-semibold text-white">{partnerName || 'người này'}</span> sẽ bị xóa hoàn toàn. Thao tác này không thể hoàn tác.
+              Tất cả lịch sử tin nhắn trong cuộc trò chuyện với <span className="font-semibold text-white">{partnerName || 'người này'}</span> sẽ bị xóa hoàn toàn. Thao tác này chỉ dọn sạch tin nhắn, không xóa nhóm hay danh sách bạn bè.
             </p>
           </div>
 
@@ -62,7 +62,7 @@ export default function ClearChatModal({
               className="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-[#FF2A85] to-[#E10600] hover:opacity-95 text-white font-bold text-xs shadow-[0_0_15px_rgba(255,42,133,0.4)] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <i className="bi bi-trash3"></i>
-              <span>Xóa toàn bộ</span>
+              <span>Xóa tất cả tin nhắn</span>
             </button>
           </div>
         </motion.div>

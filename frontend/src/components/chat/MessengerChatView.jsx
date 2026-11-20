@@ -5,7 +5,9 @@ import MessengerInboxList from './MessengerInboxList';
 import MessengerActiveRoom from './MessengerActiveRoom';
 import GroupMembersModal from './GroupMembersModal';
 import CreatePollModal from './CreatePollModal';
+import ClearChatModal from './ClearChatModal';
 import { recordSentMessage } from '../../utils/personalityAnalytics';
+import apiClient from '../../services/apiClient';
 
 /**
  * MessengerChatView - Giao diện Hộp thư & Phòng chat Luminous Solar-Cyber HUD (White Cyberpunk)
@@ -53,7 +55,7 @@ export default function MessengerChatView({
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [chatFilterTab, setChatFilterTab] = useState('all'); // 'all', 'group', 'spam'
   const [messageInputText, setMessageInputText] = useState('');
-  const [groupToDelete, setGroupToDelete] = useState(null);
+  const [conversationToClear, setConversationToClear] = useState(null);
   const [isGroupMembersModalOpen, setIsGroupMembersModalOpen] = useState(false);
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] = useState(false);
   const [isToolsDrawerOpen, setIsToolsDrawerOpen] = useState(false);
@@ -104,15 +106,17 @@ export default function MessengerChatView({
     }
   };
 
-  const handleConfirmDeleteGroup = async () => {
-    if (!groupToDelete) return;
-    const targetId = groupToDelete.circleId || groupToDelete.id;
-    if (activeConversationId === groupToDelete.id || activeConversationId === targetId) {
-      setActiveConversationId(null);
-    }
-    setGroupToDelete(null);
-    if (onDeleteCircle) {
-      await onDeleteCircle(targetId);
+  // Xóa toàn bộ tin nhắn trong cuộc trò chuyện (KHÔNG xóa nhóm hay bạn bè)
+  const handleConfirmClearConversation = async () => {
+    if (!conversationToClear) return;
+    const convId = conversationToClear.id;
+    try {
+      await apiClient.clearConversationMessages(convId, currentUserId, true);
+      onClearConversation?.(convId);
+    } catch (e) {
+      console.warn('Lỗi khi xóa tất cả tin nhắn:', e);
+    } finally {
+      setConversationToClear(null);
     }
   };
 
@@ -162,7 +166,7 @@ export default function MessengerChatView({
         onToggleRightFriendshipPanel={onToggleRightFriendshipPanel}
         pendingFriendRequestsCount={pendingFriendRequestsCount}
         onOpenCreateCircle={onOpenCreateCircle}
-        setGroupToDelete={setGroupToDelete}
+        onOpenClearConversation={(conv) => setConversationToClear(conv)}
       />
 
       {/* CỘT PHẢI / KHUNG CHAT HOẠT ĐỘNG (ACTIVE CHAT ROOM) */}
@@ -195,43 +199,13 @@ export default function MessengerChatView({
         onClearConversation={onClearConversation}
       />
 
-      {/* MODAL XÓA NHÓM (Rule 12 Tương phản dark theme & style zIndex 99999) */}
-      {groupToDelete && (
-        <div 
-          style={{ zIndex: 99999 }}
-          className="fixed inset-0 bg-black/75 backdrop-blur-md flex justify-center items-center p-4 select-none font-sans"
-        >
-          <div className="w-full max-w-sm bg-[#151619] rounded-3xl p-5 border border-white/10 space-y-4 shadow-2xl text-white">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-400 flex items-center justify-center">
-                <i className="bi bi-trash3-fill text-sm"></i>
-              </div>
-              <div>
-                <h3 className="font-bold text-sm text-white font-display">Xác nhận xóa nhóm</h3>
-                <p className="text-[10px] text-white/50">Hành động này không thể hoàn tác</p>
-              </div>
-            </div>
-            <p className="text-xs text-white/80 leading-relaxed">
-              Bạn có chắc chắn muốn xóa nhóm <strong className="text-white">"{groupToDelete.name}"</strong>?
-            </p>
-            <div className="flex gap-2 pt-1">
-              <button 
-                onClick={handleConfirmDeleteGroup} 
-                className="flex-1 py-2.5 bg-gradient-to-r from-red-500 to-red-600 hover:opacity-90 active:scale-95 text-white rounded-xl font-bold text-xs cursor-pointer shadow-md transition-all flex items-center justify-center gap-1.5"
-              >
-                <i className="bi bi-trash3"></i>
-                <span>Xóa nhóm</span>
-              </button>
-              <button 
-                onClick={() => setGroupToDelete(null)} 
-                className="px-4 py-2.5 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-xl font-medium text-xs cursor-pointer transition-colors"
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* MODAL XÁC NHẬN XÓA TẤT CẢ TIN NHẮN (KHÔNG XÓA NHÓM, CHỈ DỌN SẠCH LỊCH SỬ TIN NHẮN) */}
+      <ClearChatModal
+        isOpen={Boolean(conversationToClear)}
+        partnerName={conversationToClear?.name}
+        onClose={() => setConversationToClear(null)}
+        onConfirmClear={handleConfirmClearConversation}
+      />
 
       {/* MODAL TẠO BÌNH CHỌN LỊCH HẸN */}
       <CreatePollModal

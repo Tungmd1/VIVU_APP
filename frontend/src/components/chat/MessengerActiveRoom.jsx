@@ -396,6 +396,7 @@ export default function MessengerActiveRoom({
         messages={messages}
         onSelectLightboxMedia={(media) => setSelectedLightboxMedia(media)}
         onStartCall={onStartCall}
+        onOpenClearModal={() => setIsClearModalOpen(true)}
         onOpenMap={() => {
           setIsChatProfileModalOpen(false);
           if (onOpenMapForStory) onOpenMapForStory();

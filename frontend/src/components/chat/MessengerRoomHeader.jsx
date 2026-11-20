@@ -15,9 +15,7 @@ export default function MessengerRoomHeader({
   onStartCall,
   onBackToMap,
   setIsGroupMembersModalOpen,
-  onToggleArchive,
-  onOpenClearModal,
-  isArchived = false
+  onOpenClearModal
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   return (

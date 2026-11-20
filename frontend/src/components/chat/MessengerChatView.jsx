@@ -155,7 +155,6 @@ export default function MessengerChatView({
         allCount={allCount}
         groupCount={groupCount}
         spamCount={spamCount}
-        archivedCount={archivedCount}
         userAvatar={userAvatar}
         friends={friends}
         onOpenDirectChat={onOpenDirectChat}

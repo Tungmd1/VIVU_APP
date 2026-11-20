@@ -26,18 +26,7 @@ export default function VivuPermissionGate({ onGranted }) {
     setDeniedReason('');
 
     try {
-      // 1. Kích hoạt Web Audio Context (Mở khóa âm thanh trình duyệt)
-      try {
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        if (AudioContextClass) {
-          const ctx = new AudioContextClass();
-          if (ctx.state === 'suspended') {
-            await ctx.resume();
-          }
-        }
-      } catch (err) {
-        console.warn('Audio unlock warning:', err);
-      }
+      // 1. Không kích hoạt Web Audio Context để tránh sập trình duyệt mobile
 
       // 2. Yêu cầu quyền GPS thực tế
       if (navigator.geolocation) {

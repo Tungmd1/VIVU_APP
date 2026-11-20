@@ -168,12 +168,7 @@ export default function RightFriendshipPanel({
     const targetLng = Number(friend.lng ?? friend.realLng);
     if (!isNaN(targetLat) && !isNaN(targetLng) && window.__vivu_map) {
       onClose?.();
-      window.__vivu_map.flyTo({
-        center: [targetLng, targetLat],
-        zoom: 17,
-        pitch: 35,
-        duration: 900
-      });
+      window.__vivu_map.flyTo([targetLat, targetLng], 17, { duration: 0.9 });
     }
   };
 

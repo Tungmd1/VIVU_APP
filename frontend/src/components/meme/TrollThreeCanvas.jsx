@@ -227,6 +227,11 @@ export default function TrollThreeCanvas({ item, onImpact }) {
       if (particleMat) particleMat.dispose();
 
       renderer.dispose();
+      try {
+        renderer.forceContextLoss?.();
+        const gl = renderer.domElement?.getContext?.('webgl') || renderer.domElement?.getContext?.('webgl2');
+        gl?.getExtension?.('WEBGL_lose_context')?.loseContext?.();
+      } catch (e) {}
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }

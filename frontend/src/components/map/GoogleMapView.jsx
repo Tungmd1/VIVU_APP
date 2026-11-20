@@ -8,27 +8,9 @@ import { getOwnerBubbleHtml, getPeerBubbleHtml, getMarkerBodyHtml, resolveMarker
 import { bindOwnerMarkerEvents, bindPeerMarkerEvents } from './mapMarkerEvents';
 import { playChibiSound, getChibiMascotById, getChibiDataUrl } from '../../data/chibiMascotData';
 import { getMascotActionDataUrl } from '../../data/messengerZaloMascotData';
-
-/**
- * GoogleMapView - Bản Đồ Google Maps Chuẩn VIVU (Zero-WebGL Crash)
- * - Leaflet Core 2D mượt mà (0 WebGL contexts, không bao giờ crash)
- * - Google Streets & Google Satellite Hybrid
- * - Hiển thị bài đăng Story, Bài hát MP3 thật, Suy nghĩ và Tên cho bạn bè
- * - Chế độ cắm ghim tương tác định vị máy tính (isPickingLocation)
- * - 100% Bootstrap Icons (Rule 5), < 450 dòng (Rule 7), Rule 11, Rule 16
- */
-
-const GOOGLE_TILES = {
-  streets: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-  satellite: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
-};
-
-function getDistanceKm(lat1, lon1, lat2, lon2) {
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLon = (lon2 - lon1) * (Math.PI / 180);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
+import { GOOGLE_TILES, getDistanceKm } from './mapTileConstants';
+import { attachMapFlyToGuard } from './mapFlyToGuard';
+import { processPeerItem } from './mapPeerProcessor';
 
 export default function GoogleMapView({
   currentUserId,
@@ -121,6 +103,9 @@ export default function GoogleMapView({
     const tileLayer = L.tileLayer(GOOGLE_TILES[mapStyleType], { subdomains: '0123', maxZoom: 20 }).addTo(map);
     tileLayerRef.current = tileLayer;
     mapRef.current = map;
+
+    // Bộ đệm thông minh Safe Guard cho map.flyTo
+    attachMapFlyToGuard(map);
     window.__vivu_map = map;
 
     // Chuột phải cắm ghim nhanh - Chỉ khi đang bật chế độ chọn vị trí (isPickingLocation) trên PC
@@ -363,65 +348,10 @@ export default function GoogleMapView({
 
     rawItems.forEach((item) => {
       if (!item || isOwnerItem(item)) return;
-      const rawLat = Number(item.realLat ?? item.lat ?? item.latitude);
-      const rawLng = Number(item.realLng ?? item.lng ?? item.longitude);
-      if (isNaN(rawLat) || isNaN(rawLng)) return;
-
-      let iLat = rawLat;
-      let iLng = rawLng;
-      const isCoLocated = getDistanceKm(safeLat, safeLng, rawLat, rawLng) * 1000 < 60;
-      if (isCoLocated) {
-        const hash = Math.abs(String(item.id || 'peer').split('').reduce((a, c) => a + c.charCodeAt(0), 0));
-        const angle = (hash % 360) * (Math.PI / 180);
-        iLat = safeLat + 0.0018 * Math.sin(angle);
-        iLng = safeLng + 0.0022 * Math.cos(angle);
-      }
-
-      const markerKey = String(item.id || item.user_id || `peer-${iLat}-${iLng}`);
+      const peerData = processPeerItem(item, safeLat, safeLng, onlinePeers, friends);
+      if (!peerData) return;
+      const { iLat, iLng, isCoLocated, markerKey, peerBodyHtml } = peerData;
       usedKeys.add(markerKey);
-
-      const hId = item.hostId || item.host_id || item.id;
-      const isOnlineAuthor = (onlinePeers || []).some(p => p.id === hId && (p.isOnline === true || p.is_online === true)) || 
-                             (friends || []).some(f => f.id === hId && (f.isOnline === true || f.is_online === true));
-      const isOffline = item.isOnline != null ? (item.isOnline === false || item.is_online === false) : !isOnlineAuthor;
-      const hostAvatar = item.hostAvatar || item.avatar || DEFAULT_WHITE_PERSON_AVATAR;
-      const displayName = item.hostName || item.host_name || item.name || 'Người dùng VIVU';
-      const peerStoriesList = Array.isArray(item.stories) && item.stories.length > 0
-        ? item.stories.filter(s => s && !s.id?.startsWith('live-peer-'))
-        : (item.activeStory ? [item.activeStory] : ((item.image || item.dual_image || item.video || (item.bg_gradient && item.texts?.length > 0)) && !item.id?.startsWith('live-peer-') ? [item] : []));
-      const peerHasStory = peerStoriesList.length > 0;
-      const peerStoryCount = peerStoriesList.length;
-      const peerFirstStory = peerStoriesList[0]?.activeStory || peerStoriesList[0] || null;
-      const peerStoryPreview = peerFirstStory?.image || peerFirstStory?.dual_image || null;
-      const peerStoryTitle = peerFirstStory?.title || null;
-      const peerSong = item.custom_song || item.songData || item.music || null;
-      const peerHasSong = Boolean(peerSong);
-      const peerSongTitle = peerSong?.title || peerSong?.name || null;
-
-      const peerSkin = resolveMarkerSkin({
-        manualSkin: item.pin_skin,
-        hasStory: Boolean(peerHasStory),
-        hasChibi: Boolean(item.custom_chibi || item.chibiId),
-        hasAction: Boolean(item.pin_mascot && item.pin_action)
-      });
-      const peerActionDataUrl = item.pin_mascot && item.pin_action ? getMascotActionDataUrl(item.pin_mascot, item.pin_action) : null;
-      const peerChibiDataUrl = (item.custom_chibi || item.chibiId) ? getChibiDataUrl(item.custom_chibi || item.chibiId) : null;
-      const peerBodyHtml = getMarkerBodyHtml({
-        skinMode: peerSkin,
-        avatar: hostAvatar,
-        name: displayName,
-        isOwner: false,
-        hasStory: peerHasStory,
-        storyCount: peerStoryCount,
-        storyPreviewImage: peerStoryPreview,
-        storyTitle: peerStoryTitle,
-        hasSong: peerHasSong,
-        songTitle: peerSongTitle,
-        isOffline,
-        actionDataUrl: peerActionDataUrl,
-        chibiDataUrl: peerChibiDataUrl,
-        actionSound: item.pin_action
-      });
 
       const cached = itemMarkersMapRef.current.get(markerKey);
       if (cached) {

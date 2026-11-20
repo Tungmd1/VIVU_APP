@@ -4,42 +4,11 @@ import confetti from 'canvas-confetti';
 import { DEFAULT_WHITE_PERSON_AVATAR } from '../../utils/avatarUtils';
 
 /**
- * Âm thanh Cụm Ly Thủy Tinh (Crystal Clink Chime) qua Web Audio API
- * Tần số cao vút 2200Hz + họa âm 4400Hz mô phỏng tiếng va chạm ly pha lê
+ * Âm thanh Cụm Ly Thủy Tinh (Crystal Clink Chime)
+ * Đã vô hiệu hóa Web Audio API để tránh sập webapp
  */
 function playGlassClinkSound() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const now = ctx.currentTime;
-    
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(2250, now);
-    osc1.frequency.exponentialRampToValueAtTime(2200, now + 0.8);
-    gain1.gain.setValueAtTime(0.001, now);
-    gain1.gain.linearRampToValueAtTime(0.7, now + 0.005);
-    gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(4500, now);
-    gain2.gain.setValueAtTime(0.001, now);
-    gain2.gain.linearRampToValueAtTime(0.4, now + 0.003);
-    gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-
-    osc1.start(now); osc2.start(now);
-    osc1.stop(now + 1.0); osc2.stop(now + 0.8);
-  } catch (e) {
-    console.warn('[Web Audio] Clink sound blocked by browser policy:', e);
-  }
+  // No-op
 }
 
 /**

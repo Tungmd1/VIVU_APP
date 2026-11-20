@@ -59,67 +59,9 @@ const SpatialBumpModal3D = lazy(() => import('./components/bump/SpatialBumpModal
 import ProximityBumpBanner from './components/bump/ProximityBumpBanner';
 import { useProximityDetector } from './hooks/useProximityDetector';
 
-import { getSharedAudioContext } from './utils/audioContextManager';
-
-// Hàm phát chuông thông báo ding-dong vui tai qua Web Audio API (Dùng Singleton AudioContext để chống crash thiết bị di động)
-const playDingDongSound = () => {
-  try {
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    
-    // Nốt 1: Re (D5 - 587.33 Hz)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(587.33, now);
-    osc1.frequency.exponentialRampToValueAtTime(880, now + 0.12); // Vuốt lên nốt La (A5)
-    gain1.gain.setValueAtTime(0.25, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.5);
-  } catch (e) {
-    console.log('AudioContext notification status:', e);
-  }
-};
-
-// Hàm phát âm thanh tin nhắn đến chuyên biệt "Ting-Ting" (Pop Chime) qua Web Audio API (Dùng Singleton AudioContext)
-// Âm sắc bổng trong trẻo, êm dịu, ngắn gọn (0.2s), hoàn toàn phân biệt với tiếng chuông radar Ding-dong
-const playMessageNotificationSound = () => {
-  try {
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    // Nốt 1: Mi (E6 - 1318.5 Hz)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(1318.5, now);
-    gain1.gain.setValueAtTime(0.2, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.1);
-
-    // Nốt 2: La (A6 - 1760 Hz) gõ sau 0.08s
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(1760, now + 0.08);
-    gain2.gain.setValueAtTime(0.25, now + 0.08);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(now + 0.08);
-    osc2.stop(now + 0.28);
-  } catch (e) {
-    console.log('AudioContext message notification error:', e);
-  }
-};
+// Đã tắt âm thanh thông báo để chống sập / văng webapp
+const playDingDongSound = () => {};
+const playMessageNotificationSound = () => {};
 
 export default function App() {
   const { 
@@ -1685,12 +1627,11 @@ export default function App() {
               isFriendRequest: false,
               action: () => {
                 if (window.__vivu_map) {
-                  window.__vivu_map.flyTo({
-                    center: [Number(p.lng), Number(p.lat)],
-                    zoom: 16.5,
-                    pitch: 35,
-                    duration: 900
-                  });
+                  const targetLat = Number(p.lat);
+                  const targetLng = Number(p.lng);
+                  if (!isNaN(targetLat) && !isNaN(targetLng)) {
+                    window.__vivu_map.flyTo([targetLat, targetLng], 16.5, { duration: 0.9 });
+                  }
                 }
               }
             });
@@ -3539,12 +3480,9 @@ export default function App() {
     if (window.__vivu_map) {
       const userLng = Number(location?.lng ?? location?.longitude ?? 108.2192);
       const userLat = Number(location?.lat ?? location?.latitude ?? 16.0388);
-      window.__vivu_map.flyTo({
-        center: [userLng, userLat],
-        zoom: 16.2,
-        pitch: 35,
-        duration: 900
-      });
+      if (!isNaN(userLat) && !isNaN(userLng)) {
+        window.__vivu_map.flyTo([userLat, userLng], 16.2, { duration: 0.9 });
+      }
     }
   };
 
@@ -3745,12 +3683,11 @@ export default function App() {
         <div 
           onClick={() => {
             if (window.__vivu_map) {
-              window.__vivu_map.flyTo({
-                center: [Number(coLocatedPeer.lng), Number(coLocatedPeer.lat)],
-                zoom: 17,
-                pitch: 35,
-                duration: 900
-              });
+              const peerLat = Number(coLocatedPeer.lat);
+              const peerLng = Number(coLocatedPeer.lng);
+              if (!isNaN(peerLat) && !isNaN(peerLng)) {
+                window.__vivu_map.flyTo([peerLat, peerLng], 17, { duration: 0.9 });
+              }
             }
           }}
           className="fixed top-28 left-1/2 -translate-x-1/2 z-40 px-3 py-1 bg-[#18181B]/95 border border-amber-500/40 rounded-full shadow-lg backdrop-blur-md flex items-center gap-2 text-white text-[11px] font-semibold cursor-pointer hover:scale-105 active:scale-95 transition-all select-none"
@@ -4257,12 +4194,7 @@ export default function App() {
             const targetLng = Number(msg?.lng ?? msg?.realLng);
             if (!isNaN(targetLat) && !isNaN(targetLng) && window.__vivu_map) {
               setTimeout(() => {
-                window.__vivu_map.flyTo({
-                  center: [targetLng, targetLat],
-                  zoom: 16.8,
-                  pitch: 35,
-                  duration: 900
-                });
+                window.__vivu_map.flyTo([targetLat, targetLng], 16.8, { duration: 0.9 });
               }, 300);
             }
           }}
@@ -4279,12 +4211,7 @@ export default function App() {
             const targetLng = Number(target?.realLng ?? target?.lng);
             if (!isNaN(targetLat) && !isNaN(targetLng) && window.__vivu_map) {
               setTimeout(() => {
-                window.__vivu_map.flyTo({
-                  center: [targetLng, targetLat],
-                  zoom: 16.8,
-                  pitch: 35,
-                  duration: 900
-                });
+                window.__vivu_map.flyTo([targetLat, targetLng], 16.8, { duration: 0.9 });
               }, 300);
             }
           }}

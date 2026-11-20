@@ -1,108 +1,23 @@
 /**
  * storyAudioEffects.js
- * Hiệu ứng âm thanh Web Audio API & Cấu hình 10 Meme thịnh hành cho VIVU Story
- * Sử dụng Singleton getSharedAudioContext để triệt tiêu hoàn toàn lỗi rò rỉ AudioContext trên iOS/Android
+ * Cấu hình 10 Meme thịnh hành cho VIVU Story
+ * Đã vô hiệu hóa toàn bộ âm thanh Web Audio để chống sập webapp
  */
-import { getSharedAudioContext } from '../../utils/audioContextManager';
 
 export function playStoryBeaconChime() {
-  try {
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    const freqs = [659.25, 880, 1318.5];
-    freqs.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = idx === 1 ? 'triangle' : 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
-      osc.frequency.exponentialRampToValueAtTime(freq * 1.4, now + 0.6);
-
-      gain.gain.setValueAtTime(0.001, now + idx * 0.05);
-      gain.gain.linearRampToValueAtTime(0.25, now + idx * 0.05 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now + idx * 0.05);
-      osc.stop(now + 1.0);
-    });
-  } catch (e) {
-    console.warn('[Web Audio] Story chime blocked:', e);
-  }
+  // No-op
 }
 
 export function playTactileClickSound() {
-  try {
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.exponentialRampToValueAtTime(400, now + 0.05);
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.06);
-  } catch (e) {}
+  // No-op
 }
 
 export function playShutterSound() {
-  try {
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-
-    // First click: mirror up
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'square';
-    osc1.frequency.setValueAtTime(1400, now);
-    osc1.frequency.exponentialRampToValueAtTime(300, now + 0.03);
-    gain1.gain.setValueAtTime(0.2, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.04);
-
-    // Second click: shutter curtain (50ms later)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(800, now + 0.04);
-    osc2.frequency.exponentialRampToValueAtTime(120, now + 0.1);
-    gain2.gain.setValueAtTime(0.3, now + 0.04);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(now + 0.04);
-    osc2.stop(now + 0.12);
-  } catch (e) {}
+  // No-op
 }
 
 export function playCountdownBeep(isFinal = false) {
-  try {
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    const freq = isFinal ? 1760 : 880; // A6 vs A5
-    osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(0.15, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + (isFinal ? 0.25 : 0.1));
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + (isFinal ? 0.26 : 0.12));
-  } catch (e) {}
+  // No-op
 }
 
 // 10 MEME GỢI Ý THỊNH HÀNH VỚI ẢNH THẬT

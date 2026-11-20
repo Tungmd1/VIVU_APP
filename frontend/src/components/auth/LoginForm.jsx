@@ -79,10 +79,12 @@ export default function LoginForm({
               <i className="bi bi-envelope-at-fill"></i>
             </span>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tenban@gmail.com"
+              aria-label="Địa chỉ email đăng nhập"
               disabled={isSubmitting}
               className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] transition-all font-medium"
             />
@@ -108,10 +110,12 @@ export default function LoginForm({
               <i className="bi bi-shield-lock-fill"></i>
             </span>
             <input
+              id="login-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              aria-label="Mật khẩu đăng nhập"
               disabled={isSubmitting}
               className="w-full pl-10 pr-10 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] transition-all font-medium"
             />

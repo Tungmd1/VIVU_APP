@@ -44,8 +44,12 @@ export default function CallFloatingBubble({
           </div>
 
           {/* Call Duration Counter */}
-          <span className="text-[10px] font-mono font-bold text-[#00E5FF] tracking-tight">
-            {formatDuration(duration)}
+          <span className="text-[10px] font-mono font-bold text-[#00E5FF] tracking-tight text-center truncate max-w-full">
+            {callSession.status === 'active'
+              ? formatDuration(duration)
+              : callSession.status === 'connecting'
+              ? 'Kết nối...'
+              : 'Chuông...'}
           </span>
         </div>
 

@@ -46,6 +46,8 @@ export default function LiveLocationModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Đóng chia sẻ vị trí"
+            title="Đóng"
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-[#8E8E93] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
           >
             <i className="bi bi-x-lg text-xs"></i>

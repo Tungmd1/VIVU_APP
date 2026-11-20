@@ -17,6 +17,9 @@ const SPLASH_COLORS = [
 
 export function triggerCyberSplash(event, customOrigin = null) {
   if (typeof document === 'undefined') return;
+  if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
 
   // 1. Xác định tọa độ bùng nổ (Click X, Y hoặc tâm của phần tử)
   let originX = 0;
@@ -154,6 +157,10 @@ export function initGlobalCyberSplash() {
   let lastSplashTime = 0;
 
   const handleSplash = (e) => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
     // Chống kích hoạt đúp trong khoảng 80ms giữa pointerdown và click
     const now = Date.now();
     if (now - lastSplashTime < 80) return;

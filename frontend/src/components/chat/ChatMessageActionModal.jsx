@@ -16,12 +16,14 @@ export default function ChatMessageActionModal({
   if (!isOpen || !message) return null;
 
   // Lấy nội dung xem trước của tin nhắn
-  const previewText = message.text || 
-    (message.isHeart || message.is_heart ? '❤️ Thả tim' : 
-    (message.type === 'sticker' || message.isSticker ? `[Sticker: ${message.sticker?.name || 'VIVU'}]` : 
-    (message.image ? '[Hình ảnh]' : 
-    (message.video ? '[Video]' : 
-    (message.isLocation || message.is_location ? '[Vị trí GPS]' : '[Tin nhắn]')))));
+  const isHeartMsg = Boolean(message.isHeart || message.is_heart || message.text === '❤️');
+  const previewText = isHeartMsg
+    ? 'Thả tim'
+    : (message.text || 
+      (message.type === 'sticker' || message.isSticker ? `[Sticker: ${message.sticker?.name || 'VIVU'}]` : 
+      (message.image ? '[Hình ảnh]' : 
+      (message.video ? '[Video]' : 
+      (message.isLocation || message.is_location ? '[Vị trí GPS]' : '[Tin nhắn]')))));
 
   return (
     <AnimatePresence>
@@ -54,6 +56,8 @@ export default function ChatMessageActionModal({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Đóng tùy chọn tin nhắn"
+              title="Đóng"
               className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
             >
               <i className="bi bi-x-lg text-xs"></i>
@@ -61,8 +65,15 @@ export default function ChatMessageActionModal({
           </div>
 
           {/* Xem trước tin nhắn cần xóa */}
-          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs text-white/80 line-clamp-2 italic font-sans">
-            "{previewText}"
+          <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs text-white/80 line-clamp-2 font-sans flex items-center gap-1.5">
+            {isHeartMsg ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-[#FF2A85]">
+                <i className="bi bi-heart-fill text-sm" aria-hidden="true"></i>
+                <span>Thả tim</span>
+              </span>
+            ) : (
+              <span className="italic">"{previewText}"</span>
+            )}
           </div>
 
           {/* Các nút hành động */}

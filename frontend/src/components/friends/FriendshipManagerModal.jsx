@@ -233,7 +233,10 @@ export default function FriendshipManagerModal({
 
           {/* Nút 3.1: Nút "Sao Chép" Mã Lưới Tự Động (Pill, height 34px, bg rgba(10,131,149,0.10)) */}
           <button
+            type="button"
             onClick={copyMyCode}
+            aria-label={copiedCode ? 'Đã sao chép mã kết bạn VIVU' : 'Sao chép mã kết bạn VIVU'}
+            title="Sao chép mã kết bạn"
             className="h-[34px] px-3.5 rounded-full bg-[rgba(10,131,149,0.10)] hover:bg-[rgba(0,229,255,0.25)] active:scale-95 border border-[rgba(10,131,149,0.30)] text-xs text-[#0A8395] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
           >
             <i className={`bi ${copiedCode ? 'bi-check-lg text-[#10FFA0]' : 'bi-copy'} text-xs text-[#0A8395]`}></i>
@@ -294,10 +297,12 @@ export default function FriendshipManagerModal({
               <div className="relative">
                 <i className="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-[#52646D]"></i>
                 <input
+                  id="search-friends-input"
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Nhập tên, mã số (VD: VU-1001) hoặc SĐT..."
+                  aria-label="Tìm kiếm bạn bè theo tên hoặc mã"
                   className="w-full pl-9 pr-8 py-2.5 rounded-2xl bg-[#F3F7F8] border border-[#D8E3E7] focus:border-[#0A8395] focus:ring-1 focus:ring-[rgba(10,131,149,0.15)] text-[#14252E] font-medium text-xs placeholder-[#52646D] outline-none transition-all"
                   autoFocus
                 />

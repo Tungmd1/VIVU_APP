@@ -46,7 +46,10 @@ export default function RadarNotificationDrawer({
               </button>
             )}
             <button
+              type="button"
               onClick={onClose}
+              aria-label="Đóng thông báo Radar"
+              title="Đóng"
               className="w-7 h-7 rounded-full bg-[#F2F3FF] hover:bg-[#E0E2F0] text-[#70787E] hover:text-[#131315] flex items-center justify-center transition-all cursor-pointer"
             >
               <i className="bi bi-x-lg text-xs"></i>

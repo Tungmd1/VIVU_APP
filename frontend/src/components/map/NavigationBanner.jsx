@@ -4,11 +4,17 @@ import React from 'react';
  * NavigationBanner - Banner dẫn đường nổi trên Map khi kích hoạt tính năng Chỉ Đường
  * Thiết kế chuẩn Design System VIVU: Nền trắng, viền #D8E3E7, màu điều hướng #0A8395, bóng đổ nhẹ
  */
-export default function NavigationBanner({ navTarget, onClose }) {
+export default function NavigationBanner({ navTarget, userLat, userLng, onClose }) {
   if (!navTarget) return null;
 
   const targetTitle = navTarget.title || navTarget.name || 'Điểm hẹn trên bản đồ';
   const targetAddress = navTarget.address || (navTarget.lat ? `${Number(navTarget.lat).toFixed(4)}°N, ${Number(navTarget.lng).toFixed(4)}°E` : 'Đang điều hướng GPS');
+
+  const startLat = userLat ?? navTarget.userLat ?? 10.7769;
+  const startLng = userLng ?? navTarget.userLng ?? 106.7009;
+  const targetLat = navTarget.realLat || navTarget.lat || 10.7769;
+  const targetLng = navTarget.realLng || navTarget.lng || 106.7009;
+  const osmRouteUrl = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${startLat},${startLng};${targetLat},${targetLng}`;
 
   return (
     <div className="fixed top-18 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md bg-white text-[#14252E] border border-[#D8E3E7] rounded-2xl p-4 shadow-[0_8px_24px_rgba(20,37,46,0.12)] select-none font-sans animate-in slide-in-from-top-4 duration-250">
@@ -45,13 +51,13 @@ export default function NavigationBanner({ navTarget, onClose }) {
 
       <div className="mt-3 pt-2.5 border-t border-[#D8E3E7] flex gap-2">
         <a 
-          href={`https://www.google.com/maps/dir/?api=1&destination=${navTarget.realLat || navTarget.lat || 10.7769},${navTarget.realLng || navTarget.lng || 106.7009}`} 
+          href={osmRouteUrl} 
           target="_blank" 
           rel="noreferrer"
           className="flex-1 py-2 bg-[#0A8395]/10 hover:bg-[#0A8395]/18 text-[#0A8395] rounded-xl text-xs font-semibold text-center flex items-center justify-center gap-1.5 transition-all border border-[#0A8395]/25 cursor-pointer"
         >
           <i className="bi bi-box-arrow-up-right text-[11px]"></i>
-          <span>Mở trong Google Maps</span>
+          <span>Mở chỉ đường OpenStreetMap</span>
         </a>
         <button 
           onClick={onClose}

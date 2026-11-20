@@ -66,10 +66,12 @@ export default function RegisterForm({
               <i className="bi bi-person-fill"></i>
             </span>
             <input
+              id="register-fullname"
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Nguyễn Văn A"
+              aria-label="Họ và tên"
               disabled={isSubmitting}
               className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] transition-all font-medium"
             />
@@ -86,10 +88,12 @@ export default function RegisterForm({
               <i className="bi bi-envelope-at-fill"></i>
             </span>
             <input
+              id="register-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tenban@gmail.com"
+              aria-label="Địa chỉ email đăng ký"
               disabled={isSubmitting}
               className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] transition-all font-medium"
             />
@@ -106,10 +110,12 @@ export default function RegisterForm({
               <i className="bi bi-shield-lock-fill"></i>
             </span>
             <input
+              id="register-password"
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              aria-label="Mật khẩu đăng ký"
               disabled={isSubmitting}
               className="w-full pl-10 pr-10 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] transition-all font-medium"
             />
@@ -133,10 +139,12 @@ export default function RegisterForm({
               <i className="bi bi-shield-check"></i>
             </span>
             <input
+              id="register-confirm-password"
               type={showPassword ? 'text' : 'password'}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
+              aria-label="Xác nhận mật khẩu đăng ký"
               disabled={isSubmitting}
               className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] transition-all font-medium"
             />

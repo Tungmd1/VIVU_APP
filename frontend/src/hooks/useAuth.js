@@ -207,16 +207,11 @@ export function useAuth() {
     }
   }, []);
 
-  // Gửi email khôi phục mật khẩu hoặc đặt lại qua Mockup OTP
-  const forgotPassword = useCallback(async (email, newPassword, otp) => {
+  // Gửi email khôi phục mật khẩu qua liên kết xác thực an toàn
+  const forgotPassword = useCallback(async (email) => {
     setIsSubmitting(true);
     setAuthError(null);
     try {
-      // Nếu có mật khẩu mới và OTP -> Chạy luồng Mockup OTP Reset
-      if (newPassword && otp) {
-        const res = await authService.resetPasswordMock(email, newPassword, otp);
-        return res;
-      }
       const data = await authService.sendPasswordResetEmail(email);
       return { success: true, data };
     } catch (err) {

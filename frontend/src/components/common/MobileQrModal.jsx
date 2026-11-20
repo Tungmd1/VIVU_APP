@@ -56,7 +56,10 @@ export default function MobileQrModal({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Đóng mã QR"
+            title="Đóng"
             className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#8E8E93] hover:text-white flex items-center justify-center transition-colors"
           >
             <i className="bi bi-x-lg text-xs"></i>

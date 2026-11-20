@@ -28,8 +28,8 @@ export default function UnifiedCreationStudioModal({
   onClose,
   onSubmitAll,
   userLocationName = 'Vị trí GPS của Bạn',
-  userLat = 16.0544,
-  userLng = 108.2022,
+  userLat = null,
+  userLng = null,
   friends = [],
   initialCustomStatus = '',
   initialCustomSong = null,
@@ -387,6 +387,8 @@ export default function UnifiedCreationStudioModal({
                       <button
                         type="button"
                         onClick={handleTogglePlaySong}
+                        aria-label={isPlayingMusic ? 'Tạm dừng nghe thử nhạc' : 'Phát nghe thử nhạc'}
+                        title={isPlayingMusic ? 'Tạm dừng nhạc' : 'Phát nhạc'}
                         className="w-7 h-7 rounded-full bg-[#FF2A85] text-white flex items-center justify-center text-xs shadow-md"
                       >
                         <i className={`bi ${isPlayingMusic ? 'bi-pause-fill' : 'bi-play-fill'}`}></i>
@@ -528,12 +530,13 @@ export default function UnifiedCreationStudioModal({
                 playTactileClickSound();
                 setActiveStudioTab('STORY');
               }}
+              aria-label="Story"
               className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
                 activeStudioTab === 'STORY' ? 'text-[#FF2A85] scale-110 font-bold bg-[#FF2A85]/15' : 'text-white/60 hover:text-white'
               }`}
             >
-              <i className="bi bi-camera-reels-fill text-lg"></i>
-              <span className="text-[10px]">📸 Story</span>
+              <i className="bi bi-camera-reels-fill text-lg" aria-hidden="true"></i>
+              <span className="text-[10px] font-medium tracking-wide">Story</span>
             </button>
 
             <button
@@ -542,12 +545,13 @@ export default function UnifiedCreationStudioModal({
                 playTactileClickSound();
                 setActiveStudioTab('MOOD');
               }}
+              aria-label="Tâm trạng"
               className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
                 activeStudioTab === 'MOOD' ? 'text-[#00E5FF] scale-110 font-bold bg-[#00E5FF]/15' : 'text-white/60 hover:text-white'
               }`}
             >
-              <i className="bi bi-chat-heart-fill text-lg"></i>
-              <span className="text-[10px]">✍️ Tâm trạng</span>
+              <i className="bi bi-chat-heart-fill text-lg" aria-hidden="true"></i>
+              <span className="text-[10px] font-medium tracking-wide">Tâm trạng</span>
             </button>
 
             <button
@@ -556,12 +560,13 @@ export default function UnifiedCreationStudioModal({
                 playTactileClickSound();
                 setActiveStudioTab('CHIBI');
               }}
+              aria-label="Mascot"
               className={`flex flex-col items-center gap-1 transition-all py-1 px-3 rounded-2xl ${
                 activeStudioTab === 'CHIBI' ? 'text-amber-400 scale-110 font-bold bg-amber-400/15' : 'text-white/60 hover:text-white'
               }`}
             >
-              <i className="bi bi-emoji-smile-fill text-lg"></i>
-              <span className="text-[10px]">🧸 Mascot</span>
+              <i className="bi bi-emoji-smile-fill text-lg" aria-hidden="true"></i>
+              <span className="text-[10px] font-medium tracking-wide">Mascot</span>
             </button>
           </div>
         )}
@@ -617,7 +622,7 @@ export default function UnifiedCreationStudioModal({
           />
         )}
 
-        <input ref={galleryInputRef} type="file" accept="image/*" className="hidden" onChange={handleGalleryFileSelect} />
+        <input ref={galleryInputRef} type="file" accept="image/*" aria-label="Chọn ảnh từ thiết bị vào Studio" className="hidden" onChange={handleGalleryFileSelect} />
       </div>
     </div>
   );

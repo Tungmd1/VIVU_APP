@@ -123,13 +123,16 @@ export default function LiveLocationCard({
             size="sm"
             variant="primary"
             pill={true}
-            onClick={() => onStartNavigation?.({
-              realLat: Number(msg.lat ?? 10.7769),
-              realLng: Number(msg.lng ?? 106.7009),
-              lat: Number(msg.lat ?? 10.7769),
-              lng: Number(msg.lng ?? 106.7009),
-              name: msg.sender_name || 'Vị trí trực tiếp'
-            })}
+            onClick={() => {
+              if (msg.lat == null || msg.lng == null) return;
+              onStartNavigation?.({
+                realLat: Number(msg.lat),
+                realLng: Number(msg.lng),
+                lat: Number(msg.lat),
+                lng: Number(msg.lng),
+                name: msg.sender_name || 'Vị trí trực tiếp'
+              });
+            }}
             icon="bi-cursor-fill"
             className="text-[11px] py-1 font-bold w-full"
           >

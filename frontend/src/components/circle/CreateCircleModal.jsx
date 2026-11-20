@@ -144,6 +144,8 @@ export default function CreateCircleModal({
               type="button" 
               onClick={onClose}
               disabled={isSubmitting}
+              aria-label="Đóng tạo nhóm Circle"
+              title="Đóng"
               className="w-7 h-7 rounded-lg bg-[#F3F7F8] border border-[#D8E3E7] hover:bg-[#E6E7F6] text-[#14252E] flex items-center justify-center transition-colors cursor-pointer"
             >
               <i className="bi bi-x text-sm font-bold"></i>
@@ -194,6 +196,7 @@ export default function CreateCircleModal({
               ref={fileInputRef} 
               onChange={handleImageUpload} 
               accept="image/*" 
+              aria-label="Tải lên ảnh nhóm Circle"
               className="hidden" 
             />
 
@@ -295,6 +298,7 @@ export default function CreateCircleModal({
                 <button 
                   type="button"
                   onClick={handleToggleSelectAll}
+                  aria-label={isAllSelected ? 'Bỏ chọn tất cả bạn bè' : 'Chọn tất cả bạn bè'}
                   className="text-[11px] font-bold text-[#0A8395] hover:underline cursor-pointer font-display"
                 >
                   {isAllSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
@@ -307,10 +311,12 @@ export default function CreateCircleModal({
               <div className="relative">
                 <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-[11px] text-[#52646D]"></i>
                 <input 
+                  id="search-circle-friends"
                   type="text" 
                   value={searchFriend}
                   onChange={(e) => setSearchFriend(e.target.value)}
                   placeholder="Tìm bạn bè theo tên hoặc mã VU-..."
+                  aria-label="Tìm kiếm bạn bè thêm vào nhóm"
                   className="w-full bg-[#F3F7F8] text-xs text-[#14252E] pl-8 pr-3 py-2 rounded-xl border border-[#D8E3E7] focus:outline-none focus:border-[#0A8395] placeholder:text-[#52646D] font-medium"
                 />
               </div>

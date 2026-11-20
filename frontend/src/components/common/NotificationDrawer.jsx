@@ -178,7 +178,10 @@ export default function NotificationDrawer({
                 </button>
               )}
               <button
+                type="button"
                 onClick={onClose}
+                aria-label="Đóng thông báo"
+                title="Đóng"
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-[#70787E] hover:text-[#131315] hover:bg-[#F2F3FF] transition-all cursor-pointer"
               >
                 <i className="bi bi-x-lg text-sm" />

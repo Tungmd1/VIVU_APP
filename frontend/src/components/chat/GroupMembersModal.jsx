@@ -123,6 +123,8 @@ export default function GroupMembersModal({
           <button 
             type="button"
             onClick={onClose}
+            aria-label="Đóng danh sách thành viên"
+            title="Đóng"
             className="w-8 h-8 rounded-full bg-[#F2F3FF] hover:bg-[#E6E7F6] text-[#70787E] hover:text-[#131315] flex items-center justify-center transition-colors cursor-pointer shrink-0 border border-[#D2D9F4]"
           >
             <i className="bi bi-x-lg text-xs"></i>
@@ -396,7 +398,7 @@ export default function GroupMembersModal({
               {confirmAction === 'disband' ? 'Nhóm và toàn bộ lịch sử sẽ bị đóng.' : 'Bạn sẽ không còn xem được vị trí và tin nhắn nhóm.'}
             </p>
             <div className="flex gap-2 pt-0.5">
-              <button type="button" onClick={handleExecuteConfirm} disabled={isSubmitting} className="flex-1 py-1.5 bg-[#EF4444] hover:bg-[#DC2626] text-white text-xs font-bold rounded-xl transition-all cursor-pointer font-display">
+              <button type="button" onClick={handleExecuteConfirm} disabled={isSubmitting} aria-label={confirmAction === 'disband' ? 'Xác nhận giải tán nhóm' : 'Xác nhận rời khỏi nhóm'} className="flex-1 py-1.5 bg-[#EF4444] hover:bg-[#DC2626] text-white text-xs font-bold rounded-xl transition-all cursor-pointer font-display">
                 {isSubmitting ? 'Đang xử lý...' : 'Xác nhận'}
               </button>
               <button type="button" onClick={() => setConfirmAction(null)} className="px-3 py-1.5 bg-white border border-[#D2D9F4] text-[#131315] hover:bg-[#F2F3FF] text-xs font-semibold rounded-xl transition-all cursor-pointer">

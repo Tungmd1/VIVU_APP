@@ -8,6 +8,7 @@ import authRoutes from './authRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import uploadRoutes from './uploadRoutes.js';
 import profileRoutes from './profileRoutes.js';
+import placeRoutes from './placeRoutes.js';
 import { dbService } from '../services/dbService.js';
 
 const router = Router();
@@ -64,5 +65,6 @@ router.use('/friends', friendRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/profile', profileRoutes);
+router.use('/places', placeRoutes);
 
 export default router;

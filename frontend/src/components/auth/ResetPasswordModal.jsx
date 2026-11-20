@@ -82,10 +82,12 @@ export default function ResetPasswordModal({
                   <i className="bi bi-key-fill"></i>
                 </span>
                 <input
+                  id="reset-new-password"
                   type={showPassword ? 'text' : 'password'}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="••••••••"
+                  aria-label="Mật khẩu mới"
                   disabled={isSubmitting}
                   className="w-full pl-10 pr-10 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] font-medium"
                 />
@@ -108,10 +110,12 @@ export default function ResetPasswordModal({
                   <i className="bi bi-shield-check"></i>
                 </span>
                 <input
+                  id="reset-confirm-password"
                   type={showPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
+                  aria-label="Xác nhận mật khẩu mới"
                   disabled={isSubmitting}
                   className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] focus:outline-none focus:border-[#00E5FF] focus:ring-2 focus:ring-[rgba(0,229,255,0.25)] font-medium"
                 />

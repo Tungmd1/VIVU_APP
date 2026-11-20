@@ -21,6 +21,7 @@ class WebRTCManager {
     this.currentFacingMode = 'user'; // 'user' (trước) | 'environment' (sau)
     this.isMuted = false;
     this.isVideoOff = false;
+    this.iceCandidateQueue = [];
   }
 
   // Khởi tạo luồng MediaStream từ thiết bị (Camera & Mic)
@@ -64,6 +65,7 @@ class WebRTCManager {
   // Tạo và thiết lập RTCPeerConnection
   createPeerConnection({ onRemoteStream, onIceCandidate, onConnectionStateChange } = {}) {
     this.closePeerConnection();
+    this.iceCandidateQueue = [];
 
     this.peerConnection = new RTCPeerConnection(RTC_CONFIG);
 
@@ -114,6 +116,7 @@ class WebRTCManager {
   async handleOfferAndCreateAnswer(offerSdp) {
     if (!this.peerConnection) throw new Error('PeerConnection chưa được khởi tạo');
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerSdp));
+    await this.flushIceCandidates();
     const answer = await this.peerConnection.createAnswer();
     await this.peerConnection.setLocalDescription(answer);
     return answer;
@@ -124,16 +127,34 @@ class WebRTCManager {
     if (!this.peerConnection) return;
     if (this.peerConnection.signalingState !== 'stable') {
       await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answerSdp));
+      await this.flushIceCandidates();
     }
   }
 
-  // Thêm ICE Candidate
+  // Thêm ICE Candidate hoặc lưu vào hàng đợi đệm nếu remoteDescription chưa sẵn sàng
   async addIceCandidate(candidate) {
-    if (!this.peerConnection || !candidate) return;
+    if (!candidate) return;
+    if (!this.peerConnection || !this.peerConnection.remoteDescription || !this.peerConnection.remoteDescription.type) {
+      this.iceCandidateQueue.push(candidate);
+      return;
+    }
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (err) {
       console.warn('[WebRTCManager] Lỗi addIceCandidate:', err.message);
+    }
+  }
+
+  // Xả toàn bộ candidate đã lưu đệm vào RTCPeerConnection sau khi remoteDescription được set
+  async flushIceCandidates() {
+    if (!this.peerConnection || !this.peerConnection.remoteDescription) return;
+    while (this.iceCandidateQueue.length > 0) {
+      const candidate = this.iceCandidateQueue.shift();
+      try {
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn('[WebRTCManager] Lỗi flush ICE candidate:', err.message);
+      }
     }
   }
 
@@ -208,6 +229,7 @@ class WebRTCManager {
 
   // Đóng kết nối P2P
   closePeerConnection() {
+    this.iceCandidateQueue = [];
     if (this.peerConnection) {
       try {
         this.peerConnection.ontrack = null;

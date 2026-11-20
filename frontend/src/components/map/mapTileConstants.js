@@ -1,12 +1,16 @@
 /**
  * mapTileConstants.js
- * Cấu hình tile Google Maps và các hàm đo đạc tọa độ địa lý
+ * Cấu hình tile OpenStreetMap / CartoDB Voyager và các hàm đo đạc tọa độ địa lý
+ * Không sử dụng Google Maps tiles
  */
 
-export const GOOGLE_TILES = {
-  streets: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-  satellite: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+export const VIVU_MAP_TILES = {
+  streets: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  osm: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 };
+
+export const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 export function getDistanceKm(lat1, lon1, lat2, lon2) {
   const dLat = (lat2 - lat1) * (Math.PI / 180);

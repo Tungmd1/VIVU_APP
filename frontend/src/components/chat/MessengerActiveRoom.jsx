@@ -142,8 +142,12 @@ export default function MessengerActiveRoom({
 
   // Gửi vị trí GPS tĩnh
   const handleSendLocation = () => {
-    const safeLat = (userLat != null && !isNaN(Number(userLat))) ? Number(userLat) : 10.7769;
-    const safeLng = (userLng != null && !isNaN(Number(userLng))) ? Number(userLng) : 106.7009;
+    if (userLat == null || userLng == null || isNaN(Number(userLat)) || isNaN(Number(userLng))) {
+      alert('Vui lòng bật quyền truy cập GPS để chia sẻ vị trí của bạn.');
+      return;
+    }
+    const safeLat = Number(userLat);
+    const safeLng = Number(userLng);
     onSendMessage({
       conversationId: activeConversationId,
       isLocation: true,
@@ -158,8 +162,12 @@ export default function MessengerActiveRoom({
 
   // Bắt đầu chia sẻ vị trí trực tiếp (Live Location)
   const handleStartLiveLocation = (durationMinutes) => {
-    const safeLat = (userLat != null && !isNaN(Number(userLat))) ? Number(userLat) : 10.7769;
-    const safeLng = (userLng != null && !isNaN(Number(userLng))) ? Number(userLng) : 106.7009;
+    if (userLat == null || userLng == null || isNaN(Number(userLat)) || isNaN(Number(userLng))) {
+      alert('Vui lòng bật quyền truy cập GPS để chia sẻ vị trí trực tiếp.');
+      return;
+    }
+    const safeLat = Number(userLat);
+    const safeLng = Number(userLng);
     const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
     onSendMessage({
       conversationId: activeConversationId,
@@ -185,7 +193,7 @@ export default function MessengerActiveRoom({
     <main 
       id="main-content"
       tabIndex="-1"
-      className="flex-1 flex flex-col h-full bg-[#0a0e1c] relative overflow-hidden outline-none"
+      className={`${!activeConversationId ? 'hidden md:flex' : 'flex'} flex-1 flex-col h-full bg-[#0a0e1c] relative overflow-hidden outline-none`}
     >
       {activeConversationId ? (
         <div className="flex-1 flex flex-col h-full bg-[#0a0e1c] text-white animate-in fade-in duration-150 relative z-20">
@@ -259,6 +267,7 @@ export default function MessengerActiveRoom({
               ref={chatFileInputRef}
               onChange={(e) => handleMediaSelected(e, 'image')}
               accept="image/*"
+              aria-label="Đính kèm tệp tin tài liệu"
               className="hidden"
             />
             <input 
@@ -266,6 +275,7 @@ export default function MessengerActiveRoom({
               ref={chatVideoInputRef}
               onChange={(e) => handleMediaSelected(e, 'video')}
               accept="video/*"
+              aria-label="Đính kèm tệp video"
               className="hidden"
             />
 
@@ -306,10 +316,12 @@ export default function MessengerActiveRoom({
             {/* Ô nhập tin nhắn */}
             <form onSubmit={handleSend} className="flex-1 flex items-center gap-2">
               <input 
+                id="chat-message-input"
                 type="text" 
                 value={messageInputText}
                 onChange={(e) => setMessageInputText(e.target.value)}
                 placeholder="Nhập tin nhắn..."
+                aria-label="Nội dung tin nhắn"
                 className="flex-1 bg-[#121624] border border-white/10 focus:border-[#FF2A85]/50 focus:ring-1 focus:ring-[#FF2A85]/30 rounded-2xl px-4 py-2 text-xs text-white placeholder-[#8E8E93] outline-none transition-all shadow-inner"
               />
             </form>

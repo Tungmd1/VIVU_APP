@@ -229,6 +229,8 @@ export default function RightFriendshipPanel({
               <button
                 type="button"
                 onClick={handleCopyCode}
+                aria-label={copiedCode ? 'Đã sao chép mã của bạn' : 'Sao chép mã của bạn'}
+                title="Sao chép mã của bạn"
                 className="px-2.5 py-1 rounded-full bg-[rgba(0,229,255,0.15)] hover:bg-[rgba(0,229,255,0.25)] border border-[rgba(0,229,255,0.50)] text-[#00667A] text-[10px] font-mono font-bold flex items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-xs"
               >
                 <i className={`bi ${copiedCode ? 'bi-check-lg text-[#10FFA0]' : 'bi-copy'}`}></i>
@@ -241,10 +243,12 @@ export default function RightFriendshipPanel({
           <div className="relative">
             <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#70787E]"></i>
             <input
+              id="search-right-friends-input"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Nhập mã VU-XXXX hoặc tên..."
+              aria-label="Tìm kiếm bạn bè trong danh sách"
               className="w-full pl-8 pr-7 py-2 rounded-xl bg-[#F2F3FF] border border-[#D2D9F4] text-xs text-[#131315] placeholder-[#70787E] outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[rgba(0,229,255,0.3)] transition-all font-medium"
             />
             {searchQuery && (

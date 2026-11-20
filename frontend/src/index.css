@@ -409,3 +409,28 @@ body {
   }
 }
 
+/* ========================================================
+   CHUẨN TRỢ NĂNG WCAG: PREFERS-REDUCED-MOTION
+   Vô hiệu hóa chuyển động lặp vô hạn và làm mượt phản hồi cho người nhạy cảm chuyển động
+   ======================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-ping,
+  .animate-pulse,
+  .animate-bounce,
+  .animate-spin,
+  .animate-gif-breath,
+  .vivu-troll-charging-ring {
+    animation: none !important;
+  }
+}
+
+

@@ -106,10 +106,12 @@ export default function MessengerInboxList({
         <div className="relative">
           <i className="bi bi-search absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 text-xs"></i>
           <input 
+            id="chat-search-input"
             type="text" 
             value={chatSearchQuery}
             onChange={(e) => setChatSearchQuery(e.target.value)}
             placeholder="Tìm kiếm đoạn chat..." 
+            aria-label="Tìm kiếm cuộc trò chuyện"
             className="w-full pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-full text-xs text-white placeholder-white/40 outline-none focus:border-[#FF2A85] focus:ring-1 focus:ring-[#FF2A85]/30 transition-all font-medium"
           />
           {chatSearchQuery && (
@@ -295,8 +297,14 @@ export default function MessengerInboxList({
                         <span className="text-[10px] text-white/40 shrink-0 font-mono">{conv.time}</span>
                       </div>
 
-                      <p className={`text-xs truncate mt-0.5 ${conv.unread ? 'font-semibold text-[#FF2A85]' : 'text-white/50'}`}>
-                        {conv.lastMessage}
+                      <p className={`text-xs truncate mt-0.5 flex items-center gap-1.5 ${conv.unread ? 'font-semibold text-[#FF2A85]' : 'text-white/50'}`}>
+                        {(conv.lastMessage?.includes('trái tim') || conv.lastMessage?.includes('❤️')) && (
+                          <i className="bi bi-heart-fill text-[#FF2A85] text-[11px] shrink-0" aria-hidden="true"></i>
+                        )}
+                        {(conv.lastMessage?.includes('vị trí GPS') || conv.lastMessage?.includes('📍')) && (
+                          <i className="bi bi-geo-alt-fill text-[#00E5FF] text-[11px] shrink-0" aria-hidden="true"></i>
+                        )}
+                        <span className="truncate">{conv.lastMessage?.replace(/^[❤️📍]\s*/, '')}</span>
                       </p>
                     </div>
                   </div>

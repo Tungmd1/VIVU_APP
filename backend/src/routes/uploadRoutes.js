@@ -12,9 +12,11 @@ const uploadsRoot = path.resolve(__dirname, '../../uploads');
 const chatDir = path.join(uploadsRoot, 'chat');
 const highlightsDir = path.join(uploadsRoot, 'highlights');
 const storiesDir = path.join(uploadsRoot, 'stories');
+const placesDir = path.join(uploadsRoot, 'places');
 if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true });
 if (!fs.existsSync(highlightsDir)) fs.mkdirSync(highlightsDir, { recursive: true });
 if (!fs.existsSync(storiesDir)) fs.mkdirSync(storiesDir, { recursive: true });
+if (!fs.existsSync(placesDir)) fs.mkdirSync(placesDir, { recursive: true });
 
 // Cấu hình Multer Disk Storage
 const storage = multer.diskStorage({
@@ -24,6 +26,7 @@ const storage = multer.diskStorage({
     let targetDir = chatDir;
     if (category === 'highlights') targetDir = highlightsDir;
     else if (category === 'stories') targetDir = storiesDir;
+    else if (category === 'places') targetDir = placesDir;
     cb(null, targetDir);
   },
   filename: (req, file, cb) => {
@@ -73,13 +76,14 @@ router.post('/media', (req, res) => {
     }
 
     const category = req.query.category || req.body.category || 'chat';
-    const subfolder = category === 'highlights' ? 'highlights' : (category === 'stories' ? 'stories' : 'chat');
+    const subfolder = category === 'highlights' ? 'highlights' : (category === 'stories' ? 'stories' : (category === 'places' ? 'places' : 'chat'));
     const publicUrl = `/uploads/${subfolder}/${req.file.filename}`;
     const isVideo = req.file.mimetype.startsWith('video/');
 
     return res.status(201).json({
       success: true,
       url: publicUrl,
+      fileUrl: publicUrl,
       filename: req.file.filename,
       size: req.file.size,
       mimetype: req.file.mimetype,

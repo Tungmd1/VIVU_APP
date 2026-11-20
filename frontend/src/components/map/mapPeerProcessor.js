@@ -9,15 +9,13 @@ export function processPeerItem(item, safeLat, safeLng, onlinePeers = [], friend
   const rawLng = Number(item.realLng ?? item.lng ?? item.longitude);
   if (isNaN(rawLat) || isNaN(rawLng)) return null;
 
-  let iLat = rawLat;
-  let iLng = rawLng;
-  const isCoLocated = getDistanceKm(safeLat, safeLng, rawLat, rawLng) * 1000 < 60;
-  if (isCoLocated) {
-    const hash = Math.abs(String(item.id || 'peer').split('').reduce((a, c) => a + c.charCodeAt(0), 0));
-    const angle = (hash % 360) * (Math.PI / 180);
-    iLat = safeLat + 0.0018 * Math.sin(angle);
-    iLng = safeLng + 0.0022 * Math.cos(angle);
-  }
+  // Giữ nguyên 100% tọa độ GPS thật của người dùng và bạn bè
+  const iLat = rawLat;
+  const iLng = rawLng;
+
+  // Xác định khoảng cách thực tế để xử lý chống đè trực quan (nếu < 10m)
+  const distanceMeters = getDistanceKm(safeLat, safeLng, rawLat, rawLng) * 1000;
+  const isCoLocated = distanceMeters < 10;
 
   const markerKey = String(item.id || item.user_id || `peer-${iLat}-${iLng}`);
   const hId = item.hostId || item.host_id || item.id;
@@ -46,7 +44,7 @@ export function processPeerItem(item, safeLat, safeLng, onlinePeers = [], friend
   });
   const peerActionDataUrl = item.pin_mascot && item.pin_action ? getMascotActionDataUrl(item.pin_mascot, item.pin_action) : null;
   const peerChibiDataUrl = (item.custom_chibi || item.chibiId) ? getChibiDataUrl(item.custom_chibi || item.chibiId) : null;
-  const peerBodyHtml = getMarkerBodyHtml({
+  const basePeerBodyHtml = getMarkerBodyHtml({
     skinMode: peerSkin,
     avatar: hostAvatar,
     name: displayName,
@@ -62,6 +60,16 @@ export function processPeerItem(item, safeLat, safeLng, onlinePeers = [], friend
     chibiDataUrl: peerChibiDataUrl,
     actionSound: item.pin_action
   });
+
+  // Nếu ở sát nhau (< 10m), xử lý hiển thị chống đè bằng CSS transform nhỏ (10px) hoặc visual badge, không sửa tọa độ GPS
+  let peerBodyHtml = basePeerBodyHtml;
+  if (isCoLocated) {
+    const hash = Math.abs(String(item.id || 'peer').split('').reduce((a, c) => a + c.charCodeAt(0), 0));
+    const angle = (hash % 360) * (Math.PI / 180);
+    const shiftX = Math.round(10 * Math.cos(angle));
+    const shiftY = Math.round(10 * Math.sin(angle));
+    peerBodyHtml = `<div style="transform: translate(${shiftX}px, ${shiftY}px); transition: transform 0.25s ease;" class="vivu-co-located-wrapper">${basePeerBodyHtml}</div>`;
+  }
 
   return {
     iLat,

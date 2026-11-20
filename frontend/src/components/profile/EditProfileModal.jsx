@@ -156,6 +156,7 @@ export default function EditProfileModal({
           ref={fileInputRef}
           onChange={handleAvatarFile}
           accept="image/*"
+          aria-label="Tải lên ảnh đại diện mới"
           className="hidden"
         />
 
@@ -173,6 +174,8 @@ export default function EditProfileModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Đóng chỉnh sửa hồ sơ"
+            title="Đóng"
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-[#8E8E93] hover:text-white flex items-center justify-center transition-colors"
           >
             <i className="bi bi-x-lg text-xs"></i>
@@ -229,10 +232,12 @@ export default function EditProfileModal({
             <div className="col-span-2 space-y-1">
               <label className="text-[11px] font-medium text-[#8E8E93]">Họ và tên *</label>
               <input
+                id="edit-profile-fullname"
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Nhập tên hiển thị..."
+                aria-label="Họ và tên cá nhân"
                 required
                 className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-[#8E8E93] outline-none"
               />
@@ -253,12 +258,14 @@ export default function EditProfileModal({
                 </select>
               </div>
               <input
+                id="edit-profile-age"
                 type="number"
                 min={13}
                 max={99}
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
                 placeholder="VD: 22"
+                aria-label="Tuổi"
                 className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-[#8E8E93] outline-none"
               />
             </div>
@@ -269,10 +276,12 @@ export default function EditProfileModal({
             <div className="space-y-1">
               <label className="text-[11px] font-medium text-[#8E8E93]">Nghề nghiệp / Trường học</label>
               <input
+                id="edit-profile-job"
                 type="text"
                 value={job}
                 onChange={(e) => setJob(e.target.value)}
                 placeholder="VD: Sinh viên ĐH Bách Khoa..."
+                aria-label="Nghề nghiệp"
                 className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-[#8E8E93] outline-none"
               />
             </div>
@@ -292,10 +301,12 @@ export default function EditProfileModal({
                 </select>
               </div>
               <input
+                id="edit-profile-phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="09xx xxx xxx"
+                aria-label="Số điện thoại liên hệ"
                 className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-[#8E8E93] outline-none"
               />
             </div>
@@ -305,10 +316,12 @@ export default function EditProfileModal({
           <div className="space-y-1">
             <label className="text-[11px] font-medium text-[#8E8E93]">Trạng thái tâm trạng hôm nay</label>
             <input
+              id="edit-profile-status"
               type="text"
               value={customStatus}
               onChange={(e) => setCustomStatus(e.target.value)}
               placeholder="VD: Đang vivu dạo phố cuối tuần..."
+              aria-label="Trạng thái tiểu sử"
               className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-[#8E8E93] outline-none"
             />
           </div>
@@ -385,10 +398,12 @@ export default function EditProfileModal({
             {/* Thêm tag tùy ý */}
             <div className="flex gap-2 pt-1">
               <input
+                id="edit-profile-newtag"
                 type="text"
                 value={newTagInput}
                 onChange={(e) => setNewTagInput(e.target.value)}
                 placeholder="Thêm sở thích khác (VD: #NhiepAnh)..."
+                aria-label="Thêm thẻ sở thích mới"
                 className="flex-1 bg-[#151619] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white placeholder-[#8E8E93] outline-none"
               />
               <button

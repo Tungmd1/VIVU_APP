@@ -53,10 +53,12 @@ export default function AppLockOverlay({
         <form onSubmit={handleUnlock} className="space-y-3 pt-2">
           <div className="relative">
             <input
+              id="app-lock-pin-input"
               type="password"
               placeholder="Nhập mã PIN hoặc bấm mở khóa"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
+              aria-label="Mã PIN mở khóa ứng dụng"
               className="w-full py-2.5 px-4 rounded-2xl bg-white/10 border border-white/20 text-center text-xs text-white placeholder-white/40 focus:outline-none focus:border-vivu-peach focus:ring-2 focus:ring-vivu-peach/30 transition-all"
             />
           </div>

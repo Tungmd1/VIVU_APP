@@ -7,6 +7,15 @@
 // Mapping: userId -> callSession
 const activeCalls = new Map();
 
+export const CALL_TIMEOUT_MS = 45000; // 45 giây timeout cho cuộc gọi chưa được phản hồi
+
+function clearSessionTimeout(session) {
+  if (session && session.timeoutId) {
+    clearTimeout(session.timeoutId);
+    session.timeoutId = null;
+  }
+}
+
 export const callSignalingService = {
   getActiveCall(userId) {
     return activeCalls.get(String(userId)) || null;
@@ -64,8 +73,30 @@ export const callSignalingService = {
         callerName,
         callerAvatar,
         status: 'ringing',
-        startTime: Date.now()
+        startTime: Date.now(),
+        timeoutId: null
       };
+
+      // Thiết lập timeout 45s: nếu sau 45s chưa accept/ended, tự động hủy phiên
+      callSession.timeoutId = setTimeout(() => {
+        const currentSession = activeCalls.get(String(userId));
+        if (currentSession && currentSession.callId === callSession.callId && currentSession.status === 'ringing') {
+          activeCalls.delete(String(callSession.callerId));
+          activeCalls.delete(String(callSession.targetUserId));
+          const timeoutPayload = {
+            callId: callSession.callId,
+            duration: 0,
+            reason: 'timeout',
+            message: 'Cuộc gọi không có phản hồi và đã kết thúc sau 45 giây.'
+          };
+          emitToUser(callSession.callerId, 'call:ended', timeoutPayload);
+          emitToUser(callSession.targetUserId, 'call:ended', timeoutPayload);
+        }
+      }, CALL_TIMEOUT_MS);
+
+      if (callSession.timeoutId?.unref) {
+        callSession.timeoutId.unref();
+      }
 
       activeCalls.set(String(userId), callSession);
       activeCalls.set(String(targetUserId), callSession);
@@ -89,6 +120,7 @@ export const callSignalingService = {
         return;
       }
 
+      clearSessionTimeout(session);
       session.status = 'active';
       session.connectedAt = Date.now();
 
@@ -109,6 +141,7 @@ export const callSignalingService = {
       const message = data?.message || 'Cuộc gọi đã bị từ chối.';
 
       if (session) {
+        clearSessionTimeout(session);
         const peerId = session.callerId === String(userId) ? session.targetUserId : session.callerId;
         activeCalls.delete(String(session.callerId));
         activeCalls.delete(String(session.targetUserId));
@@ -126,6 +159,7 @@ export const callSignalingService = {
     try {
       const session = activeCalls.get(String(userId));
       if (session) {
+        clearSessionTimeout(session);
         const peerId = session.callerId === String(userId) ? session.targetUserId : session.callerId;
         activeCalls.delete(String(session.callerId));
         activeCalls.delete(String(session.targetUserId));
@@ -166,6 +200,7 @@ export const callSignalingService = {
     try {
       const session = activeCalls.get(String(userId));
       if (session) {
+        clearSessionTimeout(session);
         const peerId = session.callerId === String(userId) ? session.targetUserId : session.callerId;
         activeCalls.delete(String(session.callerId));
         activeCalls.delete(String(session.targetUserId));
@@ -179,5 +214,25 @@ export const callSignalingService = {
     } catch (err) {
       console.warn('[CallSignaling] Disconnect clean warning:', err.message);
     }
+  },
+
+  // Dành riêng cho testing kiểm tra timeout 45s mà không cần chờ wall-clock
+  _triggerTimeout(userId, { emitToUser }) {
+    const session = activeCalls.get(String(userId));
+    if (session && session.status === 'ringing') {
+      clearSessionTimeout(session);
+      activeCalls.delete(String(session.callerId));
+      activeCalls.delete(String(session.targetUserId));
+      const timeoutPayload = {
+        callId: session.callId,
+        duration: 0,
+        reason: 'timeout',
+        message: 'Cuộc gọi không có phản hồi và đã kết thúc sau 45 giây.'
+      };
+      emitToUser(session.callerId, 'call:ended', timeoutPayload);
+      emitToUser(session.targetUserId, 'call:ended', timeoutPayload);
+      return true;
+    }
+    return false;
   }
 };

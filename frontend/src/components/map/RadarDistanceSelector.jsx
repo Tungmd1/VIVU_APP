@@ -196,6 +196,10 @@ export default function RadarDistanceSelector({
                   onMouseUp={handleSliderRelease}
                   onTouchEnd={handleSliderRelease}
                   disabled={selectedDistance === 'all'}
+                  aria-label="Bán kính quét radar GPS"
+                  aria-valuemin="0.5"
+                  aria-valuemax="15"
+                  aria-valuenow={selectedDistance === 'all' ? 15 : sliderVal}
                   className={`w-full h-2 rounded-lg appearance-none cursor-pointer transition-all ${
                     selectedDistance === 'all' ? 'opacity-40 cursor-not-allowed bg-neutral-800' : 'bg-neutral-800'
                   }`}

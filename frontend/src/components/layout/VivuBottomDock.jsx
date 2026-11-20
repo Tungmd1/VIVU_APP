@@ -18,12 +18,15 @@ export default function VivuBottomDock({
 }) {
   return (
     <div className={`fixed bottom-3.5 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md z-40 pointer-events-auto select-none font-sans ${className}`}>
-      <nav className="relative w-full rounded-full py-1.5 px-3 flex justify-between items-center bg-[rgba(10,18,32,0.85)] backdrop-blur-xl border border-[#00E5FF]/20 shadow-[0_12px_40px_rgba(0,0,0,0.7)] transition-all duration-200">
+      <nav role="tablist" aria-label="Thanh điều hướng chính" className="relative w-full rounded-full py-1.5 px-3 flex justify-between items-center bg-[rgba(10,18,32,0.85)] backdrop-blur-xl border border-[#00E5FF]/20 shadow-[0_12px_40px_rgba(0,0,0,0.7)] transition-all duration-200">
         
         {/* 1. TAB XÃ HỘI (EXPLORE / BẢN ĐỒ RADAR) */}
         <button 
           id="dock-tab-social"
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'social'}
+          aria-label="Xã hội"
           onClick={() => { 
             setActiveTab('social'); 
             if (onResetNavigation) onResetNavigation(); 
@@ -50,6 +53,9 @@ export default function VivuBottomDock({
         <button 
           id="dock-tab-friends"
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'friends'}
+          aria-label="Bạn bè"
           onClick={() => { 
             setActiveTab('friends'); 
             if (onResetNavigation) onResetNavigation(); 
@@ -94,6 +100,9 @@ export default function VivuBottomDock({
         <button 
           id="dock-tab-chat"
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'chat'}
+          aria-label={unreadCount > 0 ? `Tin nhắn (${unreadCount} chưa đọc)` : 'Tin nhắn'}
           onClick={() => setActiveTab('chat')}
           className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-full transition-all duration-150 relative active:scale-95 cursor-pointer ${
             activeTab === 'chat' ? 'text-[#FF2A85]' : 'text-white/60 hover:text-[#00E5FF]'
@@ -122,6 +131,9 @@ export default function VivuBottomDock({
         <button 
           id="dock-tab-profile"
           type="button"
+          role="tab"
+          aria-selected={activeTab === 'profile'}
+          aria-label="Hồ sơ cá nhân"
           onClick={() => setActiveTab('profile')}
           className={`flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-full transition-all duration-150 active:scale-95 cursor-pointer ${
             activeTab === 'profile' ? 'text-[#FF2A85]' : 'text-white/60 hover:text-[#00E5FF]'

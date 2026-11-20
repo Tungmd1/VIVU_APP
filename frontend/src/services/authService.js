@@ -524,40 +524,6 @@ export async function signInWithOAuthProvider(provider, options = {}) {
 }
 
 /**
- * Đặt lại mật khẩu Mockup qua mã OTP 6 số
- * Cập nhật vào SQLite backend và LocalStorage
- * @param {string} email
- * @param {string} newPassword
- * @param {string} otp
- */
-export async function resetPasswordMock(email, newPassword, otp) {
-  const normalizedEmail = email.trim().toLowerCase();
-  
-  // 1. Gửi request lên backend API
-  try {
-    const res = await apiClient.resetPasswordMock(normalizedEmail, newPassword, otp);
-    if (res?.success) {
-      return res;
-    }
-  } catch (err) {
-    console.warn('[authService] resetPasswordMock backend error, trying local update:', err.message);
-  }
-
-  // 2. Dự phòng cập nhật trong Local Storage nếu offline
-  try {
-    const accountsRaw = localStorage.getItem('vivu_cached_accounts') || '[]';
-    const accounts = JSON.parse(accountsRaw);
-    const targetIdx = accounts.findIndex(a => a.email?.toLowerCase() === normalizedEmail);
-    if (targetIdx >= 0) {
-      accounts[targetIdx].password = newPassword;
-      localStorage.setItem('vivu_cached_accounts', JSON.stringify(accounts));
-    }
-  } catch {}
-
-  return { success: true, message: 'Đổi mật khẩu thành công!' };
-}
-
-/**
  * Gửi Magic Link đặt lại mật khẩu về email người dùng
  * @param {string} email 
  */
@@ -812,9 +778,6 @@ export async function signOut() {
   localStorage.removeItem('vivu_stories_cache');
   localStorage.removeItem('vivu_messages_cache');
   localStorage.removeItem('vivu_custom_circles_cache');
-  localStorage.removeItem('vivu_all_accounts_directory');
-  localStorage.removeItem('vivu_shared_conversations_v2');
-  localStorage.removeItem('vivu_shared_friendships');
   localStorage.removeItem('vivu_user_profile_data');
   localStorage.removeItem('vivu_user_name');
   localStorage.removeItem('vivu_user_custom_status');

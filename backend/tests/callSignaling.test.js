@@ -1,6 +1,6 @@
 import test, { describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { callSignalingService } from '../src/services/callSignalingService.js';
+import { callSignalingService, CALL_TIMEOUT_MS } from '../src/services/callSignalingService.js';
 
 describe('VIVU WebRTC Call Signaling Suite', () => {
   let mockSockets = {};
@@ -144,6 +144,36 @@ describe('VIVU WebRTC Call Signaling Suite', () => {
     assert.ok(endedForCallee, 'Callee phải nhận call:ended');
     assert.strictEqual(endedForCallee.data.reason, 'hangup');
 
+    assert.strictEqual(callSignalingService.getActiveCall('user-caller'), null);
+    assert.strictEqual(callSignalingService.getActiveCall('user-callee'), null);
+  });
+
+  test('8. Cuộc gọi không phản hồi: Tự động timeout 45 giây và gửi call:ended lý do timeout cho cả 2 bên', () => {
+    assert.strictEqual(CALL_TIMEOUT_MS, 45000, 'CALL_TIMEOUT_MS phải đúng 45000ms (45 giây)');
+
+    callSignalingService.handleCallInitiate(mockSockets['user-caller'], 'user-caller', {
+      targetUserId: 'user-callee',
+      callType: 'voice'
+    }, { emitToUser, isUserOnline });
+
+    const session = callSignalingService.getActiveCall('user-caller');
+    assert.ok(session, 'Phiên gọi phải được tạo');
+    assert.strictEqual(session.status, 'ringing');
+    assert.ok(session.timeoutId, 'Phiên gọi phải có timeoutId được thiết lập');
+
+    emittedEvents = [];
+    const triggered = callSignalingService._triggerTimeout('user-caller', { emitToUser });
+    assert.strictEqual(triggered, true);
+
+    const endedCaller = emittedEvents.find(e => e.target === 'user-caller' && e.event === 'call:ended');
+    const endedCallee = emittedEvents.find(e => e.target === 'user-callee' && e.event === 'call:ended');
+
+    assert.ok(endedCaller, 'Caller phải nhận call:ended do timeout');
+    assert.strictEqual(endedCaller.data.reason, 'timeout');
+    assert.ok(endedCallee, 'Callee phải nhận call:ended do timeout');
+    assert.strictEqual(endedCallee.data.reason, 'timeout');
+
+    // Phiên gọi phải được giải phóng hoàn toàn
     assert.strictEqual(callSignalingService.getActiveCall('user-caller'), null);
     assert.strictEqual(callSignalingService.getActiveCall('user-callee'), null);
   });

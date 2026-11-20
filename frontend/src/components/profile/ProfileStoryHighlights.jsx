@@ -369,6 +369,7 @@ export default function ProfileStoryHighlights({
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Ví dụ: Du lịch, Chill cuối tuần, Kỷ niệm..."
                   maxLength={30}
+                  aria-label="Tên album tin nổi bật"
                   disabled={isSubmitting}
                   className="w-full py-2.5 px-3.5 rounded-2xl bg-[#151619] border border-white/10 text-white font-medium text-xs placeholder-[#8E8E93] focus:border-[#10FFA0] focus:ring-1 focus:ring-[#10FFA0]/30 outline-none"
                   autoFocus
@@ -396,6 +397,7 @@ export default function ProfileStoryHighlights({
                   ref={coverInputRef}
                   onChange={handleSelectCover}
                   accept="image/*"
+                  aria-label="Chọn ảnh bìa tin nổi bật"
                   className="hidden"
                 />
                 <span className="text-[10px] text-[#8E8E93]">Chạm vòng tròn để chọn ảnh bìa</span>
@@ -484,6 +486,7 @@ export default function ProfileStoryHighlights({
                     onChange={handleSelectNewMedia}
                     accept="image/*,video/*"
                     multiple
+                    aria-label="Chọn ảnh hoặc video cho tin nổi bật"
                     className="hidden"
                   />
 

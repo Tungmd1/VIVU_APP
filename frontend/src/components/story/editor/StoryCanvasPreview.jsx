@@ -114,6 +114,8 @@ export default function StoryCanvasPreview({
               </span>
               <button
                 type="button"
+                aria-label="Xóa văn bản"
+                title="Xóa văn bản"
                 className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] items-center justify-center hidden group-hover:flex"
               >
                 <i className="bi bi-x"></i>
@@ -177,6 +179,8 @@ export default function StoryCanvasPreview({
 
               <button
                 type="button"
+                aria-label="Xóa nhãn dán"
+                title="Xóa nhãn dán"
                 className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-rose-600 text-white text-[10px] items-center justify-center hidden group-hover:flex"
               >
                 <i className="bi bi-x"></i>

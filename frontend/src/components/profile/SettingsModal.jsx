@@ -51,6 +51,8 @@ export default function SettingsModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Đóng cài đặt"
+            title="Đóng"
             className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-[#8E8E93] hover:text-white transition-colors cursor-pointer"
           >
             <i className="bi bi-x-lg text-xs"></i>
@@ -103,6 +105,10 @@ export default function SettingsModal({
               </div>
               <button
                 type="button"
+                role="switch"
+                aria-checked={Boolean(ghostMode)}
+                aria-label="Chế độ tàng hình GPS"
+                title={ghostMode ? 'Tắt chế độ tàng hình' : 'Bật chế độ tàng hình'}
                 onClick={onToggleGhostMode}
                 className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer border ${
                   ghostMode ? 'bg-indigo-600 border-indigo-400' : 'bg-white/10 border-white/15'

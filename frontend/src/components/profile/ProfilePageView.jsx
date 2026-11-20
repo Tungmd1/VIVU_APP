@@ -267,7 +267,7 @@ export default function ProfilePageView({
                 <i className="bi bi-trash3" />
               </button>
             )}
-            <input type="file" ref={fileInputRef} onChange={handleAvatarChange} accept="image/*" className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={handleAvatarChange} accept="image/*" aria-label="Thay đổi ảnh đại diện cá nhân" className="hidden" />
           </div>
 
           {/* Tên & Mã định danh */}
@@ -355,7 +355,7 @@ export default function ProfilePageView({
                 <span>Thêm ảnh</span>
               </button>
             )}
-            <input type="file" ref={multiPhotoInputRef} onChange={handleAddPhotos} accept="image/*" multiple className="hidden" />
+            <input type="file" ref={multiPhotoInputRef} onChange={handleAddPhotos} accept="image/*" multiple aria-label="Tải ảnh lên bộ sưu tập cá nhân" className="hidden" />
           </div>
 
           {/* Thư Viện Ảnh */}

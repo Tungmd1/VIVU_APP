@@ -66,7 +66,7 @@ export default function RightActionStack({
           className="flex flex-col items-center gap-2 p-1.5 rounded-full bg-[rgba(15,16,24,0.88)] border border-[#00E5FF]/30 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl max-h-[168px] overflow-y-auto no-scrollbar scroll-smooth overscroll-contain touch-pan-y"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {/* Nút 1: Chuyển đổi Google Đường phố <-> Vệ tinh */}
+          {/* Nút 1: Chuyển đổi Bản đồ Đường phố <-> Vệ tinh */}
           {onToggleMapStyle && (
             <button
               type="button"
@@ -75,7 +75,7 @@ export default function RightActionStack({
                 onToggleMapStyle();
               }}
               className="w-10 h-10 rounded-full bg-[rgba(20,20,30,0.9)] hover:bg-[rgba(30,30,45,0.95)] border border-[#00E5FF]/40 hover:border-[#00E5FF] text-[#00E5FF] shadow-md backdrop-blur-xl flex items-center justify-center shrink-0 active:scale-90 transition-all cursor-pointer group"
-              title={mapStyleType === 'streets' ? "Chuyển sang Google Vệ Tinh" : "Chuyển sang Google Đường Phố"}
+              title={mapStyleType === 'streets' ? "Chuyển sang Bản đồ Vệ Tinh" : "Chuyển sang Bản đồ Đường Phố"}
               aria-label="Chuyển lớp bản đồ"
             >
               <i className={`bi ${mapStyleType === 'streets' ? 'bi-globe-asia-australia' : 'bi-map-fill'} text-base group-hover:scale-110 transition-transform`}></i>

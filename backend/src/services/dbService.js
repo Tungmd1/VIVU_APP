@@ -68,6 +68,10 @@ export const dbService = {
     const createdAt = new Date().toISOString();
     const expiresAt = story.expires_at || new Date(Date.now() + expiryHours * 3600000).toISOString();
 
+    const hasValidCoords = story.lat !== undefined && story.lat !== null &&
+      story.lng !== undefined && story.lng !== null &&
+      !isNaN(Number(story.lat)) && !isNaN(Number(story.lng));
+
     const newStory = {
       id: story.id || `story-${Date.now()}`,
       host_id: creatorId || null,
@@ -79,8 +83,8 @@ export const dbService = {
       description: story.description || '',
       address: story.address || 'Quanh đây',
       planned_at: story.planned_at || 'Ngay bây giờ',
-      lat: story.lat || 10.7769,
-      lng: story.lng || 106.7009,
+      lat: hasValidCoords ? Number(story.lat) : null,
+      lng: hasValidCoords ? Number(story.lng) : null,
       lat_offset: story.lat_offset || 0,
       lng_offset: story.lng_offset || 0,
       expiry_hours: expiryHours,
@@ -464,28 +468,6 @@ export const dbService = {
         access_token: `vivu-tok-${user.id}-${Date.now()}`,
         user: userSafe
       }
-    };
-  },
-
-  async resetPasswordMock({ email, newPassword }) {
-    if (!email || !newPassword) {
-      throw new Error('Vui lòng cung cấp email và mật khẩu mới');
-    }
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = inMemoryStore.users.find(u => u.email === normalizedEmail);
-    if (!user) {
-      throw new Error('Không tìm thấy tài khoản với email này trên hệ thống');
-    }
-    if (newPassword.length < 6) {
-      throw new Error('Mật khẩu mới phải có tối thiểu 6 ký tự');
-    }
-
-    user.password = newPassword;
-    dbStore.persist();
-
-    return {
-      success: true,
-      message: 'Mật khẩu đã được cập nhật thành công!'
     };
   },
 
@@ -2321,6 +2303,159 @@ export const dbService = {
       dbStore.persist();
     }
     return target;
+  },
+
+  // ==================== QUẢN LÝ ĐỊA ĐIỂM ĐÃ LƯU (SAVED PLACES - M3 / R3) ====================
+  async getSavedPlaces(userId = null) {
+    if (!Array.isArray(dbStore.data.savedPlaces)) {
+      dbStore.data.savedPlaces = [];
+    }
+
+    let places = dbStore.data.savedPlaces;
+    if (userId) {
+      places = places.filter(p => p && (p.userId === userId || p.user_id === userId));
+    }
+
+    // Sắp xếp mới nhất trước
+    return [...places].sort((a, b) => {
+      const timeA = new Date(a.created_at || a.createdAt || 0).getTime();
+      const timeB = new Date(b.created_at || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+  },
+
+  async createSavedPlace({ userId, name, category = 'other', notes = '', lat, lng, image = '' }) {
+    if (!userId) {
+      throw new Error('userId là bắt buộc');
+    }
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      throw new Error('Tên địa điểm là bắt buộc');
+    }
+    const numLat = Number(lat);
+    const numLng = Number(lng);
+    if (lat === undefined || lat === null || isNaN(numLat) || numLat < -90 || numLat > 90) {
+      throw new Error('Vĩ độ (lat) không hợp lệ (-90 đến 90)');
+    }
+    if (lng === undefined || lng === null || isNaN(numLng) || numLng < -180 || numLng > 180) {
+      throw new Error('Kinh độ (lng) không hợp lệ (-180 đến 180)');
+    }
+
+    const validCategories = ['dining', 'music', 'dancing', 'sightseeing', 'cafe_dating', 'other'];
+    const selectedCategory = validCategories.includes(category) ? category : 'other';
+
+    if (!Array.isArray(dbStore.data.savedPlaces)) {
+      dbStore.data.savedPlaces = [];
+    }
+
+    const newPlace = {
+      id: `place-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+      userId,
+      user_id: userId,
+      name: name.trim(),
+      category: selectedCategory,
+      notes: typeof notes === 'string' ? notes.trim() : '',
+      lat: numLat,
+      lng: numLng,
+      image: typeof image === 'string' ? image.trim() : '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    dbStore.data.savedPlaces.unshift(newPlace);
+    await dbStore.persist();
+    return newPlace;
+  },
+
+  async updateSavedPlace(id, updates = {}, userId = null) {
+    if (!id) {
+      throw new Error('id là bắt buộc');
+    }
+    if (!Array.isArray(dbStore.data.savedPlaces)) {
+      dbStore.data.savedPlaces = [];
+    }
+
+    const place = dbStore.data.savedPlaces.find(p => p.id === id);
+    if (!place) {
+      const err = new Error('Không tìm thấy địa điểm đã lưu');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (userId && place.userId !== userId && place.user_id !== userId) {
+      const err = new Error('Bạn không có quyền chỉnh sửa địa điểm này');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (updates.name !== undefined) {
+      if (!updates.name || typeof updates.name !== 'string' || !updates.name.trim()) {
+        throw new Error('Tên địa điểm không được để trống');
+      }
+      place.name = updates.name.trim();
+    }
+
+    if (updates.category !== undefined) {
+      const validCategories = ['dining', 'music', 'dancing', 'sightseeing', 'cafe_dating', 'other'];
+      if (!validCategories.includes(updates.category)) {
+        throw new Error('Danh mục không hợp lệ');
+      }
+      place.category = updates.category;
+    }
+
+    if (updates.notes !== undefined) {
+      place.notes = typeof updates.notes === 'string' ? updates.notes.trim() : '';
+    }
+
+    if (updates.lat !== undefined) {
+      const numLat = Number(updates.lat);
+      if (isNaN(numLat) || numLat < -90 || numLat > 90) {
+        throw new Error('Vĩ độ (lat) không hợp lệ');
+      }
+      place.lat = numLat;
+    }
+
+    if (updates.lng !== undefined) {
+      const numLng = Number(updates.lng);
+      if (isNaN(numLng) || numLng < -180 || numLng > 180) {
+        throw new Error('Kinh độ (lng) không hợp lệ');
+      }
+      place.lng = numLng;
+    }
+
+    if (updates.image !== undefined) {
+      place.image = typeof updates.image === 'string' ? updates.image.trim() : '';
+    }
+
+    place.updated_at = new Date().toISOString();
+    await dbStore.persist();
+    return place;
+  },
+
+  async deleteSavedPlace(id, userId = null) {
+    if (!id) {
+      throw new Error('id là bắt buộc');
+    }
+    if (!Array.isArray(dbStore.data.savedPlaces)) {
+      dbStore.data.savedPlaces = [];
+    }
+
+    const index = dbStore.data.savedPlaces.findIndex(p => p.id === id);
+    if (index === -1) {
+      const err = new Error('Không tìm thấy địa điểm đã lưu');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const place = dbStore.data.savedPlaces[index];
+    if (userId && place.userId !== userId && place.user_id !== userId) {
+      const err = new Error('Bạn không có quyền xóa địa điểm này');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    dbStore.data.savedPlaces.splice(index, 1);
+    await dbStore.persist();
+    return { success: true, message: 'Đã xóa địa điểm thành công' };
   }
 };
 

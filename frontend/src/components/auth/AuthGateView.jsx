@@ -156,12 +156,11 @@ export default function AuthGateView({
                 onSwitchToLogin={(prefEmail) => {
                   if (prefEmail && typeof prefEmail === 'string') {
                     setRegisteredEmail(prefEmail);
-                    setSuccessMessage('Đổi mật khẩu thành công! Hãy đăng nhập với mật khẩu mới.');
                   }
                   setAuthMode('LOGIN');
                   if (onClearError) onClearError();
                 }}
-                onSubmitMockReset={onForgotPassword}
+                onSubmit={onForgotPassword}
                 isSubmitting={isSubmitting}
                 authError={authError}
                 onClearError={onClearError}

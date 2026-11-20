@@ -19,29 +19,71 @@ const INITIAL_DB = {
   friendships: [],
   notifications: [],
   highlights: [],
-  archivedConversations: []
+  archivedConversations: [],
+  savedPlaces: []
 };
 
 class DatabaseStore {
   constructor() {
     this.data = { ...INITIAL_DB };
     this.isLoaded = false;
+    this._isWriting = false;
+    this._pendingWrite = false;
+    this._pendingResolvers = [];
     this.init();
   }
 
   loadRawJson(filePath) {
     if (!fs.existsSync(filePath)) return null;
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    if (!raw || !raw.trim() || raw.includes('\u0000')) {
-      console.warn(`[DB Engine] File ${filePath} rỗng hoặc chứa byte null, bỏ qua.`);
-      return null;
+    let retries = 5;
+    let delay = 25;
+    while (retries > 0) {
+      try {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        if (!raw || !raw.trim() || raw.includes('\u0000')) {
+          return null;
+        }
+        return JSON.parse(raw);
+      } catch (err) {
+        retries--;
+        if (err.code === 'EBUSY' || err.code === 'EPERM' || err.code === 'EACCES') {
+          if (retries === 0) {
+            console.warn(`[DB Engine] Không thể đọc ${filePath} do tài nguyên đang bận (${err.code}):`, err.message);
+            return null;
+          }
+          const end = Date.now() + delay;
+          while (Date.now() < end) {}
+          delay = Math.min(delay * 2, 150);
+        } else if (err instanceof SyntaxError) {
+          if (retries === 0) {
+            console.warn(`[DB Engine] Lỗi cú pháp JSON trong ${filePath}:`, err.message);
+            return null;
+          }
+          const end = Date.now() + delay;
+          while (Date.now() < end) {}
+          delay = Math.min(delay * 2, 150);
+        } else {
+          console.warn(`[DB Engine] Lỗi khi nạp ${filePath}:`, err.message);
+          return null;
+        }
+      }
     }
+    return null;
+  }
+
+  // Tự động dọn dẹp các tệp .tmp mồ côi khi khởi động
+  cleanupTempFiles() {
     try {
-      return JSON.parse(raw);
-    } catch (e) {
-      console.warn(`[DB Engine] Lỗi cú pháp JSON trong ${filePath}:`, e.message);
-      return null;
-    }
+      if (!fs.existsSync(DATA_DIR)) return;
+      const files = fs.readdirSync(DATA_DIR);
+      for (const file of files) {
+        if (file.endsWith('.tmp')) {
+          try {
+            fs.unlinkSync(path.join(DATA_DIR, file));
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 
   init() {
@@ -49,6 +91,8 @@ class DatabaseStore {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
+
+      this.cleanupTempFiles();
 
       let parsed = this.loadRawJson(DB_FILE);
       if (!parsed && fs.existsSync(DB_BAK_FILE)) {
@@ -69,18 +113,21 @@ class DatabaseStore {
           friendRequests: Array.isArray(parsed.friendRequests) ? parsed.friendRequests : [],
           friendships: Array.isArray(parsed.friendships) ? parsed.friendships : [],
           notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
-          highlights: Array.isArray(parsed.highlights) ? parsed.highlights : []
+          highlights: Array.isArray(parsed.highlights) ? parsed.highlights : [],
+          archivedConversations: Array.isArray(parsed.archivedConversations) ? parsed.archivedConversations : [],
+          savedPlaces: Array.isArray(parsed.savedPlaces) ? parsed.savedPlaces : []
         };
         this.isLoaded = true;
-        this.sanitize();
-        // Cập nhật lại bản sao lưu tin cậy
-        this.saveToDisk();
+        const modified = this.sanitize();
+        if (modified) {
+          this.saveToDisk();
+        }
         console.log(`[DB Engine] Đã nạp thành công Database: ${this.data.users.length} tài khoản, ${this.data.profiles.length} hồ sơ, ${this.data.messages.length} tin nhắn, ${this.data.friendships.length} quan hệ bạn bè.`);
         return;
       }
 
       // Khởi tạo file mới nếu chưa có
-      this.saveToDisk();
+      this.saveToDiskSync();
       this.isLoaded = true;
       console.log('[DB Engine] Đã khởi tạo mới file Database tại:', DB_FILE);
     } catch (err) {
@@ -93,6 +140,7 @@ class DatabaseStore {
   sanitize() {
     try {
       const isTestRun = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test'));
+      let prevUserCount = Array.isArray(this.data.users) ? this.data.users.length : 0;
 
       // 0. Tự động loại bỏ các tài khoản mockup/test rác (nếu không phải môi trường test nội bộ)
       if (!isTestRun && Array.isArray(this.data.users)) {
@@ -104,7 +152,6 @@ class DatabaseStore {
           if (email.endsWith('@vivu.vn') || email.includes('prof_') || email.includes('iso@') || email.includes('example.com')) return true;
           return false;
         };
-        const prevUserCount = this.data.users.length;
         this.data.users = this.data.users.filter(u => !isMockUser(u));
         if (this.data.users.length < prevUserCount) {
           console.log(`[DB Sanitizer] Đã thanh lọc ${prevUserCount - this.data.users.length} tài khoản mockup/test rác.`);
@@ -194,64 +241,158 @@ class DatabaseStore {
         }
       }
 
+      // Đảm bảo cấu trúc savedPlaces luôn hợp lệ
+      if (!Array.isArray(this.data.savedPlaces)) {
+        this.data.savedPlaces = [];
+      }
+
       const removedProfiles = prevProfilesCount - this.data.profiles.length;
       const removedMessages = prevMessagesCount - this.data.messages.length;
       if (removedProfiles > 0 || removedMessages > 0) {
         console.log(`[DB Sanitizer] Đã thanh lọc: loại bỏ ${removedProfiles} hồ sơ khách vãng lai, ${removedMessages} tin nhắn rác.`);
       }
-      this.saveToDisk();
+
+      const hasChanges = (removedProfiles > 0 || removedMessages > 0 || prevUserCount > this.data.users.length);
+      return hasChanges;
     } catch (sErr) {
       console.warn('[DB Sanitizer] Lỗi thanh lọc:', sErr.message);
+      return false;
     }
   }
 
-  saveToDisk() {
+  // Quản lý Write Queue
+  _enqueueWrite() {
+    if (this._isWriting) {
+      this._pendingWrite = true;
+      return new Promise((resolve, reject) => {
+        this._pendingResolvers.push({ resolve, reject });
+      });
+    }
+
+    this._isWriting = true;
+    const currentPromise = this._performAtomicWrite()
+      .then(() => {
+        this._isWriting = false;
+        if (this._pendingWrite) {
+          this._pendingWrite = false;
+          const resolvers = this._pendingResolvers;
+          this._pendingResolvers = [];
+          return this._enqueueWrite().then(() => {
+            resolvers.forEach(r => r.resolve());
+          }).catch(err => {
+            resolvers.forEach(r => r.reject(err));
+          });
+        }
+      })
+      .catch(err => {
+        this._isWriting = false;
+        console.error('[DB Engine] Lỗi ghi database xuống đĩa:', err.message);
+        if (this._pendingWrite) {
+          this._pendingWrite = false;
+          const resolvers = this._pendingResolvers;
+          this._pendingResolvers = [];
+          resolvers.forEach(r => r.reject(err));
+        }
+      });
+
+    // Bắt lỗi ngầm tránh UnhandledPromiseRejection khi gọi fire-and-forget
+    currentPromise.catch(() => {});
+    return currentPromise;
+  }
+
+  async _performAtomicWrite() {
+    if (!fs.existsSync(DATA_DIR)) {
+      await fs.promises.mkdir(DATA_DIR, { recursive: true });
+    }
+    if (!this.data || !Array.isArray(this.data.users)) {
+      console.warn('[DB Engine] Dữ liệu trong bộ nhớ không hợp lệ, hủy ghi đĩa.');
+      return;
+    }
+
+    const serialized = JSON.stringify(this.data, null, 2);
+    const tempFile = path.join(
+      DATA_DIR,
+      `.${path.basename(DB_FILE)}.${process.pid}.${Date.now()}.${Math.random().toString(36).substring(2, 6)}.tmp`
+    );
+
+    try {
+      // 1. Ghi toàn bộ vào file tạm
+      await fs.promises.writeFile(tempFile, serialized, 'utf-8');
+
+      // 2. Sao lưu file hiện tại sang .bak an toàn
+      try {
+        if (fs.existsSync(DB_FILE)) {
+          await fs.promises.copyFile(DB_FILE, DB_BAK_FILE);
+        }
+      } catch (_) {}
+
+      // 3. Đổi tên nguyên tử (Atomic Rename) với retry bất đồng bộ trên Windows
+      let retries = 8;
+      let delay = 20;
+      while (retries > 0) {
+        try {
+          await fs.promises.rename(tempFile, DB_FILE);
+          return;
+        } catch (renameErr) {
+          retries--;
+          if (renameErr.code === 'EBUSY' || renameErr.code === 'EPERM' || renameErr.code === 'EACCES') {
+            if (retries === 0) {
+              // Cứu cánh cuối: copy đè
+              await fs.promises.copyFile(tempFile, DB_FILE);
+              return;
+            }
+            await new Promise(r => setTimeout(r, delay));
+            delay = Math.min(delay * 2, 200);
+          } else {
+            throw renameErr;
+          }
+        }
+      }
+    } finally {
+      // Đảm bảo luôn xóa tệp tạm nếu còn tồn tại
+      try {
+        if (fs.existsSync(tempFile)) {
+          await fs.promises.unlink(tempFile);
+        }
+      } catch (_) {}
+    }
+  }
+
+  // Phiên bản đồng bộ chỉ dùng khi khởi tạo file mới lần đầu trong constructor
+  saveToDiskSync() {
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
       }
-      if (!this.data || !Array.isArray(this.data.users)) {
-        console.warn('[DB Engine] Dữ liệu trong bộ nhớ không hợp lệ, hủy ghi đĩa để bảo vệ dữ liệu.');
-        return;
-      }
+      if (!this.data || !Array.isArray(this.data.users)) return;
 
       const serialized = JSON.stringify(this.data, null, 2);
-      // Ghi an toàn: ghi vào file tạm trước
-      const tempFile = `${DB_FILE}.${process.pid}.${Date.now()}.${Math.random().toString(36).substring(2, 6)}.tmp`;
+      const tempFile = path.join(
+        DATA_DIR,
+        `.${path.basename(DB_FILE)}.${process.pid}.${Date.now()}.${Math.random().toString(36).substring(2, 6)}.tmp`
+      );
       fs.writeFileSync(tempFile, serialized, 'utf-8');
-
-      // Tạo bản sao lưu an toàn .bak trước khi ghi đè file chính
       try {
         if (fs.existsSync(DB_FILE)) {
           fs.copyFileSync(DB_FILE, DB_BAK_FILE);
         }
-      } catch (bakErr) {}
-
-      // Ghi đè file chính an toàn trên Windows kèm retry loop chống xung đột EBUSY
-      let retries = 3;
-      while (retries > 0) {
+      } catch (_) {}
+      try {
+        fs.renameSync(tempFile, DB_FILE);
+      } catch (_) {
         try {
           fs.copyFileSync(tempFile, DB_FILE);
-          try { fs.unlinkSync(tempFile); } catch (u) {}
-          break;
-        } catch (copyErr) {
-          retries--;
-          if (retries === 0) {
-            try {
-              fs.writeFileSync(DB_FILE, serialized, 'utf-8');
-              try { fs.unlinkSync(tempFile); } catch (u) {}
-            } catch (writeErr) {
-              console.warn('[DB Engine] Warning write retry failed:', writeErr.message);
-            }
-          } else {
-            const end = Date.now() + 40;
-            while (Date.now() < end) {}
-          }
+        } finally {
+          try { fs.unlinkSync(tempFile); } catch (_) {}
         }
       }
     } catch (err) {
-      console.error('[DB Engine] Lỗi khi ghi database xuống đĩa:', err.message);
+      console.error('[DB Engine] Lỗi ghi đồng bộ:', err.message);
     }
+  }
+
+  saveToDisk() {
+    return this._enqueueWrite();
   }
 
   reloadFromDisk() {
@@ -304,6 +445,9 @@ class DatabaseStore {
   get archivedConversations() { return this.data.archivedConversations || []; }
   set archivedConversations(val) { this.data.archivedConversations = val; this.saveToDisk(); }
 
+  get savedPlaces() { return this.data.savedPlaces || []; }
+  set savedPlaces(val) { this.data.savedPlaces = val; this.saveToDisk(); }
+
   scheduleSave() {
     if (this._saveTimer) return;
     this._saveTimer = setTimeout(() => {
@@ -318,7 +462,7 @@ class DatabaseStore {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
     }
-    this.saveToDisk();
+    return this.saveToDisk();
   }
 }
 

@@ -56,7 +56,7 @@ export default function MemeTrollModal({ targetUser, currentUserId, isOpen, onCl
           particleColor: item.particleColor,
           badge: item.badge,
           image3d: item.image3d,
-          previewEmoji: item.previewEmoji,
+          previewIcon: item.previewIcon || item.icon,
           caption: `Vừa ném ${item.name}!`,
           subtext: `Vừa ném trêu ${targetName}!`,
           isTrollItem: true

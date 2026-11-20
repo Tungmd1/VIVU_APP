@@ -234,6 +234,7 @@ export default function MediaPreviewModal({
             type="text"
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
+            aria-label="Chú thích đính kèm ảnh hoặc video"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();

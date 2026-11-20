@@ -430,7 +430,7 @@ export const TROLL_ITEMS = [
     particleColor: s.particleColor,
     badge: s.badge,
     image3d: s.image,
-    previewEmoji: '✨'
+    previewIcon: 'bi-stars'
   }))
 ];
 

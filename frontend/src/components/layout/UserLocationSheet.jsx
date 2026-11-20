@@ -47,8 +47,8 @@ export default function UserLocationSheet({
 
   if (!isOpen) return null;
 
-  const safeLat = userLat != null ? Number(userLat).toFixed(5) : '10.77690';
-  const safeLng = userLng != null ? Number(userLng).toFixed(5) : '106.70090';
+  const safeLat = userLat != null ? Number(userLat).toFixed(5) : '--';
+  const safeLng = userLng != null ? Number(userLng).toFixed(5) : '--';
 
   const hasRealAvatar = Boolean(
     userAvatar &&
@@ -359,6 +359,7 @@ export default function UserLocationSheet({
               value={customInput}
               onChange={(e) => setCustomInput(e.target.value)}
               placeholder="Nhập suy nghĩ hiển thị trên bản đồ..."
+              aria-label="Trạng thái hoặc địa điểm tùy chỉnh"
               maxLength={60}
               className="flex-1 px-3.5 py-1.5 rounded-xl bg-white/5 border border-white/10 focus:border-[#00E5FF] focus:ring-1 focus:ring-[#00E5FF]/40 text-white text-xs placeholder-white/40 outline-none font-medium"
             />

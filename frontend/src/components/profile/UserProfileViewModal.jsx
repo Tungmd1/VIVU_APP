@@ -109,6 +109,8 @@ export default function UserProfileViewModal({
         <button
           type="button"
           onClick={onClose}
+          aria-label={getBackLabel() || 'Quay lại'}
+          title={getBackLabel() || 'Quay lại'}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-xs font-bold text-white transition-all cursor-pointer"
         >
           <i className="bi bi-chevron-left text-xs" />
@@ -134,6 +136,7 @@ export default function UserProfileViewModal({
             type="button"
             onClick={onClose}
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-[#8E8E93] hover:text-white text-sm transition-all cursor-pointer"
+            aria-label="Đóng hồ sơ"
             title="Đóng hồ sơ"
           >
             <i className="bi bi-x-lg text-xs" />
@@ -145,6 +148,8 @@ export default function UserProfileViewModal({
               <button
                 type="button"
                 onClick={handleCopyUserCode}
+                aria-label={copiedCode ? 'Đã sao chép mã VIVU' : 'Sao chép mã VIVU'}
+                title="Sao chép mã VIVU"
                 className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/10 text-white flex items-center gap-2 cursor-pointer transition-colors"
               >
                 <i className={`bi ${copiedCode ? 'bi-check-lg text-[#00E5FF]' : 'bi-copy'} text-xs`} />

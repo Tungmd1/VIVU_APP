@@ -3,15 +3,14 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspens
 // Thay thế pháo hoa canvas-confetti bằng phản hồi rung tactile nhẹ nhàng (Tuân thủ Mục 9 plan.md)
 const confetti = () => {
   if (typeof navigator !== 'undefined' && navigator.vibrate) {
-    try { navigator.vibrate([20, 35]); } catch {}
+    try { navigator.vibrate([20, 35]); } catch { }
   }
 };
 import { useGeolocation } from './hooks/useGeolocation';
-import { vivuBackendService } from './services/vivuBackendService';
 import { apiClient } from './services/apiClient';
 
 // Import các Module Components
-import GoogleMapView from './components/map/GoogleMapView';
+import VivuMapView from './components/map/VivuMapView';
 import UnifiedDynamicIsland from './components/layout/UnifiedDynamicIsland';
 import RadarDistanceSelector from './components/map/RadarDistanceSelector';
 import NavigationBanner from './components/map/NavigationBanner';
@@ -57,34 +56,33 @@ import TopAppLogo from './components/common/TopAppLogo';
 import BumpUserAvatar from './components/common/BumpUserAvatar';
 import { VivuPermissionGate, VivuIntroScreen } from './components/intro';
 import RightFriendshipPanel from './components/friends/RightFriendshipPanel';
-import AccountSwitcherModal from './components/profile/AccountSwitcherModal';
 const SpatialBumpModal3D = lazy(() => import('./components/bump/SpatialBumpModal3D'));
 import ProximityBumpBanner from './components/bump/ProximityBumpBanner';
 import { useProximityDetector } from './hooks/useProximityDetector';
 
 // Đã tắt âm thanh thông báo để chống sập / văng webapp
-const playDingDongSound = () => {};
-const playMessageNotificationSound = () => {};
+const playDingDongSound = () => { };
+const playMessageNotificationSound = () => { };
 
 export default function App() {
-  const { 
-    location, 
-    loading: gpsLoading, 
+  const {
+    location,
+    loading: gpsLoading,
     error: gpsError,
     permissionGranted,
     permissionDenied,
-    requestLocation, 
+    requestLocation,
     clearLocation,
-    setManualCoords, 
-    locationSource, 
-    cityName, 
-    isFallback 
+    setManualCoords,
+    locationSource,
+    cityName,
+    isFallback
   } = useGeolocation();
 
   // Rule 11: Đọc an toàn GPS thiết bị thực tế (Không dùng Đà Nẵng mặc định)
   const userLng = location?.lng ?? location?.longitude ?? null;
   const userLat = location?.lat ?? location?.latitude ?? null;
-  
+
   // Trạng thái Xác thực & Phiên làm việc (Auth State)
   const {
     user,
@@ -144,7 +142,7 @@ export default function App() {
   const handleIntroFinished = () => {
     try {
       sessionStorage.setItem('vivu_intro_played', 'true');
-    } catch {}
+    } catch { }
     setIsIntroPlaying(false);
   };
 
@@ -230,7 +228,6 @@ export default function App() {
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
   const [isAppLocked, setIsAppLocked] = useState(false);
   const [ghostMode, setGhostMode] = useState(false);
 
@@ -355,7 +352,7 @@ export default function App() {
         setUserPinMascot(accMascot);
         setUserPinAction(accAction);
         if (accSong) setUserCustomSong(accSong);
-      } catch {}
+      } catch { }
     } else {
       setUserPinSkin('auto');
       setUserCustomChibi(null);
@@ -438,7 +435,7 @@ export default function App() {
           return [{ ...parsed, isOwnerStory: true, activeStory: parsed }];
         }
       }
-    } catch {}
+    } catch { }
     return [];
   });
 
@@ -476,7 +473,7 @@ export default function App() {
     if (window.__vivu_map) {
       try {
         window.__vivu_map.flyTo([targetLat, targetLng], 16.5);
-      } catch {}
+      } catch { }
     }
   }, [nearbyOnlinePeers, setManualCoords]);
 
@@ -537,7 +534,7 @@ export default function App() {
           const av = parsed.avatarUrl || parsed.avatar_url;
           if (av) return av;
         }
-      } catch {}
+      } catch { }
     }
     try {
       const globalProfileRaw = localStorage.getItem('vivu_user_profile_data');
@@ -549,7 +546,7 @@ export default function App() {
       }
       const unscoped = localStorage.getItem('vivu_user_avatar');
       if (unscoped) return unscoped;
-    } catch {}
+    } catch { }
     return null; // Không dùng ảnh mẫu Unsplash, để null để hiển thị avatar nền trắng icon người
   }, [customAvatar, user, currentUserId]);
 
@@ -584,7 +581,18 @@ export default function App() {
     socket,
     currentUserId,
     currentUserName,
-    currentUserAvatar
+    currentUserAvatar,
+    onToast: (toastData) => {
+      const text = typeof toastData === 'string' ? toastData : (toastData?.message || toastData?.text || 'Thông báo cuộc gọi');
+      setIncomingMessageToast({
+        id: `call-toast-${Date.now()}`,
+        senderName: 'Cuộc gọi VIVU',
+        text,
+        senderAvatar: '',
+        type: 'call'
+      });
+      setTimeout(() => setIncomingMessageToast(null), 4000);
+    }
   });
 
   // CÔ LẬP DỮ LIỆU: Khi đổi tài khoản hoặc đăng xuất, reset sạch toàn bộ state
@@ -638,14 +646,14 @@ export default function App() {
         const av = parsed.avatarUrl || parsed.avatar_url;
         if (av) {
           setCustomAvatar(av);
-          try { localStorage.setItem(`vivu_user_avatar_${currentUserId}`, av); } catch {}
+          try { localStorage.setItem(`vivu_user_avatar_${currentUserId}`, av); } catch { }
           return;
         }
       }
       const userAv = user?.avatar_url || user?.user_metadata?.avatar_url;
       if (userAv) {
         setCustomAvatar(userAv);
-        try { localStorage.setItem(`vivu_user_avatar_${currentUserId}`, userAv); } catch {}
+        try { localStorage.setItem(`vivu_user_avatar_${currentUserId}`, userAv); } catch { }
         return;
       }
       apiClient.getMe(currentUserId).then(serverUser => {
@@ -655,9 +663,9 @@ export default function App() {
           try {
             localStorage.setItem(`vivu_user_avatar_${currentUserId}`, remoteAv);
             localStorage.setItem('vivu_user_avatar', remoteAv);
-          } catch {}
+          } catch { }
         }
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (e) {
       console.warn('[App] Lỗi rehydrate avatar:', e);
     }
@@ -698,8 +706,8 @@ export default function App() {
       const savedRaw = localStorage.getItem(scopedKey) || localStorage.getItem('vivu_user_active_story');
       if (savedRaw) {
         const parsed = JSON.parse(savedRaw);
-        const expTime = parsed.expires_at 
-          ? (typeof parsed.expires_at === 'number' ? parsed.expires_at : (Number(parsed.expires_at) || new Date(parsed.expires_at).getTime())) 
+        const expTime = parsed.expires_at
+          ? (typeof parsed.expires_at === 'number' ? parsed.expires_at : (Number(parsed.expires_at) || new Date(parsed.expires_at).getTime()))
           : (parsed.created_at ? new Date(parsed.created_at).getTime() + (parsed.expiry_hours || 24) * 3600000 : 0);
         if (expTime > now && (parsed.hostId === currentUserId || parsed.host_id === currentUserId || parsed.isOwnerStory)) {
           const ownerStory = { ...parsed, isOwnerStory: true, activeStory: parsed };
@@ -713,7 +721,7 @@ export default function App() {
           localStorage.removeItem('vivu_user_active_story');
         }
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Tầng 2: Đồng bộ trực tiếp toàn bộ Story còn hạn từ Backend Server Database
     apiClient.getStories().then(remoteStories => {
@@ -721,8 +729,8 @@ export default function App() {
       const validStories = remoteStories
         .filter(rs => {
           if (!rs) return false;
-          const expMs = rs.expires_at 
-            ? (typeof rs.expires_at === 'number' ? rs.expires_at : (Number(rs.expires_at) || new Date(rs.expires_at).getTime())) 
+          const expMs = rs.expires_at
+            ? (typeof rs.expires_at === 'number' ? rs.expires_at : (Number(rs.expires_at) || new Date(rs.expires_at).getTime()))
             : (rs.created_at ? new Date(rs.created_at).getTime() + (rs.expiry_hours || 24) * 3600000 : 0);
           return expMs > now;
         })
@@ -758,14 +766,14 @@ export default function App() {
             localStorage.removeItem('vivu_user_active_stories');
             localStorage.removeItem(`vivu_user_active_story_${currentUserId}`);
             localStorage.removeItem(`vivu_user_active_stories_${currentUserId}`);
-          } catch {}
+          } catch { }
         } else {
           try {
             localStorage.setItem(`vivu_user_active_stories_${currentUserId}`, JSON.stringify(ownerStoriesFromServer));
             localStorage.setItem('vivu_user_active_stories', JSON.stringify(ownerStoriesFromServer));
             localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(ownerStoriesFromServer[0]));
             localStorage.setItem('vivu_user_active_story', JSON.stringify(ownerStoriesFromServer[0]));
-          } catch {}
+          } catch { }
         }
       }
 
@@ -777,7 +785,7 @@ export default function App() {
         const remainingPrev = filteredPrev.filter(s => !existingIds.has(s.id));
         return [...validStories, ...remainingPrev];
       });
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => { isMounted = false; };
   }, [currentUserId]);
@@ -848,8 +856,8 @@ export default function App() {
     // Tầng 2: Đồng bộ từ Database Backend Server
     apiClient.getMe(currentUserId).then(serverUser => {
       if (!isMounted || !serverUser) return;
-      const expMs = serverUser.chibi_expires_at 
-        ? (typeof serverUser.chibi_expires_at === 'number' ? serverUser.chibi_expires_at : (Number(serverUser.chibi_expires_at) || new Date(serverUser.chibi_expires_at).getTime())) 
+      const expMs = serverUser.chibi_expires_at
+        ? (typeof serverUser.chibi_expires_at === 'number' ? serverUser.chibi_expires_at : (Number(serverUser.chibi_expires_at) || new Date(serverUser.chibi_expires_at).getTime()))
         : null;
       const isExp = expMs && expMs <= Date.now();
       const serverChibi = isExp ? null : (serverUser.custom_chibi || null);
@@ -862,37 +870,37 @@ export default function App() {
           if (expMs) {
             localStorage.setItem(`vivu_user_custom_chibi_expires_${currentUserId}`, String(expMs));
           }
-        } catch {}
+        } catch { }
       } else {
         setUserCustomChibi(null);
         setUserCustomChibiExpiresAt(null);
         try {
           localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
           localStorage.removeItem(`vivu_user_custom_chibi_expires_${currentUserId}`);
-        } catch {}
+        } catch { }
       }
       const cleanServerStatus = (serverUser.custom_status === 'clear' || serverUser.custom_status === 'remove' || serverUser.custom_status === 'Khoảnh khắc mới' || serverUser.custom_status === 'Tâm trạng') ? '' : (serverUser.custom_status || '');
       if (cleanServerStatus) {
         setUserCustomStatus(cleanServerStatus);
         try {
           localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, cleanServerStatus);
-        } catch {}
+        } catch { }
       } else {
         setUserCustomStatus('');
-        try { 
-          localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`); 
-          localStorage.removeItem('vivu_user_custom_status'); 
-        } catch {}
+        try {
+          localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`);
+          localStorage.removeItem('vivu_user_custom_status');
+        } catch { }
       }
       if (serverUser.custom_song) {
         setUserCustomSong(serverUser.custom_song);
         try {
           const songStr = typeof serverUser.custom_song === 'object' ? JSON.stringify(serverUser.custom_song) : String(serverUser.custom_song);
           localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, songStr);
-        } catch {}
+        } catch { }
       } else {
         setUserCustomSong(null);
-        try { localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`); } catch {}
+        try { localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`); } catch { }
       }
       setUserPinSkin(serverUser.pin_skin || 'auto');
       setUserPinMascot(serverUser.pin_mascot || null);
@@ -903,8 +911,8 @@ export default function App() {
         else localStorage.removeItem(`vivu_user_pin_mascot_${currentUserId}`);
         if (serverUser.pin_action) localStorage.setItem(`vivu_user_pin_action_${currentUserId}`, serverUser.pin_action);
         else localStorage.removeItem(`vivu_user_pin_action_${currentUserId}`);
-      } catch {}
-    }).catch(() => {});
+      } catch { }
+    }).catch(() => { });
 
     return () => { isMounted = false; };
   }, [currentUserId]);
@@ -1335,7 +1343,7 @@ export default function App() {
       setNotifications(prev => prev.filter(n => n.id !== notifId));
       try {
         await apiClient.deleteNotification(notifId);
-      } catch {}
+      } catch { }
     }
     const [fl, reqs, notifs] = await Promise.all([
       apiClient.getFriendsList(currentUserId),
@@ -1363,7 +1371,7 @@ export default function App() {
       setNotifications(prev => prev.filter(n => n.id !== notifId));
       try {
         await apiClient.deleteNotification(notifId);
-      } catch {}
+      } catch { }
     }
     const [reqs, notifs] = await Promise.all([
       apiClient.getFriendRequests(currentUserId),
@@ -1392,8 +1400,8 @@ export default function App() {
         return expMs > now;
       })
       .map(s => {
-        const rawLat = s.realLat != null ? Number(s.realLat) : (s.lat != null ? Number(s.lat) : (userLat != null ? Number((userLat + (s.latOffset || 0)).toFixed(6)) : 10.7769));
-        const rawLng = s.realLng != null ? Number(s.realLng) : (s.lng != null ? Number(s.lng) : (userLng != null ? Number((userLng + (s.lngOffset || 0)).toFixed(6)) : 106.7009));
+        const rawLat = s.realLat != null ? Number(s.realLat) : (s.lat != null ? Number(s.lat) : (userLat != null ? Number((userLat + (s.latOffset || 0)).toFixed(6)) : null));
+        const rawLng = s.realLng != null ? Number(s.realLng) : (s.lng != null ? Number(s.lng) : (userLng != null ? Number((userLng + (s.lngOffset || 0)).toFixed(6)) : null));
         const isOwner = Boolean(
           (currentUserId && (s.hostId === currentUserId || s.host_id === currentUserId || s.id === currentUserId)) ||
           s.isOwnerStory === true ||
@@ -1431,14 +1439,14 @@ export default function App() {
           return { ...parsed, isOwnerStory: true, activeStory: parsed };
         }
       }
-    } catch {}
+    } catch { }
     return null;
   }, [liveStories, currentUserId]);
 
   const liveFriends = useMemo(() => {
     return friends.map(f => {
-      const latVal = f.realLat != null ? Number(f.realLat) : (f.lat != null ? Number(f.lat) : (userLat != null ? Number((userLat + (f.latOffset || 0)).toFixed(6)) : 16.0387));
-      const lngVal = f.realLng != null ? Number(f.realLng) : (f.lng != null ? Number(f.lng) : (userLng != null ? Number((userLng + (f.lngOffset || 0)).toFixed(6)) : 108.2193));
+      const latVal = f.realLat != null ? Number(f.realLat) : (f.lat != null ? Number(f.lat) : (userLat != null ? Number((userLat + (f.latOffset || 0)).toFixed(6)) : null));
+      const lngVal = f.realLng != null ? Number(f.realLng) : (f.lng != null ? Number(f.lng) : (userLng != null ? Number((userLng + (f.lngOffset || 0)).toFixed(6)) : null));
       const fName = f.hostName || f.name || f.full_name || 'Bạn bè VIVU';
       const fAvatar = f.hostAvatar || f.avatar || f.avatar_url || null;
       return {
@@ -1458,8 +1466,9 @@ export default function App() {
 
   // Đếm số người lân cận trong bán kính Radar 5km (hoặc khoảng cách đang chọn)
   const radarResultsCount = useMemo(() => {
-    const safeUserLat = userLat != null ? Number(userLat) : 10.7769;
-    const safeUserLng = userLng != null ? Number(userLng) : 106.7009;
+    if (userLat == null || userLng == null) return 0;
+    const safeUserLat = Number(userLat);
+    const safeUserLng = Number(userLng);
     const allItems = [...liveFriends, ...liveStories, ...nearbyOnlinePeers];
     const uniqueIds = new Set();
     let count = 0;
@@ -1497,7 +1506,7 @@ export default function App() {
       const R = 6371;
       const dLat = (pLat - userLat) * (Math.PI / 180);
       const dLon = (pLng - userLng) * (Math.PI / 180);
-      const a = Math.sin(dLat / 2)**2 + Math.cos(userLat * Math.PI / 180) * Math.cos(pLat * Math.PI / 180) * Math.sin(dLon / 2)**2;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(userLat * Math.PI / 180) * Math.cos(pLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
       const distKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return distKm < 0.06;
     });
@@ -1546,9 +1555,13 @@ export default function App() {
 
   const handleInitiateBump = useCallback((friend) => {
     if (!friend) return;
+    if (userLat == null || userLng == null) {
+      alert('Vui lòng bật định vị GPS để sử dụng tính năng cụng ly.');
+      return;
+    }
     const socket = socketRef.current;
-    const safeLat = userLat ?? 10.7769;
-    const safeLng = userLng ?? 106.7009;
+    const safeLat = Number(userLat);
+    const safeLng = Number(userLng);
 
     const payload = {
       targetUserId: friend.id,
@@ -1643,13 +1656,13 @@ export default function App() {
                 safeChibi = localStorage.getItem(`vivu_user_custom_chibi_${currentUserId}`) || null;
                 safeChibiExp = expTime;
               }
-            } catch {}
+            } catch { }
           }
           let safeStatus = (userCustomStatus === 'Khoảnh khắc mới' || userCustomStatus === 'Tâm trạng') ? '' : userCustomStatus;
           if (!safeStatus && currentUserId) {
             try {
               safeStatus = localStorage.getItem(`vivu_user_custom_status_${currentUserId}`) || '';
-            } catch {}
+            } catch { }
           }
 
           await apiClient.updateGps(
@@ -1715,8 +1728,8 @@ export default function App() {
               const mappedFriends = acceptedFriends.map(af => {
                 const livePeer = profiles.find(p => p.id === af.id);
                 const isPeerOnline = livePeer ? (livePeer.is_online === true) : false;
-                const fLat = livePeer?.lat != null ? Number(livePeer.lat) : (af.lat != null ? Number(af.lat) : 10.7769);
-                const fLng = livePeer?.lng != null ? Number(livePeer.lng) : (af.lng != null ? Number(af.lng) : 106.7009);
+                const fLat = livePeer?.lat != null ? Number(livePeer.lat) : (af.lat != null ? Number(af.lat) : null);
+                const fLng = livePeer?.lng != null ? Number(livePeer.lng) : (af.lng != null ? Number(af.lng) : null);
                 const fName = af.name || af.full_name || livePeer?.full_name || 'Bạn bè VIVU';
                 const fAvatar = getSafeAvatar(af.avatar || af.avatar_url || livePeer?.avatar_url);
                 return {
@@ -1790,46 +1803,46 @@ export default function App() {
         });
 
 
-          // Đồng bộ trạng thái online và avatar cho các hội thoại 1-1 theo profiles
-          setConversations(prevConvs => {
-            let convChanged = false;
-            const updatedConvs = prevConvs.map(conv => {
-              if (conv.type === 'group') return conv;
-              const peerId = conv.friendId || conv.partnerId || conv.userId || conv.targetUserId || (
-                conv.id && conv.id.startsWith('conv-direct-')
-                  ? conv.id.replace('conv-direct-', '').split('--').find(p => p !== currentUserId)
-                  : null
-              );
-              if (!peerId) return conv;
+        // Đồng bộ trạng thái online và avatar cho các hội thoại 1-1 theo profiles
+        setConversations(prevConvs => {
+          let convChanged = false;
+          const updatedConvs = prevConvs.map(conv => {
+            if (conv.type === 'group') return conv;
+            const peerId = conv.friendId || conv.partnerId || conv.userId || conv.targetUserId || (
+              conv.id && conv.id.startsWith('conv-direct-')
+                ? conv.id.replace('conv-direct-', '').split('--').find(p => p !== currentUserId)
+                : null
+            );
+            if (!peerId) return conv;
 
-              const livePeer = profiles.find(p => p.id === peerId);
-              const isPeerOnline = livePeer ? (livePeer.is_online === true) : false;
-              const peerName = livePeer?.full_name || livePeer?.name;
-              const peerAvatar = livePeer?.avatar_url || livePeer?.avatar;
+            const livePeer = profiles.find(p => p.id === peerId);
+            const isPeerOnline = livePeer ? (livePeer.is_online === true) : false;
+            const peerName = livePeer?.full_name || livePeer?.name;
+            const peerAvatar = livePeer?.avatar_url || livePeer?.avatar;
 
-              const shouldUpdate =
-                conv.online !== isPeerOnline ||
-                conv.isOnline !== isPeerOnline ||
-                conv.is_online !== isPeerOnline ||
-                (peerName && conv.name !== peerName) ||
-                (peerAvatar && conv.avatar !== peerAvatar);
+            const shouldUpdate =
+              conv.online !== isPeerOnline ||
+              conv.isOnline !== isPeerOnline ||
+              conv.is_online !== isPeerOnline ||
+              (peerName && conv.name !== peerName) ||
+              (peerAvatar && conv.avatar !== peerAvatar);
 
-              if (shouldUpdate) {
-                convChanged = true;
-                return {
-                  ...conv,
-                  online: isPeerOnline,
-                  isOnline: isPeerOnline,
-                  is_online: isPeerOnline,
-                  ...(peerName ? { name: peerName } : {}),
-                  ...(peerAvatar ? { avatar: peerAvatar } : {})
-                };
-              }
-              return conv;
-            });
-
-            return convChanged ? updatedConvs : prevConvs;
+            if (shouldUpdate) {
+              convChanged = true;
+              return {
+                ...conv,
+                online: isPeerOnline,
+                isOnline: isPeerOnline,
+                is_online: isPeerOnline,
+                ...(peerName ? { name: peerName } : {}),
+                ...(peerAvatar ? { avatar: peerAvatar } : {})
+              };
+            }
+            return conv;
           });
+
+          return convChanged ? updatedConvs : prevConvs;
+        });
 
         // 3. Đồng bộ các Story thực sự từ Backend Server nếu có bài đăng mới
         try {
@@ -1838,9 +1851,9 @@ export default function App() {
             // Cập nhật activeStory vào danh sách bạn bè
             setFriends(prevFriends => {
               return prevFriends.map(f => {
-                const friendStory = remoteStories.find(rs => 
-                  (rs.host_id && rs.host_id === f.id) || 
-                  (rs.user_code && rs.user_code === f.user_code) || 
+                const friendStory = remoteStories.find(rs =>
+                  (rs.host_id && rs.host_id === f.id) ||
+                  (rs.user_code && rs.user_code === f.user_code) ||
                   (rs.host_name && (rs.host_name === f.name || rs.host_name === f.full_name))
                 );
                 return {
@@ -1856,7 +1869,7 @@ export default function App() {
               let hasNew = false;
               remoteStories.forEach(rs => {
                 // Kiểm tra xem bài Story này có thuộc về một tài khoản đã có giọt nước hay không
-                const peerIdx = updated.findIndex(s => 
+                const peerIdx = updated.findIndex(s =>
                   (rs.host_id && (s.hostId === rs.host_id || s.host_id === rs.host_id || s.id === rs.host_id)) ||
                   (rs.user_code && s.userCode && s.userCode === rs.user_code) ||
                   (rs.host_name && (s.hostName === rs.host_name || s.name === rs.host_name))
@@ -1900,7 +1913,7 @@ export default function App() {
                       try {
                         localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(mergedStory));
                         localStorage.setItem('vivu_user_active_story', JSON.stringify(mergedStory));
-                      } catch {}
+                      } catch { }
                     }
                   }
                 } else {
@@ -1943,7 +1956,7 @@ export default function App() {
                       try {
                         localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(unshiftedStory));
                         localStorage.setItem('vivu_user_active_story', JSON.stringify(unshiftedStory));
-                      } catch {}
+                      } catch { }
                     }
                   }
                 }
@@ -2024,7 +2037,7 @@ export default function App() {
           }
           localStorage.removeItem('vivu_user_custom_chibi');
           localStorage.removeItem('vivu_user_custom_chibi_expires');
-        } catch {}
+        } catch { }
         if (currentUserId && userLat && userLng) {
           apiClient.updateGps(currentUserId, userLat, userLng, userCustomStatus || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, userCustomSong, null, userPinSkin, userPinMascot, userPinAction, null);
         }
@@ -2044,7 +2057,7 @@ export default function App() {
       try {
         localStorage.removeItem('vivu_user_custom_status');
         localStorage.removeItem('vivu_user_custom_song');
-      } catch {}
+      } catch { }
       if (currentUserId && userLat && userLng) {
         apiClient.updateGps(
           currentUserId,
@@ -2060,7 +2073,7 @@ export default function App() {
           userPinSkin,
           userPinMascot,
           userPinAction
-        ).catch(() => {});
+        ).catch(() => { });
       }
       return;
     }
@@ -2078,7 +2091,7 @@ export default function App() {
           if (scopedKey) localStorage.removeItem(scopedKey);
         }
       }
-    } catch {}
+    } catch { }
   }, [stories, currentUserId, userCustomSong, userCustomStatus, userCustomChibi, userPinSkin, userPinMascot, userPinAction, userLat, userLng]);
 
   // LẮNG NGHE & ĐỒNG BỘ TIN NHẮN THỜI GIAN THỰC (REALTIME CHAT POLLING)
@@ -2191,7 +2204,7 @@ export default function App() {
               const idx = prevConvs.findIndex(c => c.id === directConvId);
               const previewText = msg.text || (msg.image ? 'Đã gửi hình ảnh' : msg.video ? 'Đã gửi video' : msg.is_location ? 'Đã chia sẻ vị trí GPS' : 'Tin nhắn mới');
               const isViewingThisConv = activeTab === 'chat' && activeConversationId === directConvId;
-              
+
               if (idx >= 0) {
                 const cur = prevConvs[idx];
                 const updated = [...prevConvs];
@@ -2327,7 +2340,7 @@ export default function App() {
               return {
                 ...c,
                 unread: false,
-                lastMessage: lastM ? (lastM.isHeart || lastM.text === '❤️' ? '❤️ Đã thả một trái tim' : lastM.image ? 'Đã gửi hình ảnh' : lastM.video ? 'Đã gửi video' : lastM.isLocation ? '📍 Đã chia sẻ vị trí GPS' : lastM.text || 'Tin nhắn mới') : c.lastMessage,
+                lastMessage: lastM ? (lastM.isHeart || lastM.text === '❤️' ? 'Đã thả một trái tim' : lastM.image ? 'Đã gửi hình ảnh' : lastM.video ? 'Đã gửi video' : lastM.isLocation ? 'Đã chia sẻ vị trí GPS' : lastM.text || 'Tin nhắn mới') : c.lastMessage,
                 messages: mapped
               };
             }
@@ -2465,7 +2478,7 @@ export default function App() {
         };
         localStorage.setItem('vivu_user_profile_data', JSON.stringify(merged));
         if (scopedKey) localStorage.setItem(scopedKey, JSON.stringify(merged));
-      } catch {}
+      } catch { }
 
       const res = await updateProfile({ ...profileData, userId: profileData.userId || currentUserId });
       if (res && res.success !== false) {
@@ -2585,8 +2598,8 @@ export default function App() {
 
   // Xóa Story khỏi ứng dụng và cơ sở dữ liệu (Hỗ trợ tùy chọn lưu trữ Kho Kỷ Niệm)
   const handleDeleteStory = async (targetStoryOrId, { preserveInArchive = false } = {}) => {
-    const storyId = typeof targetStoryOrId === 'string' 
-      ? targetStoryOrId 
+    const storyId = typeof targetStoryOrId === 'string'
+      ? targetStoryOrId
       : (targetStoryOrId?.id || targetStoryOrId?.activeStory?.id);
     if (!storyId) return;
 
@@ -2596,10 +2609,10 @@ export default function App() {
       try {
         const saved = localStorage.getItem(archiveKey);
         let list = saved ? JSON.parse(saved) : [];
-        const storyObj = typeof targetStoryOrId === 'object' 
-          ? targetStoryOrId 
+        const storyObj = typeof targetStoryOrId === 'object'
+          ? targetStoryOrId
           : stories.find(s => s.id === storyId || s.activeStory?.id === storyId);
-        
+
         if (storyObj) {
           const actual = storyObj.activeStory || storyObj;
           const itemToArchive = {
@@ -2626,7 +2639,7 @@ export default function App() {
           list = list.filter(item => item.id !== storyId);
           localStorage.setItem(archiveKey, JSON.stringify(list));
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     // Gỡ khỏi danh sách Story hiển thị trên bản đồ 3D
@@ -2643,7 +2656,7 @@ export default function App() {
           remainingOwnerStories = parsed.filter(s => s.id !== storyId && s.activeStory?.id !== storyId);
         }
       }
-    } catch {}
+    } catch { }
 
     if (remainingOwnerStories.length === 0) {
       // Đã xóa hết 100% Story -> Dọn sạch triệt để mọi khóa Story, Song và Status
@@ -2665,13 +2678,13 @@ export default function App() {
         try {
           localStorage.removeItem(k);
           safeRemoveItem(k);
-        } catch {}
+        } catch { }
       });
 
       // Dừng phát nhạc ngay lập tức khi xóa Story
       try {
         storyAudioPlayer.stop();
-      } catch {}
+      } catch { }
 
       setUserCustomSong(null);
       setUserCustomStatus('');
@@ -2679,7 +2692,7 @@ export default function App() {
       // Cập nhật Profile và GPS xóa sạch nhạc và tâm trạng trên Backend
       try {
         await updateProfile({ customStatus: 'clear', custom_song: null });
-      } catch {}
+      } catch { }
 
       try {
         await apiClient.updateGps(
@@ -2721,8 +2734,8 @@ export default function App() {
             localStorage.removeItem('vivu_user_custom_song');
             if (currentUserId) localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
             storyAudioPlayer.stop();
-          } catch {}
-          await updateProfile({ custom_song: null }).catch(() => {});
+          } catch { }
+          await updateProfile({ custom_song: null }).catch(() => { });
           await apiClient.updateGps(
             currentUserId,
             userLat,
@@ -2738,9 +2751,9 @@ export default function App() {
             userPinMascot,
             userPinAction,
             userCustomChibiExpiresAt
-          ).catch(() => {});
+          ).catch(() => { });
         }
-      } catch {}
+      } catch { }
     }
 
     // Gửi request DELETE lên backend server
@@ -2804,7 +2817,7 @@ export default function App() {
     const hostName = story.hostName || story.host_name || story.name;
     const targetUserId = story.hostId || story.host_id || story.id;
     const isAlreadyFriend = friends.some(f => (targetUserId && f.id === targetUserId) || f.name === hostName);
-    
+
     if (isAlreadyFriend) {
       if (targetUserId && currentUserId) {
         try {
@@ -2873,7 +2886,7 @@ export default function App() {
         if (currentUserId && !currentUserId.startsWith('client-')) {
           localStorage.setItem(`vivu_user_active_stories_${currentUserId}`, JSON.stringify(ownerActiveList));
         }
-      } catch {}
+      } catch { }
       return updated;
     });
     try {
@@ -2894,7 +2907,7 @@ export default function App() {
       };
       archList = [itemToArchive, ...archList.filter(item => item.id !== itemToArchive.id)];
       localStorage.setItem(archiveKey, JSON.stringify(archList));
-    } catch {}
+    } catch { }
     // Đồng bộ suy nghĩ và bài hát nhạc nền vào ghim giọt nước của BẠN (Chỉ lưu nếu có nội dung thực, không lưu tiêu đề mặc định)
     const rawNote = (storyData.texts && storyData.texts[0]?.text) || storyData.description || '';
     const statusNote = (rawNote && rawNote !== 'Khoảnh khắc mới' && rawNote !== 'Tâm trạng') ? rawNote : '';
@@ -2903,7 +2916,7 @@ export default function App() {
       try {
         localStorage.setItem("vivu_user_custom_status", statusNote);
         if (currentUserId) localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, statusNote);
-      } catch {}
+      } catch { }
     }
     if (storyData.music) {
       setUserCustomSong(storyData.music);
@@ -2911,7 +2924,7 @@ export default function App() {
         const songStr = JSON.stringify(storyData.music);
         localStorage.setItem("vivu_user_custom_song", songStr);
         if (currentUserId) localStorage.setItem(`vivu_user_custom_song_${currentUserId}`, songStr);
-      } catch {}
+      } catch { }
     }
     if (currentUserId && userLat && userLng) {
       apiClient.updateGps(
@@ -2979,7 +2992,7 @@ export default function App() {
       try {
         localStorage.setItem("vivu_user_custom_status", customStatus);
         if (currentUserId) localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, customStatus);
-      } catch {}
+      } catch { }
     }
 
     // 3. Cập nhật Nhạc nền
@@ -2994,7 +3007,7 @@ export default function App() {
           localStorage.removeItem("vivu_user_custom_song");
           if (currentUserId) localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
         }
-      } catch {}
+      } catch { }
     }
 
     // 4. Cập nhật Linh vật Chibi Mascot
@@ -3017,7 +3030,7 @@ export default function App() {
             localStorage.removeItem(`vivu_user_chibi_expires_at_${currentUserId}`);
           }
         }
-      } catch {}
+      } catch { }
     }
 
     // 5. Đồng bộ vị trí & thông tin Profile lên Backend
@@ -3054,7 +3067,7 @@ export default function App() {
         localStorage.removeItem(`vivu_user_custom_chibi_${currentUserId}`);
         localStorage.removeItem(`vivu_user_chibi_expires_at_${currentUserId}`);
       }
-    } catch {}
+    } catch { }
     if (currentUserId && userLat && userLng) {
       await apiClient.updateGps(
         currentUserId,
@@ -3083,9 +3096,9 @@ export default function App() {
       if (currentUserId) {
         localStorage.removeItem(`vivu_user_custom_status_${currentUserId}`);
       }
-    } catch {}
+    } catch { }
     if (currentUserId) {
-      updateProfile({ customStatus: 'clear' }).catch(() => {});
+      updateProfile({ customStatus: 'clear' }).catch(() => { });
       if (userLat && userLng) {
         await apiClient.updateGps(
           currentUserId,
@@ -3120,9 +3133,9 @@ export default function App() {
       if (currentUserId) {
         localStorage.setItem(`vivu_user_custom_status_${currentUserId}`, trimmed);
       }
-    } catch {}
+    } catch { }
     if (currentUserId) {
-      updateProfile({ customStatus: trimmed }).catch(() => {});
+      updateProfile({ customStatus: trimmed }).catch(() => { });
       if (userLat && userLng) {
         await apiClient.updateGps(
           currentUserId,
@@ -3180,7 +3193,7 @@ export default function App() {
         if (currentUserId && !currentUserId.startsWith('client-')) {
           localStorage.setItem(`vivu_user_active_stories_${currentUserId}`, JSON.stringify(ownerActiveList));
         }
-      } catch {}
+      } catch { }
       return updated;
     });
     try {
@@ -3188,7 +3201,7 @@ export default function App() {
       if (currentUserId && !currentUserId.startsWith('client-')) {
         localStorage.setItem(`vivu_user_active_story_${currentUserId}`, JSON.stringify(newStory));
       }
-    } catch {}
+    } catch { }
     setIsQuickSnapOpen(false);
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.5 } });
     setActiveTab('social');
@@ -3214,28 +3227,28 @@ export default function App() {
   };
 
   // Gửi tin nhắn trong Chat (Đồng bộ tức thì lên Backend để thiết bị kia nhận được)
-  const handleSendMessage = ({ 
-    conversationId, 
-    text, 
-    image, 
-    video, 
+  const handleSendMessage = ({
+    conversationId,
+    text,
+    image,
+    video,
     type,
     isSticker,
     is_sticker,
     sticker,
     soundType,
     sound_type,
-    isLocation, 
-    is_location, 
-    isLiveLocation, 
-    is_live_location, 
-    liveDurationMinutes, 
-    live_duration_minutes, 
-    isPoll, 
-    is_poll, 
-    poll, 
-    lat, 
-    lng 
+    isLocation,
+    is_location,
+    isLiveLocation,
+    is_live_location,
+    liveDurationMinutes,
+    live_duration_minutes,
+    isPoll,
+    is_poll,
+    poll,
+    lat,
+    lng
   }) => {
     const isLive = Boolean(isLiveLocation || is_live_location);
     const hasPoll = Boolean(isPoll || is_poll || poll);
@@ -3332,7 +3345,7 @@ export default function App() {
           ...c,
           isStranger: false,
           hasReplied: true,
-          lastMessage: '❤️ Đã thả một trái tim',
+          lastMessage: 'Đã thả một trái tim',
           time: 'Vừa xong',
           messages: [...c.messages, newMsg]
         };
@@ -3563,9 +3576,9 @@ export default function App() {
   // Định vị lại trung tâm GPS người dùng
   const handleRecenterMap = () => {
     if (window.__vivu_map) {
-      const userLng = Number(location?.lng ?? location?.longitude ?? 108.2192);
-      const userLat = Number(location?.lat ?? location?.latitude ?? 16.0388);
-      if (!isNaN(userLat) && !isNaN(userLng)) {
+      const userLng = location?.lng != null ? Number(location.lng) : (location?.longitude != null ? Number(location.longitude) : null);
+      const userLat = location?.lat != null ? Number(location.lat) : (location?.latitude != null ? Number(location.latitude) : null);
+      if (userLat != null && userLng != null && !isNaN(userLat) && !isNaN(userLng)) {
         window.__vivu_map.flyTo([userLat, userLng], 16.2, { duration: 0.9 });
       }
     }
@@ -3574,32 +3587,32 @@ export default function App() {
   // Trạng thái biến hình thông minh phong cách Apple Dynamic Island
   const activeIslandAlert = incomingMessageToast
     ? {
-        type: 'message',
-        id: incomingMessageToast.id || 'msg-toast',
-        title: incomingMessageToast.senderName || 'Tin nhắn mới',
-        subtitle: incomingMessageToast.text || incomingMessageToast.content || 'Đã gửi cho bạn một tin nhắn',
-        avatar: incomingMessageToast.senderAvatar,
-        badge: incomingMessageToast.isFriendRequest ? 'Lời mời kết bạn' : 'Tin nhắn mới',
-        badgeColor: incomingMessageToast.isFriendRequest ? '#FF2A85' : '#00E5FF',
-        onClick: () => {
-          if (incomingMessageToast.action) {
-            incomingMessageToast.action();
-          } else if (incomingMessageToast.isFriendRequest) {
-            setIsFriendshipManagerOpen(true);
+      type: 'message',
+      id: incomingMessageToast.id || 'msg-toast',
+      title: incomingMessageToast.senderName || 'Tin nhắn mới',
+      subtitle: incomingMessageToast.text || incomingMessageToast.content || 'Đã gửi cho bạn một tin nhắn',
+      avatar: incomingMessageToast.senderAvatar,
+      badge: incomingMessageToast.isFriendRequest ? 'Lời mời kết bạn' : 'Tin nhắn mới',
+      badgeColor: incomingMessageToast.isFriendRequest ? '#FF2A85' : '#00E5FF',
+      onClick: () => {
+        if (incomingMessageToast.action) {
+          incomingMessageToast.action();
+        } else if (incomingMessageToast.isFriendRequest) {
+          setIsFriendshipManagerOpen(true);
+        } else {
+          setActiveTab('chat');
+          if (incomingMessageToast.conversationId) {
+            setActiveConversationId(incomingMessageToast.conversationId);
           } else {
-            setActiveTab('chat');
-            if (incomingMessageToast.conversationId) {
-              setActiveConversationId(incomingMessageToast.conversationId);
-            } else {
-              setActiveConversationId(null);
-            }
+            setActiveConversationId(null);
           }
-          setIncomingMessageToast(null);
-        },
-        onDismiss: () => setIncomingMessageToast(null)
-      }
+        }
+        setIncomingMessageToast(null);
+      },
+      onDismiss: () => setIncomingMessageToast(null)
+    }
     : radarPingNotification
-    ? {
+      ? {
         type: 'radar',
         id: radarPingNotification.id || 'radar-alert',
         title: radarPingNotification.item?.hostName || radarPingNotification.title || 'Radar Story',
@@ -3615,18 +3628,18 @@ export default function App() {
         },
         onDismiss: () => setRadarPingNotification(null)
       }
-    : null;
+      : null;
 
   // Đã xóa Auth Gate cưỡng chế màn hình đen. 
   // Ứng dụng tự động vào thẳng Bản đồ 3D (Chế độ Khách), không bao giờ bị chớp đen màn hình khi mở trên điện thoại.
 
   return (
     <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden overscroll-none select-none font-sans text-white bg-[#07090E]">
-      
+
       {/* 0.1 LOGO VIVU ĐỘC LẬP Ở GÓC TRÁI TRÊN CÙNG (Ẩn khi đang xem hồ sơ người khác) */}
       {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && !selectedUserProfile && !selectedGuestProfile && (
-        <TopAppLogo 
-          onClick={handleRecenterMap} 
+        <TopAppLogo
+          onClick={handleRecenterMap}
         />
       )}
 
@@ -3751,21 +3764,21 @@ export default function App() {
       )}
 
       {/* 2.05 BANNER PHÁT HIỆN BẠN BÈ Ở CẬN (< 15M) & ĐANG ONLINE - CHẠM HOẶC LẮC ĐIỆN THOẠI ĐỂ CỤNG LY 3D */}
-      {(activeTab === 'social' || activeTab === 'friends') && 
-        nearbyFriend && 
-        (nearbyFriend.isOnline === true || nearbyFriend.is_online === true || nearbyFriend.online === true) && 
+      {(activeTab === 'social' || activeTab === 'friends') &&
+        nearbyFriend &&
+        (nearbyFriend.isOnline === true || nearbyFriend.is_online === true || nearbyFriend.online === true) &&
         !isBumpModalOpen && (
-        <ProximityBumpBanner
-          nearbyFriend={nearbyFriend}
-          distanceMeters={nearbyDistanceMeters}
-          onTriggerBump={() => handleInitiateBump(nearbyFriend)}
-          onDismiss={() => setDismissedBumpPeerId(nearbyFriend.id)}
-        />
-      )}
+          <ProximityBumpBanner
+            nearbyFriend={nearbyFriend}
+            distanceMeters={nearbyDistanceMeters}
+            onTriggerBump={() => handleInitiateBump(nearbyFriend)}
+            onDismiss={() => setDismissedBumpPeerId(nearbyFriend.id)}
+          />
+        )}
 
       {/* 2.1 HUY HIỆU CỤM: THÔNG BÁO CÓ NGƯỜI ĐANG ĐỨNG CÙNG VỊ TRÍ TRONG TAB XÃ HỘI */}
       {activeTab === 'social' && coLocatedPeer && (
-        <div 
+        <div
           onClick={() => {
             if (window.__vivu_map) {
               const peerLat = Number(coLocatedPeer.lat);
@@ -3833,20 +3846,20 @@ export default function App() {
       )}
 
       {/* BANNER GỢI Ý CHUYỂN LINK HTTPS TUNNEL ĐỂ BẬT GPS TRÊN DI ĐỘNG */}
-      {typeof window !== 'undefined' && 
-        window.location.protocol === 'http:' && 
-        !window.location.hostname.includes('localhost') && 
-        publicTunnelUrl && 
+      {typeof window !== 'undefined' &&
+        window.location.protocol === 'http:' &&
+        !window.location.hostname.includes('localhost') &&
+        publicTunnelUrl &&
         /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && (
-        <a
-          href={publicTunnelUrl}
-          className="fixed top-2 left-1/2 -translate-x-1/2 z-60 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-[0_4px_16px_rgba(14,165,233,0.4)] border border-white/20 active:scale-95 transition-all"
-        >
-          <i className="bi bi-geo-alt-fill text-amber-300"></i>
-          <span>Dùng link HTTPS để bật GPS chính xác</span>
-          <i className="bi bi-arrow-right-short text-base"></i>
-        </a>
-      )}
+          <a
+            href={publicTunnelUrl}
+            className="fixed top-2 left-1/2 -translate-x-1/2 z-60 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-[0_4px_16px_rgba(14,165,233,0.4)] border border-white/20 active:scale-95 transition-all"
+          >
+            <i className="bi bi-geo-alt-fill text-amber-300"></i>
+            <span>Dùng link HTTPS để bật GPS chính xác</span>
+            <i className="bi bi-arrow-right-short text-base"></i>
+          </a>
+        )}
 
       {/* 5. THANH DOCK ĐÁY BÓNG MỜ TRONG SUỐT (ẨN HOÀN TOÀN KHI ĐANG MỞ PHÒNG CHAT ĐỂ TỐI ĐA KHÔNG GIAN BÀN PHÍM) */}
       <VivuBottomDock
@@ -4079,14 +4092,14 @@ export default function App() {
                 localStorage.removeItem('vivu_user_custom_chibi_expires');
               }
             }
-          } catch {}
+          } catch { }
           if (currentUserId) {
-            updateProfile({ 
-              customStatus: isClearStatus ? 'clear' : resolvedStatus, 
-              customChibi: isRemoveChibi ? 'remove' : resolvedChibi, 
+            updateProfile({
+              customStatus: isClearStatus ? 'clear' : resolvedStatus,
+              customChibi: isRemoveChibi ? 'remove' : resolvedChibi,
               chibi_expires_at: resolvedExp,
               custom_song: song || null
-            }).catch(() => {});
+            }).catch(() => { });
             if (userLat && userLng) {
               const safeChibi = isRemoveChibi ? 'remove' : resolvedChibi;
               const safeExp = resolvedChibi ? (resolvedExp || 0) : 0;
@@ -4133,12 +4146,12 @@ export default function App() {
           storyAudioPlayer.stop();
           setUserCustomSong(null);
           safeRemoveItem('vivu_user_custom_song');
-          try { 
-            localStorage.removeItem('vivu_user_custom_song'); 
+          try {
+            localStorage.removeItem('vivu_user_custom_song');
             if (currentUserId) localStorage.removeItem(`vivu_user_custom_song_${currentUserId}`);
-          } catch {}
+          } catch { }
           if (currentUserId) {
-            updateProfile({ custom_song: null }).catch(() => {});
+            updateProfile({ custom_song: null }).catch(() => { });
             if (userLat && userLng) {
               apiClient.updateGps(currentUserId, userLat, userLng, userCustomStatus || '', currentUserName, currentUserAvatar, currentUserCode, user?.phone, null, userCustomChibi, userPinSkin, userPinMascot, userPinAction, userCustomChibiExpiresAt);
             }
@@ -4173,10 +4186,10 @@ export default function App() {
               if (nextAction) localStorage.setItem(`vivu_user_pin_action_${currentUserId}`, nextAction);
               else localStorage.removeItem(`vivu_user_pin_action_${currentUserId}`);
             }
-          } catch {}
+          } catch { }
 
           if (currentUserId) {
-            updateProfile({ pinSkin: nextSkin, pinMascot: nextMascot, pinAction: nextAction }).catch(() => {});
+            updateProfile({ pinSkin: nextSkin, pinMascot: nextMascot, pinAction: nextAction }).catch(() => { });
             if (userLat && userLng) {
               apiClient.updateGps(
                 currentUserId,
@@ -4192,13 +4205,13 @@ export default function App() {
                 nextSkin,
                 nextMascot,
                 nextAction
-              ).catch(() => {});
+              ).catch(() => { });
             }
           }
 
           try {
             confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
-          } catch {}
+          } catch { }
         }}
       />
 
@@ -4372,7 +4385,7 @@ export default function App() {
         />
       )}
 
-            {/* 16. TAB TÔI (PROFILE TINDER CARD) */}
+      {/* 16. TAB TÔI (PROFILE TINDER CARD) */}
       {activeTab === 'profile' && (
         <ProfilePageView
           key={currentUserId || 'guest'}
@@ -4401,7 +4414,6 @@ export default function App() {
           onRequestLocation={requestLocation}
           onOpenEditProfile={() => setIsEditProfileOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onOpenAccountSwitcher={() => setIsAccountSwitcherOpen(true)}
           onUpdateAvatar={handleDirectUpdateAvatar}
           onUpdateProfile={handleUpdateFullProfile}
           onOpenRightFriendshipPanel={() => setIsRightFriendshipPanelOpen(true)}
@@ -4464,22 +4476,6 @@ export default function App() {
           }
         }}
         onReplayIntro={() => setIsIntroPlaying(true)}
-      />
-
-      {/* 17b. MODAL CHUYỂN ĐỔI NHANH TÀI KHOẢN (ACCOUNT SWITCHER) */}
-      <AccountSwitcherModal
-        isOpen={isAccountSwitcherOpen}
-        onClose={() => setIsAccountSwitcherOpen(false)}
-        currentUser={user}
-        onSwitchAccount={async (acc) => {
-          if (currentUserId) {
-            try { await apiClient.setOffline(currentUserId); } catch (_) {}
-          }
-          if (acc?.email) {
-            await login(acc.email, acc.password || 'vivu123');
-          }
-          setIsAccountSwitcherOpen(false);
-        }}
       />
 
       {/* 18. MÀN HÌNH KHÓA TRANG / APP LOCK */}
@@ -4686,7 +4682,7 @@ export default function App() {
                 socketRef.current.emit('troll:send', sendPayload);
                 socketRef.current.emit('meme_troll', sendPayload);
               }
-            } catch {}
+            } catch { }
           }}
         />
       )}

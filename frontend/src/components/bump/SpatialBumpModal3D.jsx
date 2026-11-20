@@ -307,7 +307,9 @@ export default function SpatialBumpModal3D({
             </span>
           </div>
           <span className="text-xs font-bold text-white max-w-[90px] truncate">{myName}</span>
-          <span className="text-[10px] font-mono text-[#00F5FF] font-bold">BẠN {isMyReady ? '✓' : ''}</span>
+          <span className="text-[10px] font-mono text-[#00F5FF] font-bold inline-flex items-center justify-center gap-1">
+            BẠN {isMyReady && <i className="bi bi-check-lg text-emerald-400 text-xs font-black" aria-hidden="true"></i>}
+          </span>
         </div>
 
         {/* Cầu hạt năng lượng nối 2 Avatar */}
@@ -367,8 +369,9 @@ export default function SpatialBumpModal3D({
         <div className="space-y-2">
           {clinkTriggered ? (
             <div className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-400 to-[#10FFA0] text-[#08202E] font-black text-xs shadow-[0_0_25px_rgba(16,255,160,0.6)] flex items-center justify-center gap-2 animate-bounce">
-              <i className="bi bi-cup-straw text-base"></i>
-              <span>🎉 ĐANG CỤNG LY... KENG!</span>
+              <i className="bi bi-cup-straw text-base" aria-hidden="true"></i>
+              <i className="bi bi-stars text-amber-300 text-base" aria-hidden="true"></i>
+              <span>ĐANG CỤNG LY... KENG!</span>
             </div>
           ) : isMyReady ? (
             <div className="w-full py-3 px-4 rounded-xl bg-neutral-800/90 border border-white/20 text-[#00E5FF] font-bold text-xs flex items-center justify-center gap-2">
@@ -381,8 +384,8 @@ export default function SpatialBumpModal3D({
               onClick={onReady}
               className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-400 via-[#FF2A85] to-[#00E5FF] hover:opacity-95 text-white font-black text-xs shadow-[0_0_25px_rgba(255,42,133,0.7)] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2 animate-pulse font-display"
             >
-              <i className="bi bi-lightning-charge-fill text-base text-yellow-300"></i>
-              <span>⚡ {partnerName} ĐÃ SẴN SÀNG! CHẠM ĐỂ CỤNG LY!</span>
+              <i className="bi bi-lightning-charge-fill text-base text-yellow-300" aria-hidden="true"></i>
+              <span>{partnerName} ĐÃ SẴN SÀNG! CHẠM ĐỂ CỤNG LY!</span>
             </button>
           ) : (
             <button

@@ -22,8 +22,8 @@ export default function StoryStudioModal({
   onClose,
   onSubmitStory,
   userLocationName = 'Vị trí GPS của Bạn',
-  userLat = 10.7769,
-  userLng = 106.7009,
+  userLat = null,
+  userLng = null,
   friends = []
 }) {
   const [phase, setPhase] = useState('CAMERA'); // 'CAMERA' | 'EDIT'

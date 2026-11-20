@@ -189,6 +189,28 @@ export function initSocketIO(httpServer) {
 
         console.log(`[Socket.IO] 🥂 Spatial Bump initiated by ${userId} to ${targetUserId}`);
 
+        // Xác thực vị trí GPS: Người dùng BẮT BUỘC phải có vị trí thực tế hợp lệ mới được cụng ly
+        const hasInputCoords = lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng));
+        let validLat = null;
+        let validLng = null;
+
+        if (hasInputCoords) {
+          validLat = Number(lat);
+          validLng = Number(lng);
+        } else {
+          const myProfile = dbStore.profiles.find(p => p.id === userId);
+          if (myProfile && myProfile.lat != null && myProfile.lng != null && !isNaN(Number(myProfile.lat)) && !isNaN(Number(myProfile.lng))) {
+            validLat = Number(myProfile.lat);
+            validLng = Number(myProfile.lng);
+          }
+        }
+
+        if (validLat == null || validLng == null) {
+          console.warn(`[Socket.IO] ⚠️ Spatial Bump rejected: User ${userId} has no valid GPS location`);
+          socket.emit('spatial:bump-error', { message: 'Vị trí GPS không khả dụng để cụng ly' });
+          return;
+        }
+
         const sessionKey = getBumpSessionKey(userId, targetUserId);
         activeBumpSessions.set(sessionKey, {
           user1: userId,
@@ -199,8 +221,8 @@ export function initSocketIO(httpServer) {
           targetUserId,
           targetName: data.targetName || 'Bạn bè',
           targetAvatar: data.targetAvatar,
-          lat: Number(lat || 10.7769),
-          lng: Number(lng || 106.7009),
+          lat: validLat,
+          lng: validLng,
           readyUsers: new Set(),
           createdAt: Date.now()
         });
@@ -213,8 +235,8 @@ export function initSocketIO(httpServer) {
           targetUserId,
           targetName: data.targetName || 'Bạn bè',
           targetAvatar: data.targetAvatar,
-          lat: Number(lat || 10.7769),
-          lng: Number(lng || 106.7009),
+          lat: validLat,
+          lng: validLng,
           timestamp: Date.now()
         };
 
@@ -251,13 +273,20 @@ export function initSocketIO(httpServer) {
         let session = activeBumpSessions.get(sessionKey);
 
         if (!session) {
+          const myProfile = dbStore.profiles.find(p => p.id === userId);
+          const pLat = myProfile?.lat != null && !isNaN(Number(myProfile.lat)) ? Number(myProfile.lat) : null;
+          const pLng = myProfile?.lng != null && !isNaN(Number(myProfile.lng)) ? Number(myProfile.lng) : null;
+          if (pLat == null || pLng == null) {
+            console.warn(`[Socket.IO] ⚠️ spatial:bump-ready rejected: no session and no valid GPS for ${userId}`);
+            return;
+          }
           session = {
             user1: userId,
             user2: targetUserId,
             initiatorId: userId,
             targetUserId,
-            lat: 10.7769,
-            lng: 106.7009,
+            lat: pLat,
+            lng: pLng,
             readyUsers: new Set(),
             createdAt: Date.now()
           };
@@ -282,6 +311,11 @@ export function initSocketIO(httpServer) {
           let jointStory = null;
           try {
             const jointTitle = `🎉 ${session.initiatorName || 'Bạn'} & ${session.targetName || 'Bạn bè'} vừa cụng ly chúc mừng cùng nhau!`;
+            const hasSessionCoords = session.lat != null && session.lng != null && !isNaN(Number(session.lat)) && !isNaN(Number(session.lng));
+            const jointDesc = hasSessionCoords
+              ? `Vừa cụng ly chúc mừng ngoài đời thực tại tọa độ ${Number(session.lat).toFixed(4)}, ${Number(session.lng).toFixed(4)}!`
+              : `Vừa cụng ly chúc mừng ngoài đời thực cùng nhau!`;
+
             jointStory = await dbService.createStory({
               host_id: session.initiatorId || userId,
               host_name: session.initiatorName || 'Tôi',
@@ -290,10 +324,10 @@ export function initSocketIO(httpServer) {
               partner_name: session.targetName || '',
               partner_avatar: session.targetAvatar || '',
               title: jointTitle,
-              description: `Vừa cụng ly chúc mừng ngoài đời thực tại tọa độ ${Number(session.lat || 10.7769).toFixed(4)}, ${Number(session.lng || 106.7009).toFixed(4)}!`,
+              description: jointDesc,
               category: 'hangout',
-              lat: Number(session.lat || 10.7769),
-              lng: Number(session.lng || 106.7009),
+              lat: hasSessionCoords ? Number(session.lat) : null,
+              lng: hasSessionCoords ? Number(session.lng) : null,
               is_joint: true,
               expiry_hours: 6
             });

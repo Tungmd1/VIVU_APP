@@ -21,19 +21,6 @@ export const authController = {
     }
   },
 
-  async resetPasswordMock(req, res) {
-    try {
-      const { email, newPassword, otp } = req.body;
-      if (!otp) {
-        return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã OTP' });
-      }
-      const result = await dbService.resetPasswordMock({ email, newPassword });
-      res.json(result);
-    } catch (err) {
-      res.status(400).json({ success: false, message: err.message });
-    }
-  },
-
   async syncOAuthAccount(req, res) {
     const authorization = req.headers.authorization || '';
     const accessToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1];

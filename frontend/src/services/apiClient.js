@@ -69,21 +69,6 @@ export const apiClient = {
     }
   },
 
-  async resetPasswordMock(email, newPassword, otp) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/auth/reset-password-mock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, newPassword, otp })
-      });
-      const json = await res.json();
-      return json;
-    } catch (err) {
-      console.warn('[API Client] resetPasswordMock error:', err.message);
-      throw err;
-    }
-  },
-
   async syncSupabaseAccount(accessToken) {
     const res = await fetch(`${API_BASE_URL}/auth/oauth/sync`, {
       method: 'POST',

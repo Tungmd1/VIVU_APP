@@ -99,6 +99,8 @@ export default function PinWardrobeModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Đóng tủ ghim hồ sơ"
+            title="Đóng"
             className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer shrink-0"
           >
             <i className="bi bi-x-lg text-xs" />

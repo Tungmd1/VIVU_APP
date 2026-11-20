@@ -25,6 +25,8 @@ export default function StoryFiltersAdjuster({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Đóng bộ lọc màu"
+            title="Đóng"
             className="w-8 h-8 rounded-full bg-white/10 text-white/70 hover:text-white flex items-center justify-center"
           >
             <i className="bi bi-x-lg text-sm"></i>
@@ -97,6 +99,10 @@ export default function StoryFiltersAdjuster({
                 max="150"
                 value={adjustments.brightness}
                 onChange={e => onChangeAdjustment('brightness', Number(e.target.value))}
+                aria-label="Độ sáng Story"
+                aria-valuemin="50"
+                aria-valuemax="150"
+                aria-valuenow={adjustments.brightness}
                 className="w-full accent-cyan-400"
               />
             </div>
@@ -115,6 +121,10 @@ export default function StoryFiltersAdjuster({
                 max="150"
                 value={adjustments.contrast}
                 onChange={e => onChangeAdjustment('contrast', Number(e.target.value))}
+                aria-label="Độ tương phản Story"
+                aria-valuemin="50"
+                aria-valuemax="150"
+                aria-valuenow={adjustments.contrast}
                 className="w-full accent-cyan-400"
               />
             </div>
@@ -133,6 +143,10 @@ export default function StoryFiltersAdjuster({
                 max="200"
                 value={adjustments.saturation}
                 onChange={e => onChangeAdjustment('saturation', Number(e.target.value))}
+                aria-label="Độ bão hòa màu Story"
+                aria-valuemin="0"
+                aria-valuemax="200"
+                aria-valuenow={adjustments.saturation}
                 className="w-full accent-cyan-400"
               />
             </div>
@@ -151,6 +165,10 @@ export default function StoryFiltersAdjuster({
                 max="80"
                 value={adjustments.vignette}
                 onChange={e => onChangeAdjustment('vignette', Number(e.target.value))}
+                aria-label="Độ tối góc viền (Vignette)"
+                aria-valuemin="0"
+                aria-valuemax="80"
+                aria-valuenow={adjustments.vignette}
                 className="w-full accent-cyan-400"
               />
             </div>

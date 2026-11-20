@@ -107,21 +107,26 @@ export function getPersonalityRadar(userId = 'default') {
   const km = Math.min(50, data.distanceKm || 10);
   const spatial = Math.min(98, Math.max(35, Math.round(50 + km * 1.2)));
 
-  // Phân tích danh hiệu phong cách từ điểm số
-  let vibeTitle = 'Chúa Hề Thần Tốc ⚡';
+  // Phân tích danh hiệu phong cách từ điểm số (chuẩn hóa Bootstrap Icons tách riêng icon)
+  let vibeTitle = 'Chúa Hề Thần Tốc';
+  let vibeIcon = 'bi-lightning-charge-fill';
   let vibeDesc = 'Rep tin siêu nhanh và cực kỳ thích ném meme trêu bạn bè.';
 
   if (blunt > 65 && speed < 50) {
-    vibeTitle = 'Chúa Ngâm Tin Cục Súc 😴';
+    vibeTitle = 'Chúa Ngâm Tin Cục Súc';
+    vibeIcon = 'bi-moon-stars-fill';
     vibeDesc = 'Ít khi rep tin, nói câu nào cộc lốc câu đó nhưng rất thẳng tính.';
   } else if (troll > 75) {
-    vibeTitle = 'Thánh Nhây Không Đối Thủ 🐱';
+    vibeTitle = 'Thánh Nhây Không Đối Thủ';
+    vibeIcon = 'bi-emoji-laughing-fill';
     vibeDesc = 'Hở ra là ném meme bựa, tạo tiếng cười cho mọi cuộc trò chuyện.';
   } else if (warmth > 75) {
-    vibeTitle = 'Thiên Sứ Ấm Áp & Lắng Nghe 💖';
+    vibeTitle = 'Thiên Sứ Ấm Áp & Lắng Nghe';
+    vibeIcon = 'bi-heart-fill';
     vibeDesc = 'Dịu dàng, nhắn tin có tâm, luôn biết cách quan tâm đối phương.';
   } else if (spatial > 75) {
-    vibeTitle = 'Nhà Thám Hiểm Chân Đi 🏍️';
+    vibeTitle = 'Nhà Thám Hiểm Chân Đi';
+    vibeIcon = 'bi-compass-fill';
     vibeDesc = 'Thích lượn phố, không gian mở, năng lượng dồi dào suốt ngày.';
   }
 
@@ -132,6 +137,7 @@ export function getPersonalityRadar(userId = 'default') {
     warmth,
     spatial,
     vibeTitle,
+    vibeIcon,
     vibeDesc
   };
 }

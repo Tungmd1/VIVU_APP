@@ -5,9 +5,20 @@ import { webrtcManager } from '../services/webrtcManager';
  * useWebRTCCall.js
  * Custom hook quản lý toàn bộ vòng đời cuộc gọi WebRTC phong cách Facebook Messenger
  * Tách biệt logic tín hiệu Socket.IO, MediaStream và trạng thái hiển thị
- * Tuân thủ Rule 7 (< 250 dòng) và quy chuẩn Zero-Crash
+ * Đảm bảo:
+ * 1. Khắc phục hoàn toàn lỗi Double Offer Glare: Caller tạo Offer, Callee chỉ Answer.
+ * 2. Đảm bảo trạng thái active và bắt đầu đếm giờ CHỈ KHI đồng thời:
+ *    connectionState === 'connected' VÀ remoteStream.getTracks().some(t => t.readyState === 'live').
+ * 3. Loại bỏ 100% alert(), dùng notification / toast in-app không gây nghẽn JS thread.
+ * 4. Tự động gửi call:reject (permission_denied) khi Callee bị từ chối quyền truy cập camera/mic.
  */
-export function useWebRTCCall({ socket, currentUserId, currentUserName, currentUserAvatar }) {
+export function useWebRTCCall({
+  socket,
+  currentUserId,
+  currentUserName,
+  currentUserAvatar,
+  onToast
+}) {
   const [activeCallSession, setActiveCallSession] = useState(null);
   const [incomingCallSession, setIncomingCallSession] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
@@ -23,6 +34,18 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
 
   const incomingCallRef = useRef(null);
   incomingCallRef.current = incomingCallSession;
+
+  const connectionStateRef = useRef('new');
+  const remoteStreamRef = useRef(null);
+
+  // Helper thông báo không block JS thread (thay thế hoàn toàn alert)
+  const notify = useCallback((message, type = 'info') => {
+    if (typeof onToast === 'function') {
+      onToast({ message, type });
+    } else if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vivu:toast', { detail: { message, type } }));
+    }
+  }, [onToast]);
 
   // Xóa timer đếm thời gian
   const stopDurationTimer = useCallback(() => {
@@ -44,6 +67,8 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
   // Dọn dẹp phiên gọi
   const cleanupCall = useCallback(() => {
     stopDurationTimer();
+    connectionStateRef.current = 'closed';
+    remoteStreamRef.current = null;
     webrtcManager.destroy();
     setActiveCallSession(null);
     setIncomingCallSession(null);
@@ -54,6 +79,56 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
     setIsCallMuted(false);
     setIsCallVideoOff(false);
   }, [stopDurationTimer]);
+
+  // Kiểm tra điều kiện kép trước khi kích hoạt trạng thái active & đếm giờ
+  const checkAndActivateCall = useCallback((connState, rStream) => {
+    const currentState = connState !== undefined ? connState : connectionStateRef.current;
+    const currentStream = rStream !== undefined ? rStream : remoteStreamRef.current;
+
+    const isConnected = currentState === 'connected';
+    const hasLiveTracks = Boolean(
+      currentStream &&
+      currentStream.getTracks().length > 0 &&
+      currentStream.getTracks().some((t) => t.readyState === 'live')
+    );
+
+    if (isConnected && hasLiveTracks) {
+      if (activeCallRef.current && activeCallRef.current.status !== 'active') {
+        startDurationTimer();
+        setActiveCallSession((prev) => (prev ? { ...prev, status: 'active' } : null));
+      }
+    }
+  }, [startDurationTimer]);
+
+  // Khởi tạo PeerConnection gắn kèm callbacks
+  const initPeerConnection = useCallback((targetUserId) => {
+    return webrtcManager.createPeerConnection({
+      onRemoteStream: (rStream) => {
+        remoteStreamRef.current = rStream;
+        setRemoteMediaStream(rStream);
+        rStream.getTracks().forEach((track) => {
+          track.onended = () => checkAndActivateCall();
+          track.onmute = () => checkAndActivateCall();
+          track.onunmute = () => checkAndActivateCall();
+        });
+        checkAndActivateCall(undefined, rStream);
+      },
+      onIceCandidate: (candidate) => {
+        const destId = targetUserId || activeCallRef.current?.targetUserId || activeCallRef.current?.callerId;
+        if (destId) {
+          socket.emit('call:signal', { targetUserId: destId, signal: { type: 'candidate', candidate } });
+        }
+      },
+      onConnectionStateChange: (state) => {
+        connectionStateRef.current = state;
+        if (state === 'connected') {
+          checkAndActivateCall(state, undefined);
+        } else if (state === 'disconnected' || state === 'failed') {
+          cleanupCall();
+        }
+      }
+    });
+  }, [socket, checkAndActivateCall, cleanupCall]);
 
   // Khởi tạo cuộc gọi đi (Caller)
   const startCall = useCallback(async ({ targetUserId, targetName, targetAvatar, callType = 'video' }) => {
@@ -85,10 +160,10 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
       });
     } catch (err) {
       console.warn('[useWebRTCCall] startCall error:', err.message);
-      alert(err.message || 'Không thể truy cập Camera/Microphone.');
+      notify(err.message || 'Không thể truy cập Microphone/Camera.', 'error');
       cleanupCall();
     }
-  }, [socket, currentUserName, currentUserAvatar, cleanupCall]);
+  }, [socket, currentUserName, currentUserAvatar, notify, cleanupCall]);
 
   // Nhận cuộc gọi đến (Callee)
   const acceptCall = useCallback(async () => {
@@ -103,6 +178,7 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
 
       const activeSession = {
         ...session,
+        targetUserId: session.callerId,
         name: session.callerName,
         avatar: session.callerAvatar,
         status: 'connecting',
@@ -110,34 +186,35 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
       };
       setActiveCallSession(activeSession);
 
-      // Tạo RTCPeerConnection để sẵn sàng nhận Offer từ Caller
-      webrtcManager.createPeerConnection({
-        onRemoteStream: (rStream) => setRemoteMediaStream(rStream),
-        onIceCandidate: (candidate) => {
-          socket.emit('call:signal', { targetUserId: session.callerId, signal: { type: 'candidate', candidate } });
-        },
-        onConnectionStateChange: (state) => {
-          if (state === 'connected') {
-            startDurationTimer();
-            setActiveCallSession((prev) => (prev ? { ...prev, status: 'active' } : null));
-          } else if (state === 'disconnected' || state === 'failed') {
-            cleanupCall();
-          }
-        }
-      });
+      // Callee CHỈ khởi tạo PeerConnection và lắng nghe, KHÔNG tạo offer
+      initPeerConnection(session.callerId);
 
       socket.emit('call:accept', { callerId: session.callerId });
     } catch (err) {
       console.warn('[useWebRTCCall] acceptCall error:', err.message);
-      alert(err.message || 'Không thể truy cập Camera/Microphone.');
+      if (socket && session?.callerId) {
+        // Tự động emit call:reject với lý do permission_denied để Caller không bị treo
+        socket.emit('call:reject', {
+          callerId: session.callerId,
+          targetUserId: session.callerId,
+          reason: 'permission_denied',
+          message: 'Đối phương không thể cấp quyền truy cập Microphone/Camera.'
+        });
+      }
+      notify(err.message || 'Không thể truy cập Microphone/Camera.', 'error');
       cleanupCall();
     }
-  }, [socket, startDurationTimer, cleanupCall]);
+  }, [socket, initPeerConnection, notify, cleanupCall]);
 
   // Từ chối cuộc gọi đến
   const declineCall = useCallback(() => {
     if (incomingCallRef.current && socket) {
-      socket.emit('call:reject', { callerId: incomingCallRef.current.callerId, reason: 'declined' });
+      socket.emit('call:reject', {
+        callerId: incomingCallRef.current.callerId,
+        targetUserId: incomingCallRef.current.callerId,
+        reason: 'declined',
+        message: 'Cuộc gọi đã bị từ chối.'
+      });
     }
     setIncomingCallSession(null);
   }, [socket]);
@@ -145,7 +222,8 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
   // Kết thúc cuộc gọi
   const endCall = useCallback(() => {
     if (socket) {
-      socket.emit('call:end', { reason: 'hangup' });
+      const targetId = activeCallRef.current?.targetUserId || activeCallRef.current?.callerId;
+      socket.emit('call:end', { targetUserId: targetId, reason: 'hangup' });
     }
     cleanupCall();
   }, [socket, cleanupCall]);
@@ -178,41 +256,35 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
     const onIncoming = (session) => {
       // Nếu đang trong cuộc gọi khác thì tự động báo bận
       if (activeCallRef.current) {
-        socket.emit('call:reject', { callerId: session.callerId, reason: 'busy' });
+        socket.emit('call:reject', {
+          callerId: session.callerId,
+          targetUserId: session.callerId,
+          reason: 'busy',
+          message: 'Người dùng đang bận trong một cuộc gọi khác.'
+        });
         return;
       }
       setIncomingCallSession(session);
     };
 
-    const onRinging = (session) => {
+    const onRinging = () => {
       setActiveCallSession((prev) => (prev ? { ...prev, status: 'ringing' } : null));
     };
 
-    const onAccepted = async (session) => {
+    const onAccepted = async () => {
+      // CHỈ Caller mới tạo Offer và gửi qua signaling
+      if (!activeCallRef.current?.isCaller) {
+        setActiveCallSession((prev) => (prev ? { ...prev, status: 'connecting' } : null));
+        return;
+      }
+
       setActiveCallSession((prev) => (prev ? { ...prev, status: 'connecting' } : null));
 
-      // Phía Caller tạo RTCPeerConnection và gửi Offer
       try {
-        const peer = webrtcManager.createPeerConnection({
-          onRemoteStream: (rStream) => setRemoteMediaStream(rStream),
-          onIceCandidate: (candidate) => {
-            const targetId = activeCallRef.current?.targetUserId;
-            if (targetId) {
-              socket.emit('call:signal', { targetUserId: targetId, signal: { type: 'candidate', candidate } });
-            }
-          },
-          onConnectionStateChange: (state) => {
-            if (state === 'connected') {
-              startDurationTimer();
-              setActiveCallSession((prev) => (prev ? { ...prev, status: 'active' } : null));
-            } else if (state === 'disconnected' || state === 'failed') {
-              cleanupCall();
-            }
-          }
-        });
+        const targetId = activeCallRef.current?.targetUserId;
+        initPeerConnection(targetId);
 
         const offer = await webrtcManager.createOffer();
-        const targetId = activeCallRef.current?.targetUserId;
         if (targetId) {
           socket.emit('call:signal', { targetUserId: targetId, signal: offer });
         }
@@ -223,12 +295,17 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
 
     const onSignal = async ({ fromUserId, signal }) => {
       try {
+        if (!signal) return;
+
         if (signal.type === 'offer') {
+          // Callee nhận Offer từ Caller -> Tạo Answer và gửi lại
           const answer = await webrtcManager.handleOfferAndCreateAnswer(signal);
           socket.emit('call:signal', { targetUserId: fromUserId, signal: answer });
         } else if (signal.type === 'answer') {
+          // Caller nhận Answer từ Callee -> Hoàn tất SDP handshake
           await webrtcManager.handleAnswer(signal);
         } else if (signal.type === 'candidate' && signal.candidate) {
+          // Xử lý ICE candidate (được buffer an toàn bên trong webrtcManager)
           await webrtcManager.addIceCandidate(signal.candidate);
         }
       } catch (err) {
@@ -237,11 +314,22 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
     };
 
     const onRejected = ({ reason, message }) => {
-      alert(message || 'Cuộc gọi đã bị từ chối.');
+      let friendlyMsg = 'Cuộc gọi đã bị từ chối.';
+      if (reason === 'busy') friendlyMsg = 'Người dùng đang bận trong một cuộc gọi khác.';
+      else if (reason === 'offline') friendlyMsg = 'Người dùng hiện đang ngoại tuyến.';
+      else if (reason === 'permission_denied') friendlyMsg = 'Đối phương không thể cấp quyền Microphone/Camera.';
+      else if (reason === 'timeout') friendlyMsg = 'Cuộc gọi không có phản hồi và đã kết thúc sau 45 giây.';
+
+      notify(message || friendlyMsg, 'warning');
       cleanupCall();
     };
 
-    const onEnded = () => {
+    const onEnded = ({ reason, message } = {}) => {
+      if (reason === 'timeout') {
+        notify(message || 'Cuộc gọi không có phản hồi và đã kết thúc sau 45 giây.', 'warning');
+      } else if (reason === 'disconnected') {
+        notify('Đối phương đã bị ngắt kết nối mạng.', 'warning');
+      }
       cleanupCall();
     };
 
@@ -260,7 +348,7 @@ export function useWebRTCCall({ socket, currentUserId, currentUserName, currentU
       socket.off('call:rejected', onRejected);
       socket.off('call:ended', onEnded);
     };
-  }, [socket, startDurationTimer, cleanupCall]);
+  }, [socket, initPeerConnection, notify, cleanupCall]);
 
   return {
     activeCallSession,

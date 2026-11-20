@@ -76,6 +76,8 @@ export default function CreatePollModal({
           <button 
             type="button"
             onClick={onClose} 
+            aria-label="Đóng bình chọn"
+            title="Đóng"
             className="w-7 h-7 rounded-lg bg-[#F2F3FF] border border-[#D2D9F4] hover:bg-[#E6E7F6] text-[#131315] flex items-center justify-center transition-colors cursor-pointer"
           >
             <i className="bi bi-x-lg text-xs"></i>
@@ -86,10 +88,12 @@ export default function CreatePollModal({
           <div>
             <label className="text-xs font-bold text-[#131315] block mb-1">Chủ đề bình chọn</label>
             <input 
+              id="poll-title-input"
               type="text" 
               value={pollTitle}
               onChange={(e) => setPollTitle(e.target.value)}
               placeholder="VD: Chiều nay đi uống cafe ở đâu hợp lý?"
+              aria-label="Chủ đề bình chọn"
               className="w-full px-3.5 py-2.5 rounded-xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[rgba(0,229,255,0.3)] transition-all font-medium"
               required
             />
@@ -108,6 +112,7 @@ export default function CreatePollModal({
                     value={opt}
                     onChange={(e) => handleOptionChange(idx, e.target.value)}
                     placeholder={`Phương án ${idx + 1}...`}
+                    aria-label={`Lựa chọn bình chọn số ${idx + 1}`}
                     className="flex-1 px-3.5 py-2 rounded-xl border border-[#D2D9F4] bg-[#F2F3FF] text-xs text-[#131315] placeholder-[#70787E] outline-none focus:border-[#00E5FF] focus:ring-1 focus:ring-[rgba(0,229,255,0.3)] transition-all font-medium"
                     required
                   />

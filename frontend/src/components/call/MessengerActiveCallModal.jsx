@@ -28,13 +28,14 @@ export default function MessengerActiveCallModal({
 
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteAudioRef = useRef(null);
 
   const isVideo = callSession?.callType === 'video';
   const name = callSession?.name || callSession?.callerName || 'Người dùng VIVU';
   const avatar = callSession?.avatar || callSession?.callerAvatar || DEFAULT_WHITE_PERSON_AVATAR;
   const status = callSession?.status || 'ringing';
 
-  // Gắn stream vào các thẻ video
+  // Gắn stream vào các thẻ video & audio
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -47,6 +48,13 @@ export default function MessengerActiveCallModal({
     }
   }, [remoteStream]);
 
+  // Luôn gắn remoteStream vào phần tử audio ẩn để đảm bảo âm thanh luôn được phát ra loa (kể cả voice call)
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) {
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
   if (!callSession) return null;
 
   const formatDuration = (sec) => {
@@ -55,8 +63,21 @@ export default function MessengerActiveCallModal({
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  const getStatusText = () => {
+    if (status === 'active') {
+      return formatDuration(duration);
+    }
+    if (status === 'connecting') {
+      return 'Đang thiết lập kết nối mã hóa...';
+    }
+    return 'Đang đổ chuông...';
+  };
+
   return (
     <div className="fixed inset-0 z-65 bg-[#08090C] flex flex-col justify-between overflow-hidden select-none animate-fadeIn text-white">
+      {/* Audio phát âm thanh cuộc gọi (cả gọi thoại và video) */}
+      <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
       {/* 1. KHUNG HÌNH CHÍNH (REMOTE VIDEO HOẶC AVATAR) */}
       <div className="absolute inset-0 z-0 flex items-center justify-center bg-radial from-[#1A1C24] to-[#0A0B10]">
         {isVideo && remoteStream ? (
@@ -82,7 +103,7 @@ export default function MessengerActiveCallModal({
             <div className="text-center space-y-1">
               <h2 className="text-2xl font-bold font-display text-white">{name}</h2>
               <p className="text-sm font-mono text-[#00E5FF]">
-                {status === 'active' ? formatDuration(duration) : 'Đang kết nối...'}
+                {getStatusText()}
               </p>
             </div>
           </div>
@@ -143,7 +164,7 @@ export default function MessengerActiveCallModal({
             {isVideo ? 'Gọi Video' : 'Gọi Thoại'} • {name}
           </p>
           <p className="text-sm font-mono font-bold text-[#00E5FF]">
-            {status === 'active' ? formatDuration(duration) : 'Đang đổ chuông...'}
+            {getStatusText()}
           </p>
         </div>
 

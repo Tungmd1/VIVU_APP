@@ -368,10 +368,10 @@ export default function CameraViewfinder({
       />
 
       {/* Thẻ input chọn file ẩn */}
-      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleSelectFile} className="hidden" />
+      <input ref={fileInputRef} type="file" accept="image/*" aria-label="Chọn ảnh từ thư viện thiết bị" onChange={handleSelectFile} className="hidden" />
 
       {/* Thẻ input native camera an toàn cho mạng LAN (Rule 18) */}
-      <input ref={nativeCameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleSelectFile} className="hidden" />
+      <input ref={nativeCameraInputRef} type="file" accept="image/*" capture="environment" aria-label="Chụp ảnh trực tiếp từ máy ảnh thiết bị" onChange={handleSelectFile} className="hidden" />
     </div>
   );
 }

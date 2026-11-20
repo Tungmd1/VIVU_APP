@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.resolve(__dirname, '..', 'frontend', 'dist');
+const publicDir = path.resolve(__dirname, '..', 'frontend', 'public');
 const PORT = 5173;
 const BACKEND_PORT = 5000;
 
@@ -16,6 +17,7 @@ const mimeTypes = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
+  '.webp': 'image/webp',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
@@ -106,12 +108,18 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 2. Serve static files from frontend/dist
+  // 2. Serve static files from frontend/dist (with fallback to frontend/public)
   const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   let pathname = parsedUrl.pathname;
   if (pathname === '/') pathname = '/index.html';
 
   let filePath = path.join(distDir, pathname);
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    const publicFilePath = path.join(publicDir, pathname);
+    if (fs.existsSync(publicFilePath) && fs.statSync(publicFilePath).isFile()) {
+      filePath = publicFilePath;
+    }
+  }
 
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
     const ext = path.extname(filePath).toLowerCase();
@@ -130,6 +138,15 @@ const server = http.createServer((req, res) => {
     });
     stream.pipe(res);
   } else {
+    // If requesting static assets (image, sticker, media, css, js), do NOT return index.html
+    const ext = path.extname(pathname).toLowerCase();
+    const isAsset = Boolean(ext && ext !== '.html' && ext !== '.htm');
+    if (isAsset) {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('404 Not Found');
+      return;
+    }
+
     // SPA fallback: index.html
     const indexPath = path.join(distDir, 'index.html');
     if (fs.existsSync(indexPath)) {

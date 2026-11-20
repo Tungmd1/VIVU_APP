@@ -129,6 +129,14 @@ async function build() {
     fs.writeFileSync(path.resolve(distDir, 'index.html'), finalHtml, 'utf8');
     console.log('[Build] dist/index.html successfully updated with index-BOF8WbQc.js & index-CnGff0oW.css!');
 
+    // 5. Copy frontend/public contents to dist (including stickers, videos, favicon, icons)
+    const publicDir = path.resolve(frontendDir, 'public');
+    if (fs.existsSync(publicDir)) {
+      console.log('[Build] Copying frontend/public assets to dist...');
+      fs.cpSync(publicDir, distDir, { recursive: true });
+      console.log('[Build] Copied frontend/public assets to dist successfully!');
+    }
+
     console.log('[Build] Finished! index-BOF8WbQc.js and index-CnGff0oW.css updated.');
   } catch (err) {
     console.error('[Build Error]:', err);

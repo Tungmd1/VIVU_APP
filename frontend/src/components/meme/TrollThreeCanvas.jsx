@@ -54,9 +54,17 @@ export default function TrollThreeCanvas({ item, onImpact }) {
 
     const iconUrl = item?.image3d || '';
     if (iconUrl) {
-      loadedTexture = textureLoader.load(iconUrl, (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-      });
+      loadedTexture = textureLoader.load(
+        iconUrl,
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          if (projectileMat) projectileMat.needsUpdate = true;
+        },
+        undefined,
+        (err) => {
+          console.warn('[TrollThreeCanvas] Texture load error, using fallback:', err?.message || err);
+        }
+      );
 
       projectileGeo = new THREE.PlaneGeometry(3.6, 3.6);
       projectileMat = new THREE.MeshBasicMaterial({

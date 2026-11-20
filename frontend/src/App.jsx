@@ -3193,6 +3193,12 @@ export default function App() {
     text, 
     image, 
     video, 
+    type,
+    isSticker,
+    is_sticker,
+    sticker,
+    soundType,
+    sound_type,
     isLocation, 
     is_location, 
     isLiveLocation, 
@@ -3207,12 +3213,22 @@ export default function App() {
   }) => {
     const isLive = Boolean(isLiveLocation || is_live_location);
     const hasPoll = Boolean(isPoll || is_poll || poll);
+    const isStk = Boolean(isSticker || is_sticker || type === 'sticker' || sticker);
     const now = new Date().toISOString();
     const duration = Number(liveDurationMinutes || live_duration_minutes || 15);
+    const activeSticker = sticker || (isStk && image ? { id: 'custom_sticker', name: text?.replace(/^\[Sticker:\s*|\s*\]$/g, '') || 'Sticker', image, soundType: soundType || sound_type } : null);
+
     const newMsg = {
       id: `msg-${Date.now()}`,
+      client_msg_id: `cmsg-${Date.now()}`,
       sender: 'me',
       senderName: currentUserName,
+      type: isStk ? 'sticker' : type || null,
+      isSticker: isStk,
+      is_sticker: isStk,
+      sticker: activeSticker,
+      soundType: soundType || sound_type || activeSticker?.soundType || null,
+      sound_type: soundType || sound_type || activeSticker?.soundType || null,
       text,
       image,
       video,
@@ -3237,7 +3253,7 @@ export default function App() {
           ...c,
           isStranger: false,
           hasReplied: true,
-          lastMessage: hasPoll ? `Bình chọn: ${poll?.title || text}` : isLive ? 'Đã chia sẻ vị trí trực tiếp' : text || (image ? 'Đã gửi hình ảnh' : video ? 'Đã gửi video' : isLocation ? 'Đã chia sẻ vị trí GPS' : 'Đã gửi tin nhắn'),
+          lastMessage: isStk ? `[Sticker] ${activeSticker?.name || 'Nhãn dán'}` : hasPoll ? `Bình chọn: ${poll?.title || text}` : isLive ? 'Đã chia sẻ vị trí trực tiếp' : text || (image ? 'Đã gửi hình ảnh' : video ? 'Đã gửi video' : isLocation ? 'Đã chia sẻ vị trí GPS' : 'Đã gửi tin nhắn'),
           time: 'Vừa xong',
           messages: [...(c.messages || []), newMsg]
         };
@@ -3248,6 +3264,12 @@ export default function App() {
     // Gửi lên backend server
     apiClient.sendMessage({
       conversationId,
+      type: isStk ? 'sticker' : type || null,
+      isSticker: isStk,
+      is_sticker: isStk,
+      sticker: activeSticker,
+      soundType: soundType || sound_type || activeSticker?.soundType || null,
+      sound_type: soundType || sound_type || activeSticker?.soundType || null,
       text,
       image,
       video,

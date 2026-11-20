@@ -39,7 +39,7 @@ export const chatController = {
 
   async sendMessage(req, res, next) {
     try {
-      const { conversationId, conversation_id, text, image, video, isLocation, is_location, isLiveLocation, is_live_location, liveDurationMinutes, live_duration_minutes, liveExpiresAt, live_expires_at, speed, isHeart, is_heart, lat, lng, sender, sender_name, client_msg_id, clientMsgId, poll, isPoll, is_poll } = req.body;
+      const { conversationId, conversation_id, text, image, video, type, isSticker, is_sticker, sticker, soundType, sound_type, isLocation, is_location, isLiveLocation, is_live_location, liveDurationMinutes, live_duration_minutes, liveExpiresAt, live_expires_at, speed, isHeart, is_heart, lat, lng, sender, sender_name, client_msg_id, clientMsgId, poll, isPoll, is_poll } = req.body;
       const targetConvId = conversationId || conversation_id;
       if (!targetConvId) {
         return res.status(400).json({ success: false, message: 'conversationId là bắt buộc' });
@@ -47,6 +47,10 @@ export const chatController = {
       const message = await dbService.sendMessage({
         conversation_id: targetConvId,
         client_msg_id: client_msg_id || clientMsgId || null,
+        type: (type === 'sticker' || isSticker || is_sticker || sticker) ? 'sticker' : type || null,
+        is_sticker: Boolean(isSticker || is_sticker || type === 'sticker' || sticker),
+        sticker: sticker || null,
+        sound_type: soundType || sound_type || sticker?.soundType || null,
         text,
         image,
         video,

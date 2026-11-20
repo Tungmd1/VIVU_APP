@@ -1499,7 +1499,7 @@ export const dbService = {
     }
 
     const trimmedText = typeof message.text === 'string' ? message.text.trim() : '';
-    if (!trimmedText && !message.image && !message.video && !message.is_location && !message.is_heart && !message.is_live_location && !message.is_poll && !message.poll) {
+    if (!trimmedText && !message.image && !message.video && !message.is_location && !message.is_heart && !message.is_live_location && !message.is_poll && !message.poll && !message.is_sticker && message.type !== 'sticker' && !message.sticker) {
       throw new Error('Nội dung tin nhắn không được để trống');
     }
     if (trimmedText.length > 2000) {
@@ -1544,12 +1544,17 @@ export const dbService = {
       if (existing) return existing;
     }
 
+    const isStk = Boolean(message.is_sticker || message.type === 'sticker' || message.sticker);
     const newMsg = {
       id: message.id || `msg-${Date.now()}`,
       client_msg_id: message.client_msg_id || `cmsg-${Date.now()}`,
       conversation_id: message.conversation_id,
       sender: message.sender || 'me',
       sender_name: message.sender_name || 'Tôi',
+      type: isStk ? 'sticker' : message.type || null,
+      is_sticker: isStk,
+      sticker: message.sticker || null,
+      sound_type: message.sound_type || message.soundType || message.sticker?.soundType || null,
       text: trimmedText,
       image: message.image || null,
       video: message.video || null,

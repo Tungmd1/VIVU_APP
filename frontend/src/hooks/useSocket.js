@@ -56,21 +56,12 @@ export function useSocket(userId) {
       } catch (_) {}
     };
 
-    // Bắt sự kiện ẩn tab / khóa màn hình điện thoại -> Offline ngay lập tức theo yêu cầu người dùng
+    // Tự động kiểm tra và phục hồi kết nối nếu người dùng mở lại tab / đánh thức màn hình
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        try {
-          if (socket && socket.connected) {
-            socket.emit('user:going-offline', { userId });
-          }
-          if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-            const blob = new Blob([JSON.stringify({ userId })], { type: 'application/json' });
-            navigator.sendBeacon('/api/gps/offline', blob);
-          }
-        } catch (_) {}
-      } else if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible') {
         try {
           if (socket && !socket.connected) {
+            console.log('[Socket.IO Client] Tab hiển thị trở lại, đang kiểm tra kết nối...');
             socket.connect();
           }
         } catch (_) {}

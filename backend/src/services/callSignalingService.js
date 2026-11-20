@@ -14,7 +14,17 @@ export const callSignalingService = {
 
   handleCallInitiate(socket, userId, data, { emitToUser, isUserOnline }) {
     try {
-      const { targetUserId, callType = 'video', callerName = 'Người dùng VIVU', callerAvatar = '' } = data;
+      let { targetUserId, callType = 'video', callerName = 'Người dùng VIVU', callerAvatar = '' } = data;
+
+      // Chuẩn hóa targetUserId nếu client truyền room ID conv-direct-...
+      if (typeof targetUserId === 'string' && targetUserId.startsWith('conv-direct-')) {
+        const parts = targetUserId.replace('conv-direct-', '').split('--');
+        const resolved = parts.find(p => String(p) !== String(userId));
+        if (resolved) {
+          targetUserId = resolved;
+        }
+      }
+
       if (!targetUserId) {
         socket.emit('call:rejected', { reason: 'invalid_target', message: 'Không tìm thấy người nhận cuộc gọi.' });
         return;

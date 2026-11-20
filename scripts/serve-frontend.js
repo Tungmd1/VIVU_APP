@@ -173,7 +173,7 @@ const server = http.createServer((req, res) => {
 // Proxy WebSocket upgrades to backend for socket.io
 server.on('upgrade', (req, socket, head) => {
   socket.on('error', (err) => {
-    console.warn('[Client Socket Warning]', err.message);
+    // Suppress unhandled client socket reset warnings
   });
 
   if (req.url.startsWith('/socket.io')) {
@@ -187,30 +187,55 @@ server.on('upgrade', (req, socket, head) => {
         host: `127.0.0.1:${BACKEND_PORT}`
       }
     });
+
     proxySocket.on('upgrade', (proxyRes, backendSocket, backendHead) => {
-      backendSocket.on('error', (err) => {
-        console.warn('[Backend Socket Warning]', err.message);
-        socket.destroy();
+      backendSocket.on('error', () => {
+        if (!socket.destroyed) socket.destroy();
       });
       backendSocket.on('close', () => {
-        socket.destroy();
+        if (!socket.destroyed) socket.destroy();
       });
       socket.on('error', () => {
-        backendSocket.destroy();
+        if (!backendSocket.destroyed) backendSocket.destroy();
       });
       socket.on('close', () => {
-        backendSocket.destroy();
+        if (!backendSocket.destroyed) backendSocket.destroy();
       });
-      socket.write(`HTTP/1.1 101 Switching Protocols\r\n` +
-        Object.entries(proxyRes.headers).map(([k, v]) => `${k}: ${v}`).join('\r\n') +
-        `\r\n\r\n`);
+
+      // Construct raw HTTP/1.1 101 Switching Protocols response with exact headers
+      let responseHeaders = `HTTP/1.1 101 Switching Protocols\r\n`;
+      if (proxyRes.rawHeaders && proxyRes.rawHeaders.length) {
+        for (let i = 0; i < proxyRes.rawHeaders.length; i += 2) {
+          responseHeaders += `${proxyRes.rawHeaders[i]}: ${proxyRes.rawHeaders[i + 1]}\r\n`;
+        }
+      } else {
+        for (const [k, v] of Object.entries(proxyRes.headers)) {
+          responseHeaders += `${k}: ${v}\r\n`;
+        }
+      }
+      responseHeaders += '\r\n';
+
+      if (socket.writable) {
+        socket.write(responseHeaders);
+      }
+
+      // Forward initial WebSocket payload buffers without dropping bytes
+      if (backendHead && backendHead.length > 0 && socket.writable) {
+        socket.write(backendHead);
+      }
+      if (head && head.length > 0 && backendSocket.writable) {
+        backendSocket.write(head);
+      }
+
       backendSocket.pipe(socket);
       socket.pipe(backendSocket);
     });
+
     proxySocket.on('error', (err) => {
       console.warn('[ProxySocket Error]', err.message);
-      socket.destroy();
+      if (!socket.destroyed) socket.destroy();
     });
+
     proxySocket.end();
   }
 });

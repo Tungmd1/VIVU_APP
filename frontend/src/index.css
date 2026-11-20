@@ -26,6 +26,15 @@
   --font-logo: 'Poppins', sans-serif;
 }
 
+html,
+body {
+  overscroll-behavior: none !important;
+  overscroll-behavior-y: none !important;
+  overscroll-behavior-x: none !important;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
 body {
   background-color: #0a0e1c;
   color: #ffffff;

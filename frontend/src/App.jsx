@@ -4236,7 +4236,12 @@ export default function App() {
           onSendMessage={handleSendMessage}
           onSendQuickHeart={handleSendQuickHeart}
           onStartCall={(conv, type) => {
-            const targetId = conv?.peer_id || conv?.user_id || conv?.id;
+            let targetId = conv?.partnerId || conv?.friendId || conv?.peer_id || conv?.user_id;
+            if (!targetId && typeof conv?.id === 'string' && conv.id.startsWith('conv-direct-')) {
+              const parts = conv.id.replace('conv-direct-', '').split('--');
+              targetId = parts.find(p => String(p) !== String(currentUserId));
+            }
+            if (!targetId) targetId = conv?.id;
             if (targetId) {
               startCall({
                 targetUserId: targetId,

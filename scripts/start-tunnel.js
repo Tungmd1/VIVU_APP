@@ -16,54 +16,61 @@ if (!fs.existsSync(cloudflaredPath)) {
   process.exit(1);
 }
 
-const tunnelProcess = spawn(cloudflaredPath, [
-  'tunnel',
-  '--url',
-  'http://127.0.0.1:5173',
-  '--protocol',
-  'http2',
-  '--edge-ip-version',
-  '4',
-  '--retries',
-  '10',
-  '--no-autoupdate'
-], {
-  windowsHide: true
-});
+function startTunnelProcess() {
+  console.log('Khởi chạy tiến trình cloudflared...');
+  const tunnelProcess = spawn(cloudflaredPath, [
+    'tunnel',
+    '--url',
+    'http://127.0.0.1:5173',
+    '--edge-ip-version',
+    '4',
+    '--retries',
+    '15',
+    '--no-autoupdate'
+  ], {
+    windowsHide: true
+  });
 
-let publicTunnelUrl = '';
+  let publicTunnelUrl = '';
 
-const handleOutput = async (data) => {
-  const text = data.toString();
-  // Cloudflare in URL qua stderr
-  const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
-  if (match && !publicTunnelUrl) {
-    publicTunnelUrl = match[0];
-    console.log('\n=============================================================');
-    console.log('🎉 ĐÃ KHỞI TẠO ĐƯỜNG LINK CÔNG KHAI HTTPS TOÀN CẦU THÀNH CÔNG:');
-    console.log('👉 LINK CÔNG KHAI:', publicTunnelUrl);
-    console.log('=============================================================\n');
+  const handleOutput = async (data) => {
+    const text = data.toString();
+    const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
+    if (match && !publicTunnelUrl) {
+      publicTunnelUrl = match[0];
+      console.log('\n=============================================================');
+      console.log('🎉 ĐÃ KHỞI TẠO ĐƯỜNG LINK CÔNG KHAI HTTPS TOÀN CẦU THÀNH CÔNG:');
+      console.log('👉 LINK CÔNG KHAI:', publicTunnelUrl);
+      console.log('=============================================================\n');
 
-    // Lưu vào file để các công cụ khác có thể đọc
-    fs.writeFileSync(path.join(projectRoot, 'infra', 'tunnel_url.txt'), publicTunnelUrl, 'utf-8');
+      fs.writeFileSync(path.join(projectRoot, 'infra', 'tunnel_url.txt'), publicTunnelUrl, 'utf-8');
 
-    // Đồng bộ URL vào Backend API
-    try {
-      await fetch('http://localhost:5000/api/tunnel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: publicTunnelUrl })
-      });
-      console.log('✓ Đã đồng bộ Link công khai vào Backend API');
-    } catch (e) {
-      console.warn('Lỗi đồng bộ vào Backend:', e.message);
+      try {
+        await fetch('http://localhost:5000/api/tunnel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: publicTunnelUrl })
+        });
+        console.log('✓ Đã đồng bộ Link công khai vào Backend API');
+      } catch (e) {
+        console.warn('Lỗi đồng bộ vào Backend:', e.message);
+      }
     }
-  }
-};
+  };
 
-tunnelProcess.stdout.on('data', handleOutput);
-tunnelProcess.stderr.on('data', handleOutput);
+  tunnelProcess.stdout.on('data', handleOutput);
+  tunnelProcess.stderr.on('data', handleOutput);
 
-tunnelProcess.on('close', (code) => {
-  console.log('Tunnel đã dừng. Mã thoát:', code);
-});
+  tunnelProcess.on('close', (code) => {
+    console.log(`Tunnel đã dừng (mã thoát: ${code}). Tự động kết nối lại sau 3 giây...`);
+    setTimeout(() => {
+      startTunnelProcess();
+    }, 3000);
+  });
+
+  tunnelProcess.on('error', (err) => {
+    console.warn('[Tunnel Error]', err.message);
+  });
+}
+
+startTunnelProcess();

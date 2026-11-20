@@ -30,7 +30,7 @@ export function initSocketIO(httpServer) {
   io.on('connection', (socket) => {
     const userId = socket.handshake.auth?.userId;
     if (!userId) {
-      socket.disconnect(true);
+      socket.disconnect(false);
       return;
     }
 
@@ -588,24 +588,25 @@ function handleUserDisconnect(socket, userId, io) {
  */
 export function forceUserOffline(userId) {
   if (!userId) return;
-  const sockets = userSockets.get(userId);
+  const sockets = userSockets.get(userId) || userSockets.get(String(userId));
   if (sockets && sockets.size > 0) {
     sockets.forEach(socketId => {
       const s = ioInstance?.sockets?.sockets?.get(socketId);
       if (s) {
-        try { s.disconnect(true); } catch (_) {}
+        try { s.disconnect(false); } catch (_) {}
       }
     });
   }
   userSockets.delete(userId);
+  userSockets.delete(String(userId));
 
   const now10mAgo = new Date(Date.now() - 600000).toISOString();
-  const profileIdx = dbStore.profiles.findIndex(p => p.id === userId);
+  const profileIdx = dbStore.profiles.findIndex(p => String(p.id) === String(userId));
   if (profileIdx >= 0) {
     dbStore.profiles[profileIdx].is_online = false;
     dbStore.profiles[profileIdx].last_seen_at = now10mAgo;
   }
-  const userIdx = dbStore.users.findIndex(u => u.id === userId);
+  const userIdx = dbStore.users.findIndex(u => String(u.id) === String(userId));
   if (userIdx >= 0) {
     dbStore.users[userIdx].last_seen_at = now10mAgo;
   }
@@ -623,13 +624,15 @@ export function forceUserOffline(userId) {
  * Gửi event đến userId cụ thể (tất cả tab/thiết bị)
  */
 export function emitToUser(userId, event, data) {
-  if (!ioInstance) return;
-  const sockets = userSockets.get(userId);
+  if (!ioInstance || !userId) return false;
+  const sockets = userSockets.get(userId) || userSockets.get(String(userId));
   if (sockets && sockets.size > 0) {
     sockets.forEach(socketId => {
       ioInstance.to(socketId).emit(event, data);
     });
+    return true;
   }
+  return false;
 }
 
 /**
@@ -644,8 +647,9 @@ export function broadcastEvent(event, data) {
  * Kiểm tra user có đang online (có socket kết nối) hay không
  */
 export function isUserOnline(userId) {
-  const sockets = userSockets.get(userId);
-  return sockets && sockets.size > 0;
+  if (!userId) return false;
+  const sockets = userSockets.get(userId) || userSockets.get(String(userId));
+  return Boolean(sockets && sockets.size > 0);
 }
 
 /**

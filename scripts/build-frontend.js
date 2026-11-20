@@ -120,14 +120,15 @@ async function build() {
 
     console.log('[Build] esbuild-wasm bundle completed successfully!');
 
-    // 4. Generate and update dist/index.html with exact bundled assets
+    // 4. Generate and update dist/index.html with exact bundled assets and cache-busting timestamp
     console.log('[Build] Generating dist/index.html...');
+    const timestamp = Date.now();
     const templateHtml = fs.readFileSync(path.resolve(frontendDir, 'index.html'), 'utf8');
     const finalHtml = templateHtml
-      .replace('</head>', '  <link rel="stylesheet" crossorigin href="/assets/index-CnGff0oW.css">\n</head>')
-      .replace('<script type="module" src="/src/main.jsx"></script>', '<script type="module" crossorigin src="/assets/index-BOF8WbQc.js"></script>');
+      .replace('</head>', `  <link rel="stylesheet" crossorigin href="/assets/index-CnGff0oW.css?v=${timestamp}">\n</head>`)
+      .replace('<script type="module" src="/src/main.jsx"></script>', `<script type="module" crossorigin src="/assets/index-BOF8WbQc.js?v=${timestamp}"></script>`);
     fs.writeFileSync(path.resolve(distDir, 'index.html'), finalHtml, 'utf8');
-    console.log('[Build] dist/index.html successfully updated with index-BOF8WbQc.js & index-CnGff0oW.css!');
+    console.log(`[Build] dist/index.html successfully updated with v=${timestamp}!`);
 
     // 5. Copy frontend/public contents to dist (including stickers, videos, favicon, icons)
     const publicDir = path.resolve(frontendDir, 'public');

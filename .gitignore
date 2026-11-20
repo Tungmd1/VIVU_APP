@@ -20,7 +20,9 @@ frontend/.env
 backend/.env
 
 # Uploads
-backend/uploads/*
+backend/uploads/**
+!backend/uploads/
+!backend/uploads/**/
 !backend/uploads/**/.gitkeep
 
 backend/data/*.tmp

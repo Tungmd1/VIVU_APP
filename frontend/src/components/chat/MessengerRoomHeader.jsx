@@ -18,6 +18,8 @@ export default function MessengerRoomHeader({
   onOpenClearModal
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isOnline = Boolean(activeConversation?.online || activeConversation?.isOnline || activeConversation?.is_online);
+
   return (
     <div className="flex items-center justify-between px-3.5 py-3 bg-[rgba(20,20,30,0.85)] backdrop-blur-xl border-b border-white/10 shrink-0 z-30 shadow-sm select-none">
       <div className="flex items-center gap-2.5">
@@ -47,7 +49,9 @@ export default function MessengerRoomHeader({
               alt="" 
               className="w-10 h-10 rounded-full object-cover border-2 border-[#FF2A85] group-hover:scale-105 transition-transform" 
             />
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-[#00FF66] border-2 border-black shadow-[0_0_6px_#00FF66]"></span>
+            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-black ${
+              isOnline ? 'bg-[#00FF66] shadow-[0_0_6px_#00FF66]' : 'bg-neutral-500'
+            }`}></span>
           </div>
           
           <div>
@@ -63,7 +67,11 @@ export default function MessengerRoomHeader({
                 </span>
               )}
               <span>•</span>
-              <span className="text-[#00FF66] font-semibold">Đang hoạt động</span>
+              {isOnline ? (
+                <span className="text-[#00FF66] font-semibold">Đang hoạt động</span>
+              ) : (
+                <span className="text-white/40">Ngoại tuyến</span>
+              )}
             </div>
           </div>
         </div>

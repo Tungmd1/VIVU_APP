@@ -921,9 +921,15 @@ export default function App() {
       // Ở tab Xã Hội: Xóa giọt nước và story live của người này khi họ offline
       setStories(prev => prev.filter(s => s.hostId !== userId && s.host_id !== userId && !s.id?.startsWith('live-peer-')));
       // Ở tab Bạn Bè: Đánh dấu triệt để tất cả cờ isOnline, is_online, online = false
-      setFriends(prev => prev.map(f => f.id === userId ? { ...f, isOnline: false, is_online: false, online: false } : f));
+      setFriends(prev => prev.map(f => (f.id === userId || f.hostId === userId) ? {
+        ...f,
+        isOnline: false,
+        is_online: false,
+        online: false,
+        custom_status: (f.custom_status === 'Đang hoạt động' ? 'Ngoại tuyến' : f.custom_status)
+      } : f));
       // Cập nhật cả danh sách tin nhắn hội thoại
-      setConversations(prev => prev.map(c => c.friendId === userId ? { ...c, online: false, isOnline: false, is_online: false } : c));
+      setConversations(prev => prev.map(c => (c.friendId === userId || c.id === userId) ? { ...c, online: false, isOnline: false, is_online: false } : c));
     };
 
     // 2. Tọa độ GPS peer cập nhật realtime
@@ -1723,9 +1729,13 @@ export default function App() {
                   lat: fLat,
                   lng: fLng,
                   isOnline: isPeerOnline,
+                  is_online: isPeerOnline,
+                  online: isPeerOnline,
                   battery: livePeer?.battery || '95%',
                   lastSeenLocation: livePeer?.last_seen_text || (isPeerOnline ? 'Đang hoạt động' : 'Đã offline'),
-                  custom_status: livePeer?.custom_status || af.custom_status || '',
+                  custom_status: (!isPeerOnline && (livePeer?.custom_status === 'Đang hoạt động' || af.custom_status === 'Đang hoạt động' || !af.custom_status))
+                    ? 'Ngoại tuyến'
+                    : (livePeer?.custom_status || af.custom_status || (isPeerOnline ? 'Đang hoạt động' : 'Ngoại tuyến')),
                   title: livePeer?.custom_status || af.custom_status || (isPeerOnline ? 'Đang trực tuyến' : 'Đã offline'),
                   userCode: livePeer?.user_code || af.user_code || '',
                   isFriend: true

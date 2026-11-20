@@ -59,6 +59,7 @@ export default function ChatProfileModal({
   const memberCount = (conversation?.memberIds?.length || 0) + 1;
   const messageCount = messages.length || conversation?.messages?.length || 0;
   const streakLevel = Math.max(1, Math.floor(messageCount / 3));
+  const isOnline = Boolean(friend?.isOnline || friend?.is_online || friend?.online || conversation?.online || conversation?.isOnline);
 
   return (
     <AnimatePresence>
@@ -102,7 +103,9 @@ export default function ChatProfileModal({
                   alt=""
                   className="w-full h-full rounded-full object-cover"
                 />
-                <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[#00FF66] border-2 border-[#121624] shadow-[0_0_8px_#00FF66]"></span>
+                <span className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-[#121624] ${
+                  isOnline ? 'bg-[#00FF66] shadow-[0_0_8px_#00FF66]' : 'bg-neutral-500'
+                }`}></span>
               </div>
 
               <h3 className="font-bold text-base text-white flex items-center gap-1.5">
@@ -111,7 +114,10 @@ export default function ChatProfileModal({
               </h3>
 
               <p className="text-xs text-white/50 mt-0.5 font-mono">
-                {isGroup ? `Nhóm trò chuyện • ${memberCount} thành viên` : 'Bạn bè đã kết nối trên VIVU'}
+                {isGroup 
+                  ? `Nhóm trò chuyện • ${memberCount} thành viên` 
+                  : (isOnline ? 'Đang hoạt động • Bạn bè đã kết nối trên VIVU' : 'Ngoại tuyến • Bạn bè đã kết nối trên VIVU')
+                }
               </p>
 
               {/* Huy hiệu Chuỗi thân thiết nếu có */}

@@ -80,7 +80,9 @@ export default function FriendsListSection({
                     </div>
                     <div className="text-[10px] text-[#70787E] truncate font-mono mt-0.5">
                       {friendCode ? `${friendCode} • ` : ''}
-                      {friend.custom_status || (isFriendOnline ? 'Đang hoạt động' : 'Ngoại tuyến')}
+                      {isFriendOnline
+                        ? (friend.custom_status && friend.custom_status !== 'Ngoại tuyến' ? friend.custom_status : 'Đang hoạt động')
+                        : (friend.custom_status && friend.custom_status !== 'Đang hoạt động' ? friend.custom_status : 'Ngoại tuyến')}
                     </div>
                   </div>
                 </div>

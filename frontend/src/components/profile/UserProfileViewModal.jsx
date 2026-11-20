@@ -52,7 +52,8 @@ export default function UserProfileViewModal({
   const displayCode = profile.userCode || profile.user_code || (displayId ? `VU-${String(displayId).slice(-4).toUpperCase()}` : 'VU-MEMBER');
   const distanceText = profile.liveDistance || profile.distanceText || (profile.distance !== undefined ? (typeof profile.distance === 'number' ? `${profile.distance.toFixed(1)} km` : profile.distance) : 'Gần bạn');
   const statusText = profile.customStatus || profile.custom_status || profile.text || profile.status || 'Đang vi vu dạo phố quanh đây';
-  const onlineStatus = profile.onlineStatus || (profile.isOnline ? 'Vừa mới hoạt động' : 'Đang hoạt động');
+  const isProfileOnline = Boolean(profile.isOnline || profile.is_online || profile.online);
+  const onlineStatus = profile.onlineStatus || (isProfileOnline ? 'Đang hoạt động' : 'Ngoại tuyến');
   const battery = profile.battery || '88%';
 
   // Thông tin chi tiết kèm phân quyền bảo mật

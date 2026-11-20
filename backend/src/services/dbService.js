@@ -1209,7 +1209,7 @@ export const dbService = {
         avatar: combined.avatar_url || combined.avatar,
         avatar_url: combined.avatar_url || combined.avatar,
         user_code: combined.user_code || this.generateUserCode(fId),
-        custom_status: combined.custom_status || 'Đang hoạt động',
+        custom_status: (combined.custom_status && combined.custom_status !== 'Đang hoạt động') ? combined.custom_status : (isOnline ? 'Đang hoạt động' : 'Ngoại tuyến'),
         lat: combined.lat,
         lng: combined.lng,
         isOnline: isOnline,

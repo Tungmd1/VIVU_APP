@@ -279,10 +279,8 @@ npm run dev
 > Ứng dụng VIVU sẽ khởi chạy tại: **`http://localhost:5173`**  
 > Máy chủ Backend API tại: **`http://localhost:5000/api/health`**  
 >
-> 🔑 **Tài khoản trải nghiệm có sẵn trong Database**:
-> - **Email**: `ductungzz114@gmail.com`
-> - **Mật khẩu**: `123456`  
-> *(Hoặc bạn có thể bấm nút **Đăng Ký** để tạo tài khoản mới tức thì)*
+> 👤 **Đăng Ký Tài Khoản**:
+> - Người dùng mới truy cập ứng dụng vui lòng bấm nút **Đăng Ký** trên giao diện để tự tạo tài khoản cá nhân (nhập Email, Mật khẩu và Họ tên) và đăng nhập trải nghiệm ngay lập tức.
 
 ---
 

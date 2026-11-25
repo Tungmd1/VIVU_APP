@@ -127,44 +127,7 @@ export default function UserLocationSheet({
 
         {/* CÁC NÚT HÀNH ĐỘNG CHÍNH */}
         <div className="space-y-2 pt-1">
-          {/* Nút Chỉnh Sửa Hồ Sơ (Toàn chiều ngang) */}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              if (onOpenEditProfile) onOpenEditProfile();
-            }}
-            className="w-full py-2.5 px-4 rounded-2xl bg-white/10 hover:bg-white/15 text-white border border-white/20 flex items-center justify-between active:scale-98 transition-all cursor-pointer shadow-md group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-[#00E5FF]/15 text-[#00E5FF] border border-[#00E5FF]/30 flex items-center justify-center text-base group-hover:scale-110 transition-transform">
-                <i className="bi bi-person-gear"></i>
-              </div>
-              <div className="text-left">
-                <span className="font-bold text-xs block text-white">Chỉnh Sửa Hồ Sơ</span>
-                <span className="text-[10px] text-white/60 block">Avatar, Tên gọi &amp; Thông tin cá nhân</span>
-              </div>
-            </div>
-            <i className="bi bi-chevron-right text-xs text-white/50 group-hover:text-white transition-colors"></i>
-          </button>
-
-          {/* Hàng 2: Nút Vào Trang Hồ Sơ Đầy Đủ */}
-          {onOpenProfile && (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenProfile();
-              }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center justify-center gap-2 active:scale-98 transition-all cursor-pointer shadow-md group"
-            >
-              <i className="bi bi-person-badge-fill text-[#00E5FF] text-base group-hover:scale-110 transition-transform"></i>
-              <span>Xem Trang Cá Nhân Đầy Đủ</span>
-              <i className="bi bi-arrow-right text-xs text-white/60"></i>
-            </button>
-          )}
-
-          {/* Hàng 3: Nút Cài Đặt Tâm Trạng & Chibi Mascot */}
+          {/* Hàng 1: Nút Cài Đặt Tâm Trạng & Chibi Mascot */}
           {onOpenQuickStatus && (
             <button
               type="button"
@@ -181,7 +144,7 @@ export default function UserLocationSheet({
             </button>
           )}
 
-          {/* Hàng 4: Tủ Đồ Ghim Bản Đồ & Chibi FB/Zalo */}
+          {/* Hàng 2: Tủ Đồ Ghim Bản Đồ & Chibi FB/Zalo */}
           {onOpenPinWardrobe && (
             <button
               type="button"

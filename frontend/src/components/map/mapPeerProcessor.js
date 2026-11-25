@@ -4,17 +4,19 @@ import { getMascotActionDataUrl } from '../../data/messengerZaloMascotData';
 import { resolveMarkerSkin, getMarkerBodyHtml } from './mapMarkerHelpers';
 import { getDistanceKm } from './mapTileConstants';
 
-export function processPeerItem(item, safeLat, safeLng, onlinePeers = [], friends = []) {
+export function processPeerItem(item, viewerLat, viewerLng, onlinePeers = [], friends = []) {
   const rawLat = Number(item.realLat ?? item.lat ?? item.latitude);
   const rawLng = Number(item.realLng ?? item.lng ?? item.longitude);
   if (isNaN(rawLat) || isNaN(rawLng)) return null;
 
   // Giữ nguyên 100% tọa độ GPS thật của người dùng và bạn bè
-  const iLat = rawLat;
-  const iLng = rawLng;
+  const safeLat = rawLat;
+  const safeLng = rawLng;
+  const iLat = safeLat;
+  const iLng = safeLng;
 
   // Xác định khoảng cách thực tế để xử lý chống đè trực quan (nếu < 10m)
-  const distanceMeters = getDistanceKm(safeLat, safeLng, rawLat, rawLng) * 1000;
+  const distanceMeters = getDistanceKm(viewerLat, viewerLng, rawLat, rawLng) * 1000;
   const isCoLocated = distanceMeters < 10;
 
   const markerKey = String(item.id || item.user_id || `peer-${iLat}-${iLng}`);
@@ -76,6 +78,7 @@ export function processPeerItem(item, safeLat, safeLng, onlinePeers = [], friend
     iLng,
     isCoLocated,
     markerKey,
+    peerSkin,
     peerBodyHtml
   };
 }

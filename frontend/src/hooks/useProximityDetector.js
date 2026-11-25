@@ -61,11 +61,22 @@ export function useProximityDetector({
     }
 
     if (closest) {
-      setNearbyFriend(closest);
-      setNearbyDistanceMeters(minMeters);
+      setNearbyFriend((prev) => {
+        if (
+          prev &&
+          prev.id === closest.id &&
+          prev.full_name === closest.full_name &&
+          prev.avatar_url === closest.avatar_url &&
+          prev.custom_chibi === closest.custom_chibi
+        ) {
+          return prev;
+        }
+        return closest;
+      });
+      setNearbyDistanceMeters((prev) => (prev === minMeters ? prev : minMeters));
     } else {
-      setNearbyFriend(null);
-      setNearbyDistanceMeters(null);
+      setNearbyFriend((prev) => (prev === null ? prev : null));
+      setNearbyDistanceMeters((prev) => (prev === null ? prev : null));
     }
   }, [userLat, userLng, friends]);
 

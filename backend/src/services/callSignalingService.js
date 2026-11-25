@@ -4,16 +4,36 @@
  * Phong cách Facebook Messenger: Hỗ trợ gọi thoại & gọi video, báo bận, đổ chuông và ngắt máy an toàn.
  */
 
-// Mapping: userId -> callSession
+// Mapping: userId -> callSession (serializable data only)
 const activeCalls = new Map();
+// Mapping: callId -> Timeout handle (kept outside callSession to avoid circular serialization crash)
+const callTimers = new Map();
 
 export const CALL_TIMEOUT_MS = 45000; // 45 giây timeout cho cuộc gọi chưa được phản hồi
 
 function clearSessionTimeout(session) {
-  if (session && session.timeoutId) {
-    clearTimeout(session.timeoutId);
-    session.timeoutId = null;
+  if (!session?.callId) return;
+  const timer = callTimers.get(session.callId);
+  if (timer) {
+    clearTimeout(timer);
+    callTimers.delete(session.callId);
   }
+}
+
+function toPublicCallSession(session) {
+  if (!session) return null;
+  return {
+    callId: session.callId,
+    callerId: session.callerId,
+    targetUserId: session.targetUserId,
+    callType: session.callType,
+    isVideo: session.callType === 'video',
+    callerName: session.callerName,
+    callerAvatar: session.callerAvatar,
+    status: session.status,
+    startTime: session.startTime,
+    connectedAt: session.connectedAt || null
+  };
 }
 
 export const callSignalingService = {
@@ -64,12 +84,13 @@ export const callSignalingService = {
         return;
       }
 
-      // 3. Khởi tạo phiên gọi
+      // 3. Khởi tạo phiên gọi (chỉ lưu numeric timeoutId trên session, giữ Timeout object ở Map tách biệt)
       const callSession = {
         callId: `call-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         callerId: String(userId),
         targetUserId: String(targetUserId),
         callType, // 'voice' | 'video'
+        isVideo: callType === 'video',
         callerName,
         callerAvatar,
         status: 'ringing',
@@ -77,8 +98,9 @@ export const callSignalingService = {
         timeoutId: null
       };
 
-      // Thiết lập timeout 45s: nếu sau 45s chưa accept/ended, tự động hủy phiên
-      callSession.timeoutId = setTimeout(() => {
+      // Thiết lập timeout 45s trong Map tách biệt: nếu sau 45s chưa accept/ended, tự động hủy phiên
+      const timeoutHandle = setTimeout(() => {
+        callTimers.delete(callSession.callId);
         const currentSession = activeCalls.get(String(userId));
         if (currentSession && currentSession.callId === callSession.callId && currentSession.status === 'ringing') {
           activeCalls.delete(String(callSession.callerId));
@@ -94,18 +116,22 @@ export const callSignalingService = {
         }
       }, CALL_TIMEOUT_MS);
 
-      if (callSession.timeoutId?.unref) {
-        callSession.timeoutId.unref();
+      if (timeoutHandle?.unref) {
+        timeoutHandle.unref();
       }
+      callTimers.set(callSession.callId, timeoutHandle);
+      callSession.timeoutId = Number(timeoutHandle) || callSession.callId;
 
       activeCalls.set(String(userId), callSession);
       activeCalls.set(String(targetUserId), callSession);
 
+      const publicSession = toPublicCallSession(callSession);
+
       // 4. Phát tín hiệu cuộc gọi đến cho đối phương
-      emitToUser(targetUserId, 'call:incoming', callSession);
+      emitToUser(targetUserId, 'call:incoming', publicSession);
 
       // 5. Báo lại cho người gọi rằng đang đổ chuông
-      socket.emit('call:ringing', callSession);
+      socket.emit('call:ringing', publicSession);
     } catch (err) {
       console.warn('[CallSignaling] Initiate error:', err.message);
       socket.emit('call:rejected', { reason: 'server_error', message: err.message });
@@ -125,10 +151,11 @@ export const callSignalingService = {
       session.connectedAt = Date.now();
 
       const peerId = session.callerId === String(userId) ? session.targetUserId : session.callerId;
+      const publicSession = toPublicCallSession(session);
 
       // Thông báo cho cả 2 bên cuộc gọi đã được chấp nhận
-      emitToUser(peerId, 'call:accepted', session);
-      socket.emit('call:accepted', session);
+      emitToUser(peerId, 'call:accepted', publicSession);
+      socket.emit('call:accepted', publicSession);
     } catch (err) {
       console.warn('[CallSignaling] Accept error:', err.message);
     }
@@ -193,6 +220,21 @@ export const callSignalingService = {
       });
     } catch (err) {
       console.warn('[CallSignaling] Signal error:', err.message);
+    }
+  },
+
+  handleCallMediaState(socket, userId, data, { emitToUser }) {
+    try {
+      const session = activeCalls.get(String(userId));
+      const targetId = data?.targetUserId || (session ? (session.callerId === String(userId) ? session.targetUserId : session.callerId) : null);
+      if (!targetId) return;
+      emitToUser(targetId, 'call:media_state', {
+        fromUserId: String(userId),
+        isMuted: Boolean(data?.isMuted),
+        isVideoOff: Boolean(data?.isVideoOff)
+      });
+    } catch (err) {
+      console.warn('[CallSignaling] MediaState error:', err.message);
     }
   },
 

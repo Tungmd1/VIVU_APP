@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 
 /**
  * ClearChatModal - Hộp thoại xác nhận dọn sạch toàn bộ tin nhắn trong cuộc trò chuyện
+ * - Mặc định xóa ở phía tôi; cho phép chọn xóa với cả mọi người
+ * - Giữ nguyên trang và cuộc trò chuyện sau khi xóa
  * Tuân thủ Rule 5 (100% Bootstrap Icons), Rule 7 (< 450 dòng)
  */
 export default function ClearChatModal({
@@ -11,6 +13,14 @@ export default function ClearChatModal({
   onClose,
   onConfirmClear
 }) {
+  const [clearForEveryone, setClearForEveryone] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setClearForEveryone(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -40,12 +50,47 @@ export default function ClearChatModal({
             </div>
             <h3 className="text-base font-bold tracking-tight">Xóa tất cả tin nhắn?</h3>
             <p className="text-xs text-white/70 leading-relaxed px-2">
-              Tất cả lịch sử tin nhắn trong cuộc trò chuyện với <span className="font-semibold text-white">{partnerName || 'người này'}</span> sẽ bị xóa hoàn toàn. Thao tác này chỉ dọn sạch tin nhắn, không xóa nhóm hay danh sách bạn bè.
+              Toàn bộ tin nhắn trong cuộc trò chuyện với <span className="font-semibold text-white">{partnerName || 'người này'}</span> sẽ được dọn sạch, nhưng trang trò chuyện và danh sách bạn bè/nhóm vẫn được giữ nguyên.
             </p>
           </div>
 
+          {/* Tùy chọn phạm vi xóa */}
+          <div className="space-y-2 text-left">
+            <button
+              type="button"
+              onClick={() => setClearForEveryone(false)}
+              className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                !clearForEveryone
+                  ? 'bg-[#00E5FF]/10 border-[#00E5FF]/50 text-white'
+                  : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              <i className={`bi ${!clearForEveryone ? 'bi-check-circle-fill text-[#00E5FF]' : 'bi-circle text-white/40'} text-sm mt-0.5 shrink-0`}></i>
+              <div>
+                <div className="text-xs font-bold">Chỉ xóa ở phía tôi</div>
+                <div className="text-[11px] text-white/60 leading-snug">Chỉ dọn sạch lịch sử trên tài khoản của bạn; đối phương vẫn giữ nguyên tin nhắn.</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setClearForEveryone(true)}
+              className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer flex items-start gap-2.5 ${
+                clearForEveryone
+                  ? 'bg-[#FF2A85]/15 border-[#FF2A85]/60 text-white'
+                  : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              <i className={`bi ${clearForEveryone ? 'bi-check-circle-fill text-[#FF2A85]' : 'bi-circle text-white/40'} text-sm mt-0.5 shrink-0`}></i>
+              <div>
+                <div className="text-xs font-bold">Xóa với cả mọi người</div>
+                <div className="text-[11px] text-white/60 leading-snug">Xóa toàn bộ tin nhắn cho cả hai phía (khung chat vẫn được giữ lại).</div>
+              </div>
+            </button>
+          </div>
+
           {/* Các nút hành động */}
-          <div className="flex gap-2.5 pt-2">
+          <div className="flex gap-2.5 pt-1">
             <button
               type="button"
               onClick={onClose}
@@ -56,7 +101,7 @@ export default function ClearChatModal({
             <button
               type="button"
               onClick={() => {
-                onConfirmClear?.();
+                onConfirmClear?.(clearForEveryone);
                 onClose();
               }}
               className="flex-1 py-2.5 rounded-2xl bg-gradient-to-r from-[#FF2A85] to-[#E10600] hover:opacity-95 text-white font-bold text-xs shadow-[0_0_15px_rgba(255,42,133,0.4)] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-1.5"

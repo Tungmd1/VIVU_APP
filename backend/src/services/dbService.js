@@ -30,6 +30,41 @@ export function parseExpiryMs(val, defaultHours = 24, createdAt = null) {
 export const dbService = {
   isCloud: isCloudEnabled,
 
+  enrichStoryWithAuthor(story) {
+    if (!story) return story;
+    const rawHostId = story.host_id || story.hostId || story.user_id || story.userId;
+    const rawCode = story.user_code || story.userCode;
+    const users = inMemoryStore.users || [];
+    const profiles = inMemoryStore.profiles || [];
+    const matchedUser =
+      (rawHostId && users.find(u => u.id === rawHostId)) ||
+      (rawCode && users.find(u => u.user_code === rawCode)) ||
+      null;
+    const resolvedId = matchedUser?.id || rawHostId || null;
+    const matchedProfile =
+      (resolvedId && profiles.find(p => p.id === resolvedId)) ||
+      (rawCode && profiles.find(p => p.user_code === rawCode)) ||
+      null;
+    const author = { ...(matchedUser || {}), ...(matchedProfile || {}) };
+    const resolvedName = author.full_name || author.name || (story.host_name && story.host_name !== 'Bạn (Tôi)' ? story.host_name : null) || 'Thành viên VIVU';
+    const resolvedAvatar = author.avatar_url || author.avatar || story.host_avatar || null;
+    const resolvedCode = author.user_code || rawCode || (resolvedId ? this.generateUserCode(resolvedId) : null);
+    const ageMs = author.last_seen_at ? Date.now() - new Date(author.last_seen_at).getTime() : Infinity;
+    const authorOnline = Boolean(author.is_online !== false && ageMs < 15000);
+    return {
+      ...story,
+      host_id: resolvedId,
+      hostId: resolvedId,
+      user_code: resolvedCode,
+      userCode: resolvedCode,
+      host_name: resolvedName,
+      hostName: resolvedName,
+      host_avatar: resolvedAvatar,
+      hostAvatar: resolvedAvatar,
+      author_is_online: authorOnline
+    };
+  },
+
   async getStories(privacy = null) {
     if (isCloudEnabled && supabase) {
       try {
@@ -56,14 +91,21 @@ export const dbService = {
       console.log(`[Story Expiry] Đã dọn dẹp ${prevCount - inMemoryStore.stories.length} story hết hạn.`);
     }
 
-    if (privacy) {
-      return inMemoryStore.stories.filter(s => s.privacy === privacy);
-    }
-    return inMemoryStore.stories;
+    const list = privacy
+      ? inMemoryStore.stories.filter(s => s.privacy === privacy)
+      : inMemoryStore.stories;
+    return list.map(s => this.enrichStoryWithAuthor(s));
   },
 
   async createStory(story) {
-    const creatorId = story.host_id || story.hostId || story.user_id;
+    const rawCreatorId = story.host_id || story.hostId || story.user_id || story.userId;
+    const rawCode = story.user_code || story.userCode || null;
+    const regAuthor =
+      (rawCreatorId && inMemoryStore.users.find(u => u.id === rawCreatorId)) ||
+      (rawCode && inMemoryStore.users.find(u => u.user_code === rawCode)) ||
+      null;
+    const regProfile = regAuthor ? inMemoryStore.profiles.find(p => p.id === regAuthor.id) : null;
+    const creatorId = regAuthor?.id || rawCreatorId || null;
     const expiryHours = Number(story.expiry_hours || story.expiryHours) || 24;
     const createdAt = new Date().toISOString();
     const expiresAt = story.expires_at || new Date(Date.now() + expiryHours * 3600000).toISOString();
@@ -74,10 +116,10 @@ export const dbService = {
 
     const newStory = {
       id: story.id || `story-${Date.now()}`,
-      host_id: creatorId || null,
-      user_code: story.user_code || story.userCode || null,
-      host_name: story.host_name || 'Bạn (Tôi)',
-      host_avatar: story.host_avatar || null,
+      host_id: creatorId,
+      user_code: regAuthor?.user_code || rawCode || (creatorId ? this.generateUserCode(creatorId) : null),
+      host_name: regProfile?.full_name || regAuthor?.full_name || story.host_name || story.hostName || 'Thành viên VIVU',
+      host_avatar: regProfile?.avatar_url || regAuthor?.avatar_url || story.host_avatar || story.hostAvatar || null,
       category: story.category || 'moment',
       title: story.title || 'Khoảnh khắc mới',
       description: story.description || '',
@@ -138,14 +180,15 @@ export const dbService = {
 
     const story = inMemoryStore.stories[idx];
     
-    // Kiểm tra quyền an toàn
+    // Kiểm tra quyền sở hữu chặt chẽ
     const isOwner = !story.host_id || 
       (userId && story.host_id === userId) || 
-      (userCode && story.user_code === userCode) ||
-      (userId && userId.startsWith('client-'));
+      (userCode && story.user_code && story.user_code === userCode);
 
     if (userId && !isOwner) {
-      console.warn(`[DB Service] Quyền xóa story không khớp, cho phép xóa nếu trùng session:`, { userId, hostId: story.host_id });
+      const err = new Error('Bạn không có quyền xóa Story của người dùng khác');
+      err.statusCode = 403;
+      throw err;
     }
 
     if (isCloudEnabled && supabase) {
@@ -266,24 +309,23 @@ export const dbService = {
       }
     }
     const now = Date.now();
-    const validUserIds = new Set(inMemoryStore.users.map(u => u.id));
+    const userById = new Map(inMemoryStore.users.map(u => [u.id, u]));
 
     // Lọc bỏ chỉ các session khách vãng lai rác (client-xxx), GIỮ BỀN VỮNG toàn bộ tài khoản đăng ký
-    // Đánh dấu is_online: true nếu có heartbeat trong vòng 120s (2 phút), giữ vị trí trong 24 giờ
     const processedProfiles = inMemoryStore.profiles
       .filter(p => {
-        if (!p.id || !validUserIds.has(p.id) || p.id.startsWith('client-')) return false;
-        if (p.lat == null || p.lng == null) return false;
-        if (!p.last_seen_at) return false;
+        if (!p.id || !userById.has(p.id) || p.id.startsWith('client-')) return false;
+        if (!p.last_seen_at) return true;
         const ageMs = now - new Date(p.last_seen_at).getTime();
         return ageMs < 24 * 60 * 60 * 1000;
       })
       .map(p => {
-        const ageMs = now - new Date(p.last_seen_at).getTime();
-        // Siêu nhạy: is_online = true nếu heartbeat trong vòng 15 giây và không bị đánh dấu offline
+        const regUser = userById.get(p.id) || {};
+        const combined = { ...regUser, ...p };
+        const ageMs = p.last_seen_at ? now - new Date(p.last_seen_at).getTime() : (p.is_online ? 0 : Infinity);
         const isOnline = p.is_online !== false && ageMs < 15000;
 
-        // Tự động đính kèm Story đang hoạt động chưa hết hạn của người này (Đồng bộ đa thiết bị thật 100%)
+        // Tự động đính kèm Story đang hoạt động chưa hết hạn của người này
         const userStory = inMemoryStore.stories.find(s => {
           const sHost = s.host_id || s.hostId;
           const sCode = s.user_code || s.userCode;
@@ -294,17 +336,25 @@ export const dbService = {
         });
 
         // Kiểm tra thời hạn tự hủy của Chibi & trạng thái tâm trạng
-        const chibiExp = parseExpiryMs(p.chibi_expires_at, 24);
-        const isChibiExpired = p.chibi_expires_at && chibiExp <= now;
-        const activeChibi = isChibiExpired ? null : (p.custom_chibi || null);
+        const chibiExp = parseExpiryMs(combined.chibi_expires_at, 24);
+        const isChibiExpired = combined.chibi_expires_at && chibiExp <= now;
+        const activeChibi = isChibiExpired ? null : (combined.custom_chibi || null);
+
+        const pAge = combined.privacy_age || 'public';
+        const pPhone = combined.privacy_phone || 'friends';
+        const pTags = combined.privacy_tags || 'public';
+        const { password: _pwd, phone: _rawPhone, ...safeCombined } = combined;
 
         return {
-          ...p,
+          ...safeCombined,
+          age: pAge === 'public' ? (combined.age ?? null) : null,
+          phone: pPhone === 'public' ? (combined.phone || '') : '',
+          tags: pTags === 'public' ? (Array.isArray(combined.tags) ? combined.tags : []) : [],
           is_online: isOnline,
           custom_chibi: activeChibi,
-          chibi_expires_at: isChibiExpired ? null : p.chibi_expires_at,
+          chibi_expires_at: isChibiExpired ? null : (combined.chibi_expires_at || null),
           active_story: userStory || p.active_story || null,
-          last_seen_seconds_ago: Math.round(ageMs / 1000),
+          last_seen_seconds_ago: Number.isFinite(ageMs) ? Math.round(ageMs / 1000) : null,
           last_seen_text: isOnline
             ? 'Đang trực tuyến'
             : ageMs < 60000
@@ -316,7 +366,7 @@ export const dbService = {
       });
 
     // Chỉ dọn dẹp các profile không hợp lệ khỏi inMemoryStore, KHÔNG xoá tài khoản đăng ký
-    inMemoryStore.profiles = inMemoryStore.profiles.filter(p => validUserIds.has(p.id));
+    inMemoryStore.profiles = inMemoryStore.profiles.filter(p => userById.has(p.id));
 
     return processedProfiles;
   },
@@ -665,6 +715,92 @@ export const dbService = {
     };
   },
 
+  filterProfileForViewer(rawUser, viewerId = null, isFriend = false) {
+    if (!rawUser) return null;
+    const isOwner = Boolean(viewerId && String(viewerId) === String(rawUser.id));
+    const privacyAge = rawUser.privacy_age || 'public';
+    const privacyPhone = rawUser.privacy_phone || 'friends';
+    const privacyTags = rawUser.privacy_tags || 'public';
+
+    const canSeeAge = isOwner || privacyAge === 'public' || (privacyAge === 'friends' && isFriend);
+    const canSeePhone = isOwner || privacyPhone === 'public' || (privacyPhone === 'friends' && isFriend);
+    const canSeeTags = isOwner || privacyTags === 'public' || (privacyTags === 'friends' && isFriend);
+
+    const { password: _pwd, phone: _rawPhone, ...userSafe } = rawUser;
+    return {
+      ...userSafe,
+      age: canSeeAge ? (rawUser.age ?? null) : null,
+      phone: canSeePhone ? (rawUser.phone || '') : '',
+      tags: canSeeTags ? (Array.isArray(rawUser.tags) ? rawUser.tags : []) : [],
+      privacy_age: privacyAge,
+      privacy_phone: privacyPhone,
+      privacy_tags: privacyTags,
+      can_see_age: canSeeAge,
+      can_see_phone: canSeePhone,
+      can_see_tags: canSeeTags
+    };
+  },
+
+  async getViewerFilteredProfile(targetUserId, viewerId = null) {
+    if (!targetUserId) return null;
+    let resolvedId = String(targetUserId);
+
+    // Nếu truyền nhầm ID Story (story-xxx) hoặc mã VU-XXXX -> tra ngược về chủ tài khoản thật
+    if (resolvedId.startsWith('story-')) {
+      const matchedStory = (inMemoryStore.stories || []).find(s => s.id === resolvedId);
+      if (matchedStory) {
+        resolvedId = matchedStory.host_id || matchedStory.hostId || matchedStory.user_id || '';
+        if (!resolvedId && matchedStory.user_code) {
+          const uByCode = inMemoryStore.users.find(u => u.user_code === matchedStory.user_code);
+          if (uByCode) resolvedId = uByCode.id;
+        }
+      }
+    }
+    if (resolvedId.toUpperCase().startsWith('VU-')) {
+      const uByCode = inMemoryStore.users.find(u => String(u.user_code || '').toUpperCase() === resolvedId.toUpperCase());
+      if (uByCode) resolvedId = uByCode.id;
+    }
+    if (!resolvedId) return null;
+
+    const u = inMemoryStore.users.find(user => user.id === resolvedId) || null;
+    const p = inMemoryStore.profiles.find(prof => prof.id === resolvedId) || null;
+    if (!u && !p) return null;
+
+    const combined = { ...(u || {}), ...(p || {}), id: resolvedId };
+    const isOwner = Boolean(viewerId && String(viewerId) === String(resolvedId));
+    let isFriend = false;
+    if (!isOwner && viewerId) {
+      const rel = this.getFriendshipStatus(viewerId, resolvedId);
+      isFriend = rel?.status === 'friends';
+    }
+
+    const chibiExp = parseExpiryMs(combined.chibi_expires_at, 24);
+    const isChibiExpired = combined.chibi_expires_at && chibiExp <= Date.now();
+    const ageMs = combined.last_seen_at ? Date.now() - new Date(combined.last_seen_at).getTime() : Infinity;
+    const isOnline = p ? (p.is_online !== false && ageMs < 15000) : false;
+
+    const filtered = this.filterProfileForViewer({
+      ...combined,
+      custom_chibi: isChibiExpired ? null : (combined.custom_chibi || null),
+      chibi_expires_at: isChibiExpired ? null : (combined.chibi_expires_at || null),
+      isOnline,
+      is_online: isOnline
+    }, viewerId, isFriend);
+
+    const highlights = await this.getUserHighlights(resolvedId);
+    return {
+      profile: {
+        ...filtered,
+        highlights,
+        isOwner,
+        isFriend
+      },
+      highlights,
+      isOwner,
+      isFriend
+    };
+  },
+
   async getUserById(userId) {
     let user = inMemoryStore.users.find(u => u.id === userId);
     if (!user) {
@@ -686,35 +822,47 @@ export const dbService = {
   async updateUserProfile(userId, data) {
     if (!userId) throw new Error('userId là bắt buộc');
     let user = inMemoryStore.users.find(u => u.id === userId);
+    const incomingName = data.fullName !== undefined ? data.fullName : data.full_name;
     if (!user) {
       let p = inMemoryStore.profiles.find(pr => pr.id === userId);
       if (!p) {
-        p = { id: userId, full_name: data.fullName || 'Người dùng VIVU', name: data.fullName || 'Người dùng VIVU' };
+        p = { id: userId, full_name: incomingName || 'Người dùng VIVU', name: incomingName || 'Người dùng VIVU' };
         inMemoryStore.profiles.push(p);
       }
       user = p;
     }
 
     const targetAvatar = data.avatarUrl !== undefined ? data.avatarUrl : data.avatar_url;
-    if (data.fullName) user.full_name = data.fullName;
+    const targetFavSong = data.favorite_song !== undefined ? data.favorite_song : data.favoriteSong;
+    const targetPrivacyAge = data.privacy_age !== undefined ? data.privacy_age : data.privacyAge;
+    const targetPrivacyPhone = data.privacy_phone !== undefined ? data.privacy_phone : data.privacyPhone;
+    const targetPrivacyTags = data.privacy_tags !== undefined ? data.privacy_tags : data.privacyTags;
+    const targetStatus = data.customStatus !== undefined ? data.customStatus : data.custom_status;
+    const targetAccent = data.themeAccent !== undefined ? data.themeAccent : data.theme_accent;
+
+    if (incomingName) {
+      user.full_name = incomingName;
+      user.name = incomingName;
+    }
     if (targetAvatar !== undefined) user.avatar_url = targetAvatar || null;
     if (data.phone !== undefined) user.phone = data.phone;
     if (data.bio !== undefined) user.bio = data.bio;
     if (data.age !== undefined) user.age = data.age;
     if (data.job !== undefined) user.job = data.job;
-    if (data.customStatus !== undefined) {
-      const cleanStatus = (data.customStatus === 'clear' || data.customStatus === 'remove' || data.customStatus === null) ? '' : data.customStatus;
+    if (targetStatus !== undefined) {
+      const cleanStatus = (targetStatus === 'clear' || targetStatus === 'remove' || targetStatus === null) ? '' : targetStatus;
       user.custom_status = cleanStatus;
     }
     if (data.messagePrivacy !== undefined) user.message_privacy = data.messagePrivacy;
     if (data.message_privacy !== undefined) user.message_privacy = data.message_privacy;
+    if (targetAccent !== undefined) user.theme_accent = targetAccent;
     if (data.locationConsent !== undefined) user.location_consent = data.locationConsent;
     if (Array.isArray(data.tags)) user.tags = data.tags;
     if (Array.isArray(data.photos)) user.photos = data.photos;
-    if (data.favorite_song !== undefined) user.favorite_song = data.favorite_song;
-    if (data.privacy_age !== undefined) user.privacy_age = data.privacy_age;
-    if (data.privacy_phone !== undefined) user.privacy_phone = data.privacy_phone;
-    if (data.privacy_tags !== undefined) user.privacy_tags = data.privacy_tags;
+    if (targetFavSong !== undefined) user.favorite_song = targetFavSong;
+    if (targetPrivacyAge !== undefined) user.privacy_age = targetPrivacyAge;
+    if (targetPrivacyPhone !== undefined) user.privacy_phone = targetPrivacyPhone;
+    if (targetPrivacyTags !== undefined) user.privacy_tags = targetPrivacyTags;
     if (data.pinSkin !== undefined) user.pin_skin = data.pinSkin;
     if (data.customChibi !== undefined) user.custom_chibi = data.customChibi;
     if (data.chibiExpiresAt !== undefined || data.chibi_expires_at !== undefined) {
@@ -730,21 +878,22 @@ export const dbService = {
     // Đồng bộ sang bảng profiles nếu profile đã có trên bản đồ
     const pIdx = inMemoryStore.profiles.findIndex(p => p.id === userId);
     if (pIdx >= 0) {
-      if (data.fullName) {
-        inMemoryStore.profiles[pIdx].full_name = data.fullName;
-        inMemoryStore.profiles[pIdx].name = data.fullName;
+      if (incomingName) {
+        inMemoryStore.profiles[pIdx].full_name = incomingName;
+        inMemoryStore.profiles[pIdx].name = incomingName;
       }
       if (targetAvatar !== undefined) {
         inMemoryStore.profiles[pIdx].avatar_url = targetAvatar || null;
         inMemoryStore.profiles[pIdx].avatar = targetAvatar || null;
       }
-      if (data.customStatus !== undefined) {
-        const cleanStatus = (data.customStatus === 'clear' || data.customStatus === 'remove' || data.customStatus === null) ? '' : data.customStatus;
+      if (targetStatus !== undefined) {
+        const cleanStatus = (targetStatus === 'clear' || targetStatus === 'remove' || targetStatus === null) ? '' : targetStatus;
         inMemoryStore.profiles[pIdx].custom_status = cleanStatus;
       }
       if (data.messagePrivacy || data.message_privacy) {
         inMemoryStore.profiles[pIdx].message_privacy = data.messagePrivacy || data.message_privacy;
       }
+      if (targetAccent !== undefined) inMemoryStore.profiles[pIdx].theme_accent = targetAccent;
       if (data.locationConsent) {
         inMemoryStore.profiles[pIdx].location_consent = data.locationConsent;
       }
@@ -752,9 +901,9 @@ export const dbService = {
       if (data.age !== undefined) inMemoryStore.profiles[pIdx].age = data.age;
       if (data.job !== undefined) inMemoryStore.profiles[pIdx].job = data.job;
       if (data.bio !== undefined) inMemoryStore.profiles[pIdx].bio = data.bio;
-      if (data.privacy_age !== undefined) inMemoryStore.profiles[pIdx].privacy_age = data.privacy_age;
-      if (data.privacy_phone !== undefined) inMemoryStore.profiles[pIdx].privacy_phone = data.privacy_phone;
-      if (data.privacy_tags !== undefined) inMemoryStore.profiles[pIdx].privacy_tags = data.privacy_tags;
+      if (targetPrivacyAge !== undefined) inMemoryStore.profiles[pIdx].privacy_age = targetPrivacyAge;
+      if (targetPrivacyPhone !== undefined) inMemoryStore.profiles[pIdx].privacy_phone = targetPrivacyPhone;
+      if (targetPrivacyTags !== undefined) inMemoryStore.profiles[pIdx].privacy_tags = targetPrivacyTags;
       if (data.pinSkin !== undefined) inMemoryStore.profiles[pIdx].pin_skin = data.pinSkin;
       if (data.customChibi !== undefined) inMemoryStore.profiles[pIdx].custom_chibi = data.customChibi;
       if (data.chibiExpiresAt !== undefined || data.chibi_expires_at !== undefined) {
@@ -765,9 +914,10 @@ export const dbService = {
       }
       if (data.pinMascot !== undefined) inMemoryStore.profiles[pIdx].pin_mascot = data.pinMascot;
       if (data.pinAction !== undefined) inMemoryStore.profiles[pIdx].pin_action = data.pinAction;
-      if (data.favorite_song !== undefined) inMemoryStore.profiles[pIdx].favorite_song = data.favorite_song;
+      if (targetFavSong !== undefined) inMemoryStore.profiles[pIdx].favorite_song = targetFavSong;
       if (Array.isArray(data.tags)) inMemoryStore.profiles[pIdx].tags = data.tags;
       if (Array.isArray(data.photos)) inMemoryStore.profiles[pIdx].photos = data.photos;
+      inMemoryStore.profiles[pIdx].updated_at = user.updated_at;
     }
 
     dbStore.persist();
@@ -776,7 +926,7 @@ export const dbService = {
     return userSafe;
   },
 
-  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt) {
+  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt, accuracy = undefined, timestamp = undefined, speed = undefined) {
     // 1. CHẶN TUYỆT ĐỐI KHÁCH VÃNG LAI: Không lưu vào Database và không phát sóng lên Bản đồ
     if (!userId || typeof userId !== 'string' || userId.startsWith('client-')) {
       return { id: userId, is_guest: true, persisted: false };
@@ -791,6 +941,27 @@ export const dbService = {
     const code = userCode || registeredUser.user_code || this.generateUserCode(userId);
     const resolvedName = name || registeredUser.full_name;
     const resolvedAvatar = avatar || registeredUser.avatar_url;
+    let parsedTimestamp = new Date().toISOString();
+    if (timestamp) {
+      const tsMs = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
+      if (!isNaN(tsMs) && tsMs > 0) {
+        parsedTimestamp = new Date(tsMs).toISOString();
+      }
+    }
+
+    const prevProf = inMemoryStore.profiles.find(p => p.id === userId);
+    let computedSpeedKmh = 0;
+    if (speed !== undefined && speed !== null && !isNaN(Number(speed)) && Number(speed) >= 0) {
+      computedSpeedKmh = Number(Number(speed).toFixed(1));
+    } else if (prevProf && prevProf.lat != null && prevProf.lng != null && prevProf.last_seen_at) {
+      const dLat = (Number(lat) - Number(prevProf.lat)) * Math.PI / 180;
+      const dLon = (Number(lng) - Number(prevProf.lng)) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(Number(prevProf.lat) * Math.PI / 180) * Math.cos(Number(lat) * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+      const distMeters = 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const dtSec = Math.max(0.5, (Date.now() - new Date(prevProf.last_seen_at).getTime()) / 1000);
+      const kmh = (distMeters / dtSec) * 3.6;
+      computedSpeedKmh = (kmh >= 1.2 && kmh <= 250) ? Number(kmh.toFixed(1)) : 0;
+    }
 
     const updatePayload = {
       id: userId,
@@ -802,8 +973,13 @@ export const dbService = {
       avatar_url: resolvedAvatar,
       avatar: resolvedAvatar,
       is_online: true,
-      last_seen_at: new Date().toISOString()
+      last_seen_at: new Date().toISOString(),
+      gps_timestamp: parsedTimestamp,
+      speed: computedSpeedKmh
     };
+    if (accuracy !== undefined && accuracy !== null && !isNaN(Number(accuracy))) {
+      updatePayload.accuracy = Number(accuracy);
+    }
     // Bảo vệ Story Chibi & diện mạo không bị ghi đè null khi đang còn hạn trên server
     const currentChibiExp = parseExpiryMs(registeredUser.chibi_expires_at, 24);
     const hasActiveServerChibi = Boolean(registeredUser.custom_chibi && currentChibiExp > Date.now());
@@ -907,22 +1083,58 @@ export const dbService = {
       }
     }
 
+    // Tự động đồng bộ lat/lng/speed sang các tin nhắn Chia Sẻ Vị Trí Trực Tiếp còn hạn
+    const nowMsLive = Date.now();
+    const updatedLiveMessages = [];
+    (inMemoryStore.messages || []).forEach(m => {
+      if (m.sender === userId && (m.is_live_location || m.isLiveLocation) && m.live_status !== 'stopped') {
+        const expMs = m.live_expires_at ? new Date(m.live_expires_at).getTime() : Infinity;
+        if (expMs > nowMsLive) {
+          m.lat = Number(lat);
+          m.lng = Number(lng);
+          m.speed = computedSpeedKmh;
+          m.updated_at = updatePayload.last_seen_at;
+          updatedLiveMessages.push({
+            id: m.id,
+            conversation_id: m.conversation_id,
+            sender: m.sender,
+            lat: m.lat,
+            lng: m.lng,
+            speed: m.speed,
+            updated_at: m.updated_at
+          });
+        }
+      }
+    });
+
     const idx = inMemoryStore.profiles.findIndex(p => p.id === userId);
     if (idx !== -1) {
-      inMemoryStore.profiles[idx] = { ...inMemoryStore.profiles[idx], ...updatePayload };
+      inMemoryStore.profiles[idx] = { ...inMemoryStore.profiles[idx], ...updatePayload, _updatedLiveMessages: undefined };
       dbStore.persist();
-      return inMemoryStore.profiles[idx];
+      const result = { ...inMemoryStore.profiles[idx] };
+      if (updatedLiveMessages.length > 0) result._updatedLiveMessages = updatedLiveMessages;
+      return result;
     } else {
       const newProfile = {
+        bio: registeredUser.bio || '',
+        job: registeredUser.job || '',
+        age: registeredUser.age ?? null,
+        phone: registeredUser.phone || '',
+        tags: Array.isArray(registeredUser.tags) ? registeredUser.tags : [],
+        photos: Array.isArray(registeredUser.photos) ? registeredUser.photos : [],
+        favorite_song: registeredUser.favorite_song || '',
+        privacy_age: registeredUser.privacy_age || 'public',
+        privacy_phone: registeredUser.privacy_phone || 'friends',
+        privacy_tags: registeredUser.privacy_tags || 'public',
+        custom_status: registeredUser.custom_status || '',
+        custom_song: registeredUser.custom_song || null,
+        custom_chibi: registeredUser.custom_chibi || null,
+        chibi_expires_at: registeredUser.chibi_expires_at || null,
+        pin_skin: registeredUser.pin_skin || 'auto',
+        pin_mascot: registeredUser.pin_mascot || null,
+        pin_action: registeredUser.pin_action || null,
         ...updatePayload,
-        battery: '95%',
-        custom_status: customStatus || 'Đang hoạt động',
-        custom_song: customSong || null,
-        custom_chibi: customChibi || null,
-        chibi_expires_at: chibiExpiresAt || null,
-        pin_skin: pinSkin || 'auto',
-        pin_mascot: pinMascot || null,
-        pin_action: pinAction || null
+        battery: '95%'
       };
       inMemoryStore.profiles.push(newProfile);
       dbStore.persist();
@@ -1181,10 +1393,19 @@ export const dbService = {
     return friendUserIds.map(fId => {
       const u = inMemoryStore.users.find(user => user.id === fId) || {};
       const p = inMemoryStore.profiles.find(prof => prof.id === fId) || {};
-      const combined = { ...u, ...p };
+      const combined = { ...u, ...p, id: fId };
       const ageMs = combined.last_seen_at ? Date.now() - new Date(combined.last_seen_at).getTime() : Infinity;
       const isOnline = p.is_online !== false && ageMs < 15000;
+      const chibiExp = parseExpiryMs(combined.chibi_expires_at, 24);
+      const isChibiExpired = combined.chibi_expires_at && chibiExp <= Date.now();
+      const filtered = this.filterProfileForViewer({
+        ...combined,
+        custom_chibi: isChibiExpired ? null : (combined.custom_chibi || null),
+        chibi_expires_at: isChibiExpired ? null : (combined.chibi_expires_at || null)
+      }, userId, true);
+
       return {
+        ...filtered,
         id: fId,
         name: combined.full_name || combined.name || 'Người dùng VIVU',
         full_name: combined.full_name || combined.name || 'Người dùng VIVU',
@@ -1196,7 +1417,8 @@ export const dbService = {
         lng: combined.lng,
         isOnline: isOnline,
         is_online: isOnline,
-        battery: combined.battery || '95%'
+        battery: combined.battery || '95%',
+        isFriend: true
       };
     });
   },
@@ -1305,9 +1527,12 @@ export const dbService = {
   async getUserConversations(userId) {
     if (!userId) return [];
 
-    // 1. Lấy toàn bộ nhóm mà user này là thành viên hợp lệ
+    // 1. Lấy toàn bộ nhóm hoạt động mà user này là thành viên hợp lệ (ẩn nhóm chờ xác nhận / đã hủy)
     const userCircles = (inMemoryStore.circles || []).filter(c => 
-      Array.isArray(c.member_ids) && c.member_ids.includes(userId)
+      c.status !== 'pending_confirmation' &&
+      c.status !== 'cancelled' &&
+      Array.isArray(c.member_ids) &&
+      c.member_ids.includes(userId)
     );
     const userCircleIds = new Set(userCircles.map(c => c.id));
 
@@ -1466,11 +1691,14 @@ export const dbService = {
       }
     }
 
-    // Bổ sung các nhóm mà user là thành viên nhưng chưa có tin nhắn nào
+    // Bổ sung các nhóm mà user là thành viên nhưng chưa có tin nhắn nào (hoặc vừa xóa hết tin nhắn)
     for (const circle of userCircles) {
       if (!conversations.some(c => c.id === circle.id)) {
         const circleArchived = Boolean(
           (inMemoryStore.archivedConversations || []).some(a => a.userId === userId && a.conversationId === circle.id)
+        );
+        const clearedCircle = (inMemoryStore.clearedConversations || []).find(
+          cc => cc.userId === userId && cc.conversationId === circle.id
         );
         conversations.push({
           id: circle.id,
@@ -1485,13 +1713,58 @@ export const dbService = {
           isFriend: false,
           hasReplied: true,
           isArchived: circleArchived,
-          lastMessage: 'Nhóm mới tạo',
-          time: circle.created_at || new Date().toISOString(),
+          isCleared: Boolean(clearedCircle),
+          lastMessage: clearedCircle ? 'Đã xóa lịch sử trò chuyện' : 'Nhóm mới tạo',
+          time: clearedCircle?.clearedAt || circle.created_at || new Date().toISOString(),
           unread: false,
           unreadCount: 0,
           messages: []
         });
       }
+    }
+
+    // Bổ sung các cuộc trò chuyện 1-1 đã dọn sạch tin nhắn để trang chat vẫn được giữ lại sau F5
+    for (const cc of (inMemoryStore.clearedConversations || [])) {
+      if (cc.userId !== userId || !cc.conversationId?.startsWith('conv-direct-')) continue;
+      if (conversations.some(c => c.id === cc.conversationId)) continue;
+      const parts = cc.conversationId.replace('conv-direct-', '').split('--');
+      const partnerId = parts.find(p => p !== userId) || parts[0];
+      const partnerUser = inMemoryStore.users.find(u => u.id === partnerId) || {};
+      const partnerProfile = inMemoryStore.profiles.find(p => p.id === partnerId) || {};
+      const combinedPartner = { ...partnerUser, ...partnerProfile };
+      const rel = this.getFriendshipStatus(userId, partnerId);
+      const isFriend = rel.status === 'friends';
+      const hasReplied = Boolean(cc.hadReplied);
+      const isStranger = !isFriend && !hasReplied;
+      const ageMs = combinedPartner.last_seen_at ? Date.now() - new Date(combinedPartner.last_seen_at).getTime() : Infinity;
+      const isOnline = partnerProfile.is_online !== false && ageMs < 15000;
+      const isArchived = Boolean(
+        (inMemoryStore.archivedConversations || []).some(a => a.userId === userId && a.conversationId === cc.conversationId)
+      );
+      conversations.push({
+        id: cc.conversationId,
+        type: 'direct',
+        friendId: partnerId,
+        partnerId,
+        userId: partnerId,
+        targetUserId: partnerId,
+        name: combinedPartner.full_name || combinedPartner.name || 'Người dùng VIVU',
+        avatar: combinedPartner.avatar_url || combinedPartner.avatar || null,
+        user_code: combinedPartner.user_code || this.generateUserCode(partnerId),
+        online: isOnline,
+        isOnline,
+        is_online: isOnline,
+        isStranger,
+        isFriend,
+        hasReplied,
+        isArchived,
+        isCleared: true,
+        lastMessage: 'Đã xóa lịch sử trò chuyện',
+        time: cc.clearedAt || new Date().toISOString(),
+        unread: false,
+        unreadCount: 0,
+        messages: []
+      });
     }
 
     conversations.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
@@ -1597,6 +1870,11 @@ export const dbService = {
     }
 
     inMemoryStore.messages.push(newMsg);
+    if (Array.isArray(inMemoryStore.clearedConversations) && inMemoryStore.clearedConversations.length > 0) {
+      inMemoryStore.clearedConversations = inMemoryStore.clearedConversations.filter(
+        cc => cc.conversationId !== message.conversation_id
+      );
+    }
     dbStore.persist();
     return newMsg;
   },
@@ -1613,6 +1891,11 @@ export const dbService = {
       created_at: msg.created_at || new Date().toISOString()
     };
     inMemoryStore.messages.push(newMsg);
+    if (Array.isArray(inMemoryStore.clearedConversations) && inMemoryStore.clearedConversations.length > 0) {
+      inMemoryStore.clearedConversations = inMemoryStore.clearedConversations.filter(
+        cc => cc.conversationId !== message.conversation_id
+      );
+    }
     dbStore.persist();
     return newMsg;
   },
@@ -1683,9 +1966,46 @@ export const dbService = {
       }
     }
 
+    const convMsgs = inMemoryStore.messages.filter(m => m.conversation_id === conversationId);
+    const nowIso = new Date().toISOString();
+    if (!Array.isArray(inMemoryStore.clearedConversations)) {
+      inMemoryStore.clearedConversations = [];
+    }
+    const upsertCleared = (uid, hadReplied) => {
+      if (!uid) return;
+      const existing = inMemoryStore.clearedConversations.find(
+        cc => cc.userId === uid && cc.conversationId === conversationId
+      );
+      if (existing) {
+        existing.clearedAt = nowIso;
+        existing.hadReplied = existing.hadReplied || Boolean(hadReplied);
+      } else {
+        inMemoryStore.clearedConversations.push({
+          userId: uid,
+          conversationId,
+          clearedAt: nowIso,
+          hadReplied: Boolean(hadReplied)
+        });
+      }
+    };
+
     if (clearForEveryone) {
+      if (conversationId.startsWith('conv-direct-')) {
+        const parts = conversationId.replace('conv-direct-', '').split('--').filter(Boolean);
+        parts.forEach(pid => {
+          const hadReplied = convMsgs.some(m => m.sender === pid);
+          upsertCleared(pid, hadReplied);
+        });
+      } else if (conversationId.startsWith('circle-')) {
+        const circle = inMemoryStore.circles?.find(c => c.id === conversationId);
+        (circle?.member_ids || []).forEach(mid => upsertCleared(mid, true));
+      } else if (userId) {
+        upsertCleared(userId, convMsgs.some(m => m.sender === userId));
+      }
       inMemoryStore.messages = inMemoryStore.messages.filter(m => m.conversation_id !== conversationId);
     } else if (userId) {
+      const hadReplied = convMsgs.some(m => m.sender === userId);
+      upsertCleared(userId, hadReplied);
       inMemoryStore.messages.forEach(m => {
         if (m.conversation_id === conversationId) {
           m.deleted_for = m.deleted_for || [];
@@ -1696,7 +2016,7 @@ export const dbService = {
       });
     }
     dbStore.persist();
-    return { success: true, conversationId, clearedAt: new Date().toISOString() };
+    return { success: true, conversationId, clearedAt: nowIso, clearForEveryone: Boolean(clearForEveryone) };
   },
 
   async toggleArchiveConversation(conversationId, userId, isArchived = true) {
@@ -1794,18 +2114,22 @@ export const dbService = {
     // 2. Nhóm mà user đang có lời mời chờ duyệt (status === 'pending')
     // 3. Nhóm Công khai (privacy === 'public')
     return allCircles.filter(c => {
+      if (c.status === 'cancelled') return false;
       const isOwner = c.owner_id === userId;
       const isMember = Array.isArray(c.member_ids) && c.member_ids.includes(userId);
       const hasInvite = Array.isArray(c.members) && c.members.some(m => m.user_id === userId && m.status === 'pending');
-      const isPublic = c.privacy === 'public';
+      const isPublic = c.privacy === 'public' && c.status !== 'pending_confirmation';
       return isOwner || isMember || hasInvite || isPublic;
     }).map(c => {
       // Đính kèm thông tin trạng thái của user trong nhóm
       const myMembership = Array.isArray(c.members) ? c.members.find(m => m.user_id === userId) : null;
       const userRole = c.owner_id === userId ? 'owner' : (myMembership?.role || 'member');
       const userStatus = c.owner_id === userId ? 'accepted' : (myMembership?.status || (Array.isArray(c.member_ids) && c.member_ids.includes(userId) ? 'accepted' : 'none'));
+      const effectiveStatus = c.status || 'active';
       return {
         ...c,
+        status: effectiveStatus,
+        isPendingConfirmation: effectiveStatus === 'pending_confirmation',
         userRole,
         userStatus,
         isOwner: c.owner_id === userId
@@ -1826,9 +2150,19 @@ export const dbService = {
     return (inMemoryStore.circles || []).find(c => c.id === circleId) || null;
   },
 
-  async createCircle({ id, name, description = '', image = null, privacy = 'private', ownerId, invitedMemberIds = [], member_ids, memberIds }) {
+  async createCircle({ id, name, description = '', image = null, privacy = 'private', ownerId, invitedMemberIds = [], member_ids, memberIds, requireConfirmation = false }) {
     if (!name) throw new Error('Tên nhóm là bắt buộc');
     const legacyMembers = Array.isArray(member_ids) ? member_ids : (Array.isArray(memberIds) ? memberIds : []);
+    const pendingInviteList = Array.isArray(invitedMemberIds) ? [...invitedMemberIds] : [];
+    const shouldRequireConfirm = Boolean(requireConfirmation) || (pendingInviteList.length > 0 && legacyMembers.length === 0);
+
+    // Nếu requireConfirmation = true -> chuyển toàn bộ memberIds sang pendingInviteList thay vì auto-accept
+    if (requireConfirmation && legacyMembers.length > 0) {
+      legacyMembers.forEach(fid => {
+        if (fid && !pendingInviteList.includes(fid)) pendingInviteList.push(fid);
+      });
+    }
+
     const safeOwnerId = ownerId || (legacyMembers.length > 0 ? legacyMembers[0] : 'system-user');
     const circleId = id || `circle-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const now = new Date().toISOString();
@@ -1844,8 +2178,8 @@ export const dbService = {
 
     const acceptedIds = [safeOwnerId];
 
-    // Nếu truyền danh sách member_ids trực tiếp (test suites hoặc thêm trực tiếp)
-    if (legacyMembers.length > 0) {
+    // Chỉ thêm trực tiếp thành viên nếu KHÔNG yêu cầu xác nhận (phục vụ addMembers / legacy service calls)
+    if (!requireConfirmation && legacyMembers.length > 0) {
       legacyMembers.forEach(fid => {
         if (fid && !acceptedIds.includes(fid)) {
           acceptedIds.push(fid);
@@ -1859,20 +2193,23 @@ export const dbService = {
       });
     }
 
-    // Các thành viên được mời ở trạng thái pending (chờ duyệt) nếu truyền invitedMemberIds riêng
-    if (Array.isArray(invitedMemberIds)) {
-      invitedMemberIds.forEach(fid => {
-        if (fid && fid !== safeOwnerId && !members.some(m => m.user_id === fid)) {
-          members.push({
-            user_id: fid,
-            role: 'member',
-            status: 'pending',
-            invited_by: safeOwnerId,
-            invited_at: now
-          });
-        }
-      });
-    }
+    // Các thành viên được mời luôn ở trạng thái pending chờ bấm Xác nhận
+    pendingInviteList.forEach(fid => {
+      if (fid && fid !== safeOwnerId && !members.some(m => m.user_id === fid)) {
+        members.push({
+          user_id: fid,
+          role: 'member',
+          status: 'pending',
+          invited_by: safeOwnerId,
+          invited_at: now
+        });
+      }
+    });
+
+    const hasPendingInvites = members.some(m => m.status === 'pending');
+    const initialStatus = shouldRequireConfirm && hasPendingInvites && acceptedIds.length <= 1
+      ? 'pending_confirmation'
+      : 'active';
 
     const newCircle = {
       id: circleId,
@@ -1880,6 +2217,8 @@ export const dbService = {
       description: description ? description.trim() : '',
       image: image || null,
       privacy: privacy === 'public' ? 'public' : 'private',
+      status: initialStatus,
+      isPendingConfirmation: initialStatus === 'pending_confirmation',
       owner_id: safeOwnerId,
       members,
       member_ids: acceptedIds,
@@ -2034,7 +2373,11 @@ export const dbService = {
     return { circle, newlyAdded };
   },
 
-  async respondToCircleInvite(circleId, { userId, action }) {
+  async respondToCircleInvite(circleId, payloadOrUserId, actionArg) {
+    const payload = typeof payloadOrUserId === 'string'
+      ? { userId: payloadOrUserId, action: actionArg }
+      : (payloadOrUserId || {});
+    const { userId, action } = payload;
     const circle = (inMemoryStore.circles || []).find(c => c.id === circleId);
     if (!circle) throw new Error('Không tìm thấy nhóm');
 
@@ -2043,6 +2386,8 @@ export const dbService = {
 
     let member = circle.members.find(m => m.user_id === userId);
     const now = new Date().toISOString();
+    let activatedNow = false;
+    let cancelledNow = false;
 
     if (action === 'accept') {
       if (!member) {
@@ -2061,17 +2406,28 @@ export const dbService = {
       if (!circle.member_ids.includes(userId)) {
         circle.member_ids.push(userId);
       }
+      if (circle.status === 'pending_confirmation') {
+        activatedNow = true;
+      }
+      circle.status = 'active';
+      circle.isPendingConfirmation = false;
     } else {
       // Decline
       if (member) {
         member.status = 'declined';
       }
       circle.member_ids = circle.member_ids.filter(id => id !== userId);
+      const hasRemainingPending = circle.members.some(m => m.status === 'pending');
+      if (circle.status === 'pending_confirmation' && !hasRemainingPending && circle.member_ids.length <= 1) {
+        circle.status = 'cancelled';
+        circle.isPendingConfirmation = false;
+        cancelledNow = true;
+      }
     }
 
     circle.updated_at = now;
     dbStore.persist();
-    return { circle, status: action === 'accept' ? 'accepted' : 'declined' };
+    return { circle, status: action === 'accept' ? 'accepted' : 'declined', activatedNow, cancelledNow };
   },
 
   async leaveCircle(circleId, { userId, newOwnerId }) {
@@ -2306,7 +2662,7 @@ export const dbService = {
   },
 
   // ==================== QUẢN LÝ ĐỊA ĐIỂM ĐÃ LƯU (SAVED PLACES - M3 / R3) ====================
-  async getSavedPlaces(userId = null) {
+  async getSavedPlaces(userId = null, category = null) {
     if (!Array.isArray(dbStore.data.savedPlaces)) {
       dbStore.data.savedPlaces = [];
     }
@@ -2314,6 +2670,9 @@ export const dbService = {
     let places = dbStore.data.savedPlaces;
     if (userId) {
       places = places.filter(p => p && (p.userId === userId || p.user_id === userId));
+    }
+    if (category && category !== 'all') {
+      places = places.filter(p => p && p.category === category);
     }
 
     // Sắp xếp mới nhất trước
@@ -2340,7 +2699,7 @@ export const dbService = {
       throw new Error('Kinh độ (lng) không hợp lệ (-180 đến 180)');
     }
 
-    const validCategories = ['dining', 'music', 'dancing', 'sightseeing', 'cafe_dating', 'other'];
+    const validCategories = ['food', 'music', 'dance', 'sightseeing', 'dining', 'dancing', 'cafe_dating', 'other'];
     const selectedCategory = validCategories.includes(category) ? category : 'other';
 
     if (!Array.isArray(dbStore.data.savedPlaces)) {
@@ -2395,7 +2754,7 @@ export const dbService = {
     }
 
     if (updates.category !== undefined) {
-      const validCategories = ['dining', 'music', 'dancing', 'sightseeing', 'cafe_dating', 'other'];
+      const validCategories = ['food', 'music', 'dance', 'sightseeing', 'dining', 'dancing', 'cafe_dating', 'other'];
       if (!validCategories.includes(updates.category)) {
         throw new Error('Danh mục không hợp lệ');
       }

@@ -1,11 +1,12 @@
 import { dbService } from '../services/dbService.js';
-import { forceUserOffline } from '../services/socketService.js';
+import { dbStore } from '../services/dbStore.js';
+import { emitToUser, forceUserOffline } from '../services/socketService.js';
 
 export const gpsController = {
   async getNearbyProfiles(req, res, next) {
     try {
       const profiles = await dbService.getProfiles();
-      res.json({ success: true, data: profiles });
+      res.json({ success: true, data: profiles, profiles });
     } catch (err) {
       next(err);
     }
@@ -13,11 +14,32 @@ export const gpsController = {
 
   async updateLocation(req, res, next) {
     try {
-      const { userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt } = req.body;
+      const { userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt, accuracy, timestamp, speed } = req.body;
       if (!userId || lat == null || lng == null) {
         return res.status(400).json({ success: false, message: 'userId, lat, lng là bắt buộc' });
       }
-      const updated = await dbService.updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt);
+      const updated = await dbService.updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt, accuracy, timestamp, speed);
+      const liveMsgs = updated?._updatedLiveMessages;
+      if (Array.isArray(liveMsgs) && liveMsgs.length > 0) {
+        liveMsgs.forEach(lm => {
+          if (lm.conversation_id?.startsWith('conv-direct-')) {
+            const parts = lm.conversation_id.replace('conv-direct-', '').split('--');
+            parts.forEach(pid => {
+              if (pid && pid !== userId) {
+                emitToUser(pid, 'chat:live_location_update', lm);
+              }
+            });
+          } else if (lm.conversation_id?.startsWith('circle-')) {
+            const circle = dbStore.circles?.find(c => c.id === lm.conversation_id);
+            (circle?.member_ids || []).filter(pid => pid && pid !== userId).forEach(pid => {
+              emitToUser(pid, 'chat:live_location_update', lm);
+            });
+          } else {
+            emitToUser(userId, 'chat:live_location_update', lm);
+          }
+        });
+        delete updated._updatedLiveMessages;
+      }
       res.json({ success: true, data: updated });
     } catch (err) {
       next(err);

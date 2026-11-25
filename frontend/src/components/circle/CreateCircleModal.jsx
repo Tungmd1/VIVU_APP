@@ -92,7 +92,9 @@ export default function CreateCircleModal({
           icon: selectedIcon,
           color: selectedColor,
           privacy: 'private',
-          memberIds: selectedFriendIds
+          memberIds: selectedFriendIds,
+          invitedMemberIds: selectedFriendIds,
+          requireConfirmation: true
         });
       }
       setCircleName('');
@@ -395,8 +397,8 @@ export default function CreateCircleModal({
                 </>
               ) : (
                 <>
-                  <i className="bi bi-people-fill text-sm"></i>
-                  <span>Tạo Nhóm Với Bạn Bè</span>
+                  <i className="bi bi-send-fill text-sm"></i>
+                  <span>Gửi Lời Mời Tạo Nhóm</span>
                   {selectedFriendIds.length > 0 && (
                     <span className="ml-1 px-1.5 py-0.2 rounded bg-[#08202E]/15 text-[#08202E] text-[10px] font-mono font-bold">
                       {selectedFriendIds.length} bạn
@@ -407,7 +409,7 @@ export default function CreateCircleModal({
             </button>
             <div className="flex items-center justify-center gap-1.5 text-[10px] text-[#52646D]">
               <i className="bi bi-shield-lock-fill text-[#0A8395] text-xs"></i>
-              <span>Nhóm riêng tư • Chỉ bạn bè được chọn mới có thể xem vị trí và trò chuyện</span>
+              <span>Nhóm chỉ kích hoạt khi có ít nhất 1 bạn bè xác nhận tham gia</span>
             </div>
           </div>
 

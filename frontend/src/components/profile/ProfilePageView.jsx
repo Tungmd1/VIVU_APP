@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import EditProfileModal from './EditProfileModal';
 import ProfileStoryHighlights from './ProfileStoryHighlights';
 import ProfileDetailsSection from './ProfileDetailsSection';
-import { LogoutConfirmModal, PhotoViewerModal } from './ProfileModals';
+import ProfileMediaSection from './ProfileMediaSection';
+import { PhotoViewerModal } from './ProfileModals';
 import { playProfileChime, triggerProfileHaptic } from './profileAudioEffects';
 import { compressAvatar } from '../../utils/imageCompressor';
 import { apiClient } from '../../services/apiClient';
@@ -22,6 +23,10 @@ export default function ProfilePageView({
   isAuthenticated = false,
   onOpenLogin,
   onLogout,
+  onOpenEditProfile,
+  onOpenSettings,
+  onOpenNotifications,
+  unreadNotificationsCount = 0,
   onUpdateAvatar,
   onUpdateProfile,
   userCustomStatus = 'Đang vi vu dạo phố quanh đây',
@@ -31,30 +36,19 @@ export default function ProfilePageView({
 }) {
   const userId = user?.id || 'guest';
   const profileStorageKey = userId && userId !== 'guest' ? `vivu_user_profile_data_${userId}` : null;
-  const [localProfile, setLocalProfile] = useState(() => {
-    if (!profileStorageKey) return {};
+  const loadSavedProfile = () => {
     try {
-      const saved = localStorage.getItem(profileStorageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.id === userId || parsed.userId === userId) return parsed;
+      if (profileStorageKey) {
+        const s = localStorage.getItem(profileStorageKey);
+        if (s) { const p = JSON.parse(s); if (p.id === userId || p.userId === userId) return p; }
       }
-    } catch { return {}; }
-    return {};
-  });
-
-  // Tự động làm mới state khi userId thay đổi (chuyển đổi tài khoản)
-  useEffect(() => {
-    if (!profileStorageKey) { setLocalProfile({}); return; }
-    try {
-      const saved = localStorage.getItem(profileStorageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.id === userId || parsed.userId === userId) { setLocalProfile(parsed); return; }
-      }
+      const g = localStorage.getItem('vivu_user_profile_data');
+      if (g) return JSON.parse(g);
     } catch {}
-    setLocalProfile({});
-  }, [userId, profileStorageKey]);
+    return {};
+  };
+  const [localProfile, setLocalProfile] = useState(loadSavedProfile);
+  useEffect(() => { setLocalProfile(loadSavedProfile()); }, [userId, profileStorageKey]);
 
   // Tự động kéo dữ liệu hồ sơ mới nhất từ Database Server chống mất thông tin sau loading
   useEffect(() => {
@@ -62,25 +56,28 @@ export default function ProfilePageView({
     if (userId && (userId.startsWith('user-') || userId.startsWith('client-'))) {
       apiClient.getMe(userId).then(serverUser => {
         if (isCancelled || !serverUser) return;
-        const targetAv = serverUser.avatar_url || serverUser.avatar || null;
-        const updated = {
-          ...serverUser, userId: serverUser.id || userId, id: serverUser.id || userId,
-          fullName: serverUser.full_name || serverUser.name || '',
-          avatarUrl: targetAv, avatar_url: targetAv,
-          bio: (serverUser.bio && String(serverUser.bio).trim()) || '',
-          job: (serverUser.job && String(serverUser.job).trim()) || '',
-          phone: (serverUser.phone && String(serverUser.phone).trim()) || '',
-          age: serverUser.age ?? null,
-          tags: (Array.isArray(serverUser.tags) && serverUser.tags.length > 0) ? serverUser.tags : ['CafeĐêm', 'DạoPhố'],
-          favorite_song: serverUser.favorite_song || ''
-        };
-        setLocalProfile(updated);
-        if (profileStorageKey) {
-          try {
-            localStorage.setItem(profileStorageKey, JSON.stringify(updated));
-            if (targetAv) localStorage.setItem(`vivu_user_avatar_${userId}`, targetAv);
-          } catch {}
-        }
+        setLocalProfile(prev => {
+          const targetAv = serverUser.avatar_url || serverUser.avatar || prev.avatarUrl || prev.avatar_url || null;
+          const currentBio = (serverUser.bio && String(serverUser.bio).trim()) || (prev.bio && String(prev.bio).trim()) || '';
+          const currentJob = (serverUser.job && String(serverUser.job).trim()) || (prev.job && String(prev.job).trim()) || '';
+          const currentPhone = (serverUser.phone && String(serverUser.phone).trim()) || (prev.phone && String(prev.phone).trim()) || '';
+          const currentAge = serverUser.age != null ? serverUser.age : (prev.age != null ? prev.age : null);
+          const currentTags = (Array.isArray(serverUser.tags) && serverUser.tags.length > 0) ? serverUser.tags : ((Array.isArray(prev.tags) && prev.tags.length > 0) ? prev.tags : ['CafeĐêm', 'DạoPhố']);
+          const currentSong = serverUser.favorite_song || prev.favorite_song || '';
+
+          const updated = {
+            ...prev, ...serverUser, userId: serverUser.id || userId, id: serverUser.id || userId,
+            fullName: serverUser.full_name || serverUser.name || prev.fullName || prev.full_name || '',
+            avatarUrl: targetAv, avatar_url: targetAv, bio: currentBio, job: currentJob, phone: currentPhone, age: currentAge, tags: currentTags, favorite_song: currentSong
+          };
+          if (profileStorageKey) {
+            try {
+              localStorage.setItem(profileStorageKey, JSON.stringify(updated));
+              if (targetAv) localStorage.setItem(`vivu_user_avatar_${userId}`, targetAv);
+            } catch {}
+          }
+          return updated;
+        });
       }).catch(err => console.warn('[ProfileView] Lỗi getMe:', err));
     }
     return () => { isCancelled = true; };
@@ -103,7 +100,10 @@ export default function ProfilePageView({
   };
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false), [viewingPhoto, setViewingPhoto] = useState(null), [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [viewingPhoto, setViewingPhoto] = useState(null), [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [photoActionError, setPhotoActionError] = useState('');
+  const [confirmDeletePhotoIdx, setConfirmDeletePhotoIdx] = useState(null);
+  const [confirmDeleteArchiveId, setConfirmDeleteArchiveId] = useState(null);
   const fileInputRef = useRef(null), multiPhotoInputRef = useRef(null);
 
   // Bộ sưu tập ảnh thật do người dùng tải lên
@@ -119,44 +119,78 @@ export default function ProfilePageView({
   });
 
   useEffect(() => {
-    try { const p = localStorage.getItem(photoStorageKey); setPhotos(p ? JSON.parse(p) : []); } catch { setPhotos([]); }
+    try {
+      const p = localStorage.getItem(photoStorageKey);
+      const localList = p ? JSON.parse(p) : [];
+      const remoteList = Array.isArray(user?.photos) ? user.photos : (Array.isArray(user?.user_metadata?.photos) ? user.user_metadata.photos : []);
+      setPhotos(remoteList.length > 0 ? remoteList : (Array.isArray(localList) ? localList : []));
+    } catch { setPhotos([]); }
     try { const a = localStorage.getItem(archiveStorageKey); setArchiveItems(a ? JSON.parse(a) : []); } catch { setArchiveItems([]); }
-  }, [userId, photoStorageKey, archiveStorageKey]);
+  }, [userId, photoStorageKey, archiveStorageKey, user?.photos, user?.user_metadata?.photos]);
 
   const handleRemoveArchiveItem = (archiveId, e) => {
     e?.stopPropagation();
-    if (window.confirm('Xóa vĩnh viễn khoảnh khắc này khỏi Kho Lưu Trữ?')) {
-      const updated = archiveItems.filter(item => item.id !== archiveId);
-      setArchiveItems(updated);
-      try { localStorage.setItem(archiveStorageKey, JSON.stringify(updated)); } catch {}
+    if (confirmDeleteArchiveId !== archiveId) {
+      setConfirmDeleteArchiveId(archiveId);
+      return;
     }
+    setConfirmDeleteArchiveId(null);
+    const updated = archiveItems.filter(item => item.id !== archiveId);
+    setArchiveItems(updated);
+    try { localStorage.setItem(archiveStorageKey, JSON.stringify(updated)); } catch {}
   };
 
   useEffect(() => {
     try { localStorage.setItem(photoStorageKey, JSON.stringify(photos)); } catch {}
   }, [photos, photoStorageKey]);
 
-  // Thêm ảnh mới vào bộ sưu tập cá nhân
+  // Thêm ảnh mới vào bộ sưu tập cá nhân và đồng bộ lên server
   const handleAddPhotos = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    setPhotoActionError('');
 
+    const addedUrls = [];
     for (const file of files) {
-      if (file.size > 10 * 1024 * 1024) { alert('Kích thước ảnh tối đa 10MB'); continue; }
+      if (file.size > 10 * 1024 * 1024) {
+        setPhotoActionError('Kích thước ảnh tối đa 10MB');
+        continue;
+      }
       try {
-        const compressed = await compressAvatar(file, 800, 800, 0.85);
-        setPhotos(prev => [compressed, ...prev]);
+        let finalUrl = '';
+        try {
+          const uploaded = await apiClient.uploadMedia(file, 'stories');
+          if (uploaded?.url) finalUrl = uploaded.url;
+        } catch {}
+        if (!finalUrl) {
+          finalUrl = await compressAvatar(file, 800, 800, 0.85);
+        }
+        addedUrls.push(finalUrl);
         playProfileChime();
         triggerProfileHaptic([30, 20]);
       } catch (err) { console.warn('Lỗi thêm ảnh:', err); }
+    }
+    if (addedUrls.length > 0) {
+      const nextPhotos = [...addedUrls, ...photos];
+      setPhotos(nextPhotos);
+      if (onUpdateProfile && userId !== 'guest') {
+        onUpdateProfile({ photos: nextPhotos, userId }).catch(() => {});
+      }
     }
     e.target.value = '';
   };
 
   const handleRemovePhoto = (indexToRemove, e) => {
     e?.stopPropagation();
-    if (window.confirm('Bạn có chắc chắn muốn xóa bức ảnh này khỏi hồ sơ?')) {
-      setPhotos((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    if (confirmDeletePhotoIdx !== indexToRemove) {
+      setConfirmDeletePhotoIdx(indexToRemove);
+      return;
+    }
+    setConfirmDeletePhotoIdx(null);
+    const nextPhotos = photos.filter((_, idx) => idx !== indexToRemove);
+    setPhotos(nextPhotos);
+    if (onUpdateProfile && userId !== 'guest') {
+      onUpdateProfile({ photos: nextPhotos, userId }).catch(() => {});
     }
   };
 
@@ -219,9 +253,27 @@ export default function ProfilePageView({
           <span>Về Bản Đồ</span>
         </button>
         <span className="text-xs font-black tracking-wider uppercase text-white/80">Hồ Sơ Của Tôi</span>
-        <button type="button" onClick={() => setIsEditModalOpen(true)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white text-sm transition-all cursor-pointer" title="Chỉnh sửa hồ sơ">
-          <i className="bi bi-pencil-fill text-xs" />
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenNotifications && (
+            <button
+              type="button"
+              onClick={onOpenNotifications}
+              aria-label="Mở thông báo"
+              title="Thông báo"
+              className="relative w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white text-sm transition-all cursor-pointer"
+            >
+              <i className="bi bi-bell-fill text-xs" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full bg-[#FF2A85] text-white text-[9px] font-bold flex items-center justify-center">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+          )}
+          <button type="button" onClick={() => setIsEditModalOpen(true)} aria-label="Chỉnh sửa hồ sơ" className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 flex items-center justify-center text-white text-sm transition-all cursor-pointer" title="Chỉnh sửa hồ sơ">
+            <i className="bi bi-pencil-fill text-xs" />
+          </button>
+        </div>
       </div>
 
       <div className="p-4 max-w-lg mx-auto w-full space-y-4">
@@ -294,11 +346,12 @@ export default function ProfilePageView({
             {isAuthenticated ? (
               <button
                 type="button"
-                onClick={() => setShowLogoutConfirm(true)}
-                className="py-2.5 px-4 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 border border-rose-500/30 text-rose-400 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                onClick={() => onOpenSettings?.()}
+                className="py-2.5 px-4 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 border border-white/15 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                aria-label="Mở cài đặt tài khoản"
               >
-                <i className="bi bi-box-arrow-right text-sm" />
-                <span>Đăng xuất</span>
+                <i className="bi bi-gear-fill text-sm text-white/80" />
+                <span>Cài đặt</span>
               </button>
             ) : (
               <button
@@ -316,99 +369,36 @@ export default function ProfilePageView({
         {/* 2.5 Section Tin Nổi Bật (Highlights) */}
         <ProfileStoryHighlights userId={userId} onOpenHighlight={onOpenStoryHighlight} />
 
-        {/* 3. Section Thư Viện Ảnh Thật & Kho Lưu Trữ Khoảnh Khắc */}
-        <div className="p-4 rounded-3xl bg-[#121520] border border-white/10 space-y-3">
-          <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setMediaTab('photos')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${mediaTab === 'photos'
-                    ? 'bg-[#FF2A85]/20 text-[#FF529D] border border-[#FF2A85]/40 shadow-sm'
-                    : 'text-white/60 hover:text-white'
-                  }`}
-              >
-                <i className="bi bi-images" />
-                <span>Thư Viện Ảnh ({photos.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMediaTab('archive')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${mediaTab === 'archive'
-                    ? 'bg-[#10FFA0]/20 text-[#10FFA0] border border-[#10FFA0]/40 shadow-sm'
-                    : 'text-white/60 hover:text-white'
-                  }`}
-              >
-                <i className="bi bi-archive-fill" />
-                <span>Kho Lưu Trữ ({archiveItems.length})</span>
-              </button>
-            </div>
-
-            {mediaTab === 'photos' && (
-              <button
-                type="button"
-                onClick={() => multiPhotoInputRef.current?.click()}
-                className="px-3 py-1 rounded-full bg-[#FF2A85]/20 hover:bg-[#FF2A85]/30 text-[#FF529D] border border-[#FF2A85]/40 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
-              >
-                <i className="bi bi-plus-lg" />
-                <span>Thêm ảnh</span>
-              </button>
-            )}
-            <input type="file" ref={multiPhotoInputRef} onChange={handleAddPhotos} accept="image/*" multiple aria-label="Tải ảnh lên bộ sưu tập cá nhân" className="hidden" />
-          </div>
-
-          {/* Thư Viện Ảnh */}
-          {mediaTab === 'photos' && (
-            photos.length === 0 ? (
-              <div onClick={() => multiPhotoInputRef.current?.click()} className="p-8 rounded-2xl border-2 border-dashed border-white/15 bg-white/5 flex flex-col items-center justify-center text-center cursor-pointer hover:border-white/30 transition-colors">
-                <i className="bi bi-cloud-arrow-up text-3xl text-white/40 mb-2" />
-                <p className="text-xs font-bold text-white/80">Chưa có ảnh nào được tải lên</p>
-                <p className="text-[11px] text-white/40 mt-0.5">Chạm vào đây để chọn ảnh từ máy thiết bị của bạn</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {photos.map((imgSrc, idx) => (
-                  <div key={idx} onClick={() => setViewingPhoto(imgSrc)} className="relative aspect-square rounded-2xl overflow-hidden bg-black/40 border border-white/10 group cursor-pointer">
-                    <img src={imgSrc} alt={`Ảnh ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    <button type="button" onClick={(e) => handleRemovePhoto(idx, e)} className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center text-xs opacity-80 group-hover:opacity-100 transition-all cursor-pointer" title="Xóa ảnh này">
-                      <i className="bi bi-trash" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-
-          {/* Kho Lưu Trữ */}
-          {mediaTab === 'archive' && (
-            archiveItems.length === 0 ? (
-              <div className="p-8 rounded-2xl border border-white/10 bg-white/5 flex flex-col items-center justify-center text-center">
-                <i className="bi bi-archive text-3xl text-white/30 mb-2" />
-                <p className="text-xs font-bold text-white/80">Kho Lưu Trữ Đang Trống</p>
-                <p className="text-[11px] text-white/40 mt-1 max-w-xs">Khoảnh khắc sẽ tự động được lưu trữ an toàn tại đây để xem lại hoặc đưa lên Tin Nổi Bật.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2">
-                {archiveItems.map((item, idx) => (
-                  <div key={item.id || idx} onClick={() => setViewingPhoto(item.image)} className="relative aspect-square rounded-2xl overflow-hidden bg-black/50 border border-white/10 group cursor-pointer shadow-md">
-                    <img src={item.image} alt={item.title || 'Archived'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-md text-[9px] font-mono text-[#10FFA0] flex items-center gap-1 border border-white/10">
-                      <i className="bi bi-clock-history text-[8px]" />
-                      <span>{new Date(item.created_at || Date.now()).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}</span>
-                    </div>
-                    <button type="button" onClick={(e) => handleRemoveArchiveItem(item.id, e)} className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 hover:bg-rose-600 text-white flex items-center justify-center text-xs opacity-80 group-hover:opacity-100 transition-all shadow-md cursor-pointer" title="Xóa vĩnh viễn khỏi Kho Lưu Trữ">
-                      <i className="bi bi-trash" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-        </div>
+        {/* 3. Section Thư Viện Ảnh Thật & Kho Lưu Trữ Khoảnh Khắc (Tách module < 450 dòng) */}
+        <ProfileMediaSection
+          mediaTab={mediaTab}
+          setMediaTab={setMediaTab}
+          photos={photos}
+          archiveItems={archiveItems}
+          multiPhotoInputRef={multiPhotoInputRef}
+          handleAddPhotos={handleAddPhotos}
+          handleRemovePhoto={handleRemovePhoto}
+          handleRemoveArchiveItem={handleRemoveArchiveItem}
+          photoActionError={photoActionError}
+          setPhotoActionError={setPhotoActionError}
+          confirmDeletePhotoIdx={confirmDeletePhotoIdx}
+          confirmDeleteArchiveId={confirmDeleteArchiveId}
+          setViewingPhoto={setViewingPhoto}
+        />
 
         {/* 4. Section Thông Tin Chi Tiết Cá Nhân (Tách module) */}
-        <ProfileDetailsSection age={age} job={job} phone={phone} bio={bio} tags={tags} isOwner={true} />
+        <ProfileDetailsSection
+          age={age}
+          job={job}
+          phone={phone}
+          bio={bio}
+          favoriteSong={meta.favorite_song || meta.favoriteSong || localProfile.favorite_song || user?.favorite_song}
+          tags={tags}
+          isOwner={true}
+          privacyAge={meta.privacy_age || meta.privacyAge || 'public'}
+          privacyPhone={meta.privacy_phone || meta.privacyPhone || 'friends'}
+          privacyTags={meta.privacy_tags || meta.privacyTags || 'public'}
+        />
       </div>
 
       {/* 5. Modal Chỉnh Sửa Hồ Sơ */}
@@ -429,17 +419,7 @@ export default function ProfilePageView({
         }}
       />
 
-      {/* 6. Hộp Thoại Xác Nhận Đăng Xuất */}
-      <LogoutConfirmModal
-        isOpen={showLogoutConfirm}
-        onClose={() => setShowLogoutConfirm(false)}
-        onConfirm={() => {
-          setShowLogoutConfirm(false);
-          if (onLogout) onLogout();
-        }}
-      />
-
-      {/* 7. Popup Xem Phóng To Ảnh Thật */}
+      {/* 6. Popup Xem Phóng To Ảnh Thật */}
       <PhotoViewerModal
         photoUrl={viewingPhoto}
         onClose={() => setViewingPhoto(null)}

@@ -41,7 +41,7 @@ export default function MobileQrModal({
   const qrCodeImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(activeUrl)}&color=ffffff&bgcolor=0E0E10&margin=1`;
 
   return (
-    <div className="fixed inset-0 z-70 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none font-sans animate-in fade-in">
+    <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 select-none font-sans animate-in fade-in">
       <div className="w-full max-w-sm bg-[#0E0E10] border border-white/15 rounded-3xl p-5 shadow-[0_25px_60px_rgba(0,0,0,0.95)] text-white space-y-4 text-center">
         
         {/* Header */}

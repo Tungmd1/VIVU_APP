@@ -124,13 +124,11 @@ export default function EditProfileModal({
     const targetUserId = currentUser?.id || localStorage.getItem('vivu_client_user_id');
     try {
       const scopedKey = targetUserId && targetUserId !== 'guest' ? `vivu_user_profile_data_${targetUserId}` : null;
-      const existingRaw = localStorage.getItem('vivu_user_profile_data');
+      const targetKey = scopedKey || 'vivu_user_profile_data';
+      const existingRaw = localStorage.getItem(targetKey);
       const existing = existingRaw ? JSON.parse(existingRaw) : {};
-      const payload = { ...existing, ...cleanProfile };
-      localStorage.setItem('vivu_user_profile_data', JSON.stringify(payload));
-      if (scopedKey) {
-        localStorage.setItem(scopedKey, JSON.stringify(payload));
-      }
+      const payload = { ...existing, ...cleanProfile, userId: targetUserId };
+      localStorage.setItem(targetKey, JSON.stringify(payload));
     } catch (saveErr) {
       console.warn('Lỗi lưu local storage:', saveErr);
     }
@@ -147,7 +145,7 @@ export default function EditProfileModal({
   };
 
   return (
-    <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none font-sans">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in select-none font-sans">
       <div className="w-full max-w-md bg-[#0E0E10] rounded-3xl border border-white/15 shadow-[0_25px_60px_rgba(0,0,0,0.95)] max-h-[90vh] flex flex-col text-white overflow-hidden">
         
         {/* Ẩn file input tải avatar */}
@@ -246,28 +244,13 @@ export default function EditProfileModal({
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-[11px] font-medium text-[#8E8E93]">Tuổi</label>
-                <select
-                  value={privacyAge}
-                  onChange={(e) => setPrivacyAge(e.target.value)}
-                  className="bg-transparent text-[10px] text-[#00E5FF] font-medium outline-none cursor-pointer border-b border-[#00E5FF]/30 pb-0.5"
-                  title="Quyền riêng tư tuổi"
-                >
+                <select value={privacyAge} onChange={(e) => setPrivacyAge(e.target.value)} className="bg-transparent text-[10px] text-[#00E5FF] font-medium outline-none cursor-pointer border-b border-[#00E5FF]/30 pb-0.5" title="Quyền riêng tư tuổi">
                   <option value="public" className="bg-[#151619] text-white">Công khai</option>
                   <option value="friends" className="bg-[#151619] text-white">Bạn bè</option>
                   <option value="private" className="bg-[#151619] text-white">Chỉ tôi</option>
                 </select>
               </div>
-              <input
-                id="edit-profile-age"
-                type="number"
-                min={13}
-                max={99}
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-                placeholder="VD: 22"
-                aria-label="Tuổi"
-                className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-[#8E8E93] outline-none"
-              />
+              <input id="edit-profile-age" type="number" min={13} max={99} value={age} onChange={(e) => setAge(e.target.value)} placeholder="VD: 22" aria-label="Tuổi" className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white placeholder-[#8E8E93] outline-none" />
             </div>
           </div>
 
@@ -328,8 +311,9 @@ export default function EditProfileModal({
 
           {/* 5. Giới thiệu bản thân (Bio) */}
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-[#8E8E93]">Tiểu sử / Giới thiệu bản thân (Bio)</label>
+            <label htmlFor="edit-profile-bio" className="text-[11px] font-medium text-[#8E8E93]">Tiểu sử / Giới thiệu bản thân (Bio)</label>
             <textarea
+              id="edit-profile-bio"
               rows={3}
               value={bio}
               onChange={(e) => setBio(e.target.value)}
@@ -340,8 +324,9 @@ export default function EditProfileModal({
 
           {/* 6. Bài hát yêu thích (Chọn từ Kho 21 bài hát thịnh hành) */}
           <div className="space-y-1">
-            <label className="text-[11px] font-medium text-[#8E8E93]">Bài hát yêu thích</label>
+            <label htmlFor="edit-profile-favorite-song" className="text-[11px] font-medium text-[#8E8E93]">Bài hát yêu thích</label>
             <select
+              id="edit-profile-favorite-song"
               value={favoriteSong}
               onChange={(e) => setFavoriteSong(e.target.value)}
               className="w-full bg-[#151619] border border-white/10 focus:border-white/40 rounded-xl px-3 py-2 text-xs text-white outline-none cursor-pointer"

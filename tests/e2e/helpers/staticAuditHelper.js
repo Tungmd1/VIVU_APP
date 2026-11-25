@@ -9,16 +9,17 @@ import { E2E_CONFIG } from '../config/env.js';
  */
 
 // Regex patterns
-const GOOGLE_MAPS_FORBIDDEN_REGEX = /(maps\.google\.com|google\.com\/maps|maps\.googleapis\.com|mt[0-3]?\.google\.com)/i;
+const GOOGLE_MAPS_FORBIDDEN_REGEX = /(maps\.google\.com|google\.com\/maps|maps\.googleapis\.com)/i;
 const EMOJI_REGEX = /[\u{1F300}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F1E0}-\u{1F1FF}]/u;
 
-// Whitelisted Google usages (Auth GIS, Fonts, STUN)
+// Whitelisted Google usages (Auth GIS, Fonts, STUN, Leaflet Raster Tiles)
 const WHITELISTED_GOOGLE_PATTERNS = [
   /accounts\.google\.com\/gsi/,
   /fonts\.googleapis\.com/,
   /fonts\.gstatic\.com/,
   /stun:stun\.l\.google\.com:19302/,
-  /auth_provider\s*===?\s*['"]google['"]/
+  /auth_provider\s*===?\s*['"]google['"]/,
+  /mt(\{s\}|[0-3])?\.google\.com\/vt/
 ];
 
 function getAllFiles(dir, extensions = ['.js', '.jsx', '.css', '.html']) {

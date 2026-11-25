@@ -562,6 +562,10 @@ export function initSocketIO(httpServer) {
       callSignalingService.handleCallSignal(socket, userId, data, { emitToUser });
     });
 
+    socket.on('call:media_state', (data) => {
+      callSignalingService.handleCallMediaState(socket, userId, data, { emitToUser });
+    });
+
     // ================================================================
     // Tín hiệu chủ động ngắt kết nối (beforeunload)
     // ================================================================

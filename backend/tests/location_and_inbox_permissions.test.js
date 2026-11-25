@@ -286,4 +286,102 @@ describe('VIVU Location Consent, Messaging Permissions & Inbox Suite', () => {
       assert.equal(msg.text, 'Mai đi cafe không B?');
     });
   });
+
+  // ====================================================================
+  // 5. KIỂM THỬ REALTIME CHAT LIVE LOCATION, TỐC ĐỘ & NHÓM (CONTROLLER + SOCKET)
+  // ====================================================================
+  describe('ChatController Realtime Socket & Live Location Sync', () => {
+    test('1. chatController.sendMessage cho nhóm circle-... phát chat:message và stopLiveLocation phát chat:live_location_stopped', async () => {
+      const http = await import('node:http');
+      const { initSocketIO } = await import('../src/services/socketService.js');
+      const { chatController } = await import('../src/controllers/chatController.js');
+
+      const circle = await dbService.createCircle({
+        id: 'circle-rt-test',
+        name: 'Nhóm Live Route',
+        owner_id: userA.id,
+        member_ids: [userA.id, userB.id]
+      });
+
+      const server = http.createServer();
+      initSocketIO(server);
+      await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+      const { port } = server.address();
+
+      const connectUserSocket = (uid) => new Promise((resolve, reject) => {
+        const events = [];
+        const ws = new WebSocket(`ws://127.0.0.1:${port}/socket.io/?EIO=4&transport=websocket`);
+        const timer = setTimeout(() => reject(new Error(`Socket connect timeout for ${uid}`)), 5000);
+        ws.onmessage = (evt) => {
+          const payload = String(evt.data);
+          if (payload === '2') {
+            ws.send('3');
+          } else if (payload.startsWith('0')) {
+            ws.send(`40${JSON.stringify({ userId: uid })}`);
+          } else if (payload.startsWith('40')) {
+            clearTimeout(timer);
+            resolve({ ws, events });
+          } else if (payload.startsWith('42')) {
+            try {
+              const [eventName, data] = JSON.parse(payload.slice(2));
+              events.push({ eventName, data });
+            } catch {}
+          }
+        };
+        ws.onerror = reject;
+      });
+
+      const clientB = await connectUserSocket(userB.id);
+      try {
+        const makeRes = () => {
+          const out = { statusCode: 200, body: null };
+          return {
+            status(code) { out.statusCode = code; return this; },
+            json(data) { out.body = data; return out; },
+            out
+          };
+        };
+
+        const resGroup = makeRes();
+        await chatController.sendMessage({
+          body: {
+            conversationId: circle.id,
+            sender: userA.id,
+            sender_name: userA.full_name,
+            isLocation: true,
+            isLiveLocation: true,
+            liveDurationMinutes: 15,
+            liveExpiresAt: new Date(Date.now() + 900000).toISOString(),
+            lat: 16.061,
+            lng: 108.221,
+            speed: 24.5,
+            text: 'Đang chia sẻ vị trí trực tiếp (15 phút)'
+          }
+        }, resGroup, (err) => { if (err) throw err; });
+
+        assert.equal(resGroup.out.statusCode, 201);
+        const createdMsg = resGroup.out.body?.data;
+        assert.equal(createdMsg.speed, 24.5);
+        assert.equal(createdMsg.is_live_location, true);
+
+        await new Promise(r => setTimeout(r, 150));
+        const grpEvent = clientB.events.find(e => e.eventName === 'chat:message' && e.data?.id === createdMsg.id);
+        assert.ok(grpEvent, 'Thành viên B trong circle phải nhận được socket chat:message');
+        assert.equal(grpEvent.data.speed, 24.5);
+
+        const resStop = makeRes();
+        await chatController.stopLiveLocation({
+          body: { messageId: createdMsg.id, userId: userA.id }
+        }, resStop, (err) => { if (err) throw err; });
+
+        await new Promise(r => setTimeout(r, 150));
+        const stopEvent = clientB.events.find(e => e.eventName === 'chat:live_location_stopped' && e.data?.messageId === createdMsg.id);
+        assert.ok(stopEvent, 'Thành viên B phải nhận được socket chat:live_location_stopped');
+        assert.equal(stopEvent.data.live_status, 'stopped');
+      } finally {
+        try { clientB.ws.close(); } catch {}
+        await new Promise(resolve => server.close(resolve));
+      }
+    });
+  });
 });

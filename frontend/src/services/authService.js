@@ -574,12 +574,15 @@ export async function updateUserProfile(profileData) {
     fullName, 
     avatarUrl, 
     customStatus, 
+    customSong,
+    custom_song,
     phone, 
     age, 
     job, 
     bio, 
     tags, 
     favorite_song, 
+    favoriteSong,
     privacy_age, 
     privacy_phone, 
     privacy_tags,
@@ -596,6 +599,15 @@ export async function updateUserProfile(profileData) {
     return null;
   })();
 
+  let existing = {};
+  try {
+    const scopedRaw = scopedUserId && scopedUserId !== 'guest'
+      ? localStorage.getItem(`vivu_user_profile_data_${scopedUserId}`)
+      : null;
+    const existingRaw = scopedRaw || localStorage.getItem('vivu_user_profile_data');
+    existing = existingRaw ? JSON.parse(existingRaw) : {};
+  } catch {}
+
   const isExplicitClearStatus =
     customStatus === '' ||
     customStatus === 'clear' ||
@@ -611,10 +623,9 @@ export async function updateUserProfile(profileData) {
     custom_song === '' ||
     custom_song === 'remove';
   const resolvedCustomSong = isExplicitClearSong ? null : (customSong !== undefined ? customSong : (custom_song !== undefined ? custom_song : existing.custom_song));
+  const resolvedFavoriteSong = favorite_song !== undefined ? favorite_song : favoriteSong;
 
   try {
-    const existingRaw = localStorage.getItem('vivu_user_profile_data');
-    const existing = existingRaw ? JSON.parse(existingRaw) : {};
     const updatedCache = {
       ...existing,
       ...profileData,
@@ -625,7 +636,8 @@ export async function updateUserProfile(profileData) {
       custom_status: resolvedCustomStatus,
       customStatus: resolvedCustomStatus,
       custom_song: resolvedCustomSong,
-      customSong: resolvedCustomSong
+      customSong: resolvedCustomSong,
+      favorite_song: resolvedFavoriteSong !== undefined ? resolvedFavoriteSong : existing.favorite_song
     };
     localStorage.setItem('vivu_user_profile_data', JSON.stringify(updatedCache));
     if (scopedUserId && scopedUserId !== 'guest') {
@@ -697,38 +709,44 @@ export async function updateUserProfile(profileData) {
   // Dual-Mode: Đồng bộ trực tiếp lên Backend API Server (Lưu bền vững vào vivu_database.json)
   const currentUserId = scopedUserId;
 
-  if (currentUserId) {
+  if (currentUserId && currentUserId !== 'guest') {
     try {
-      const apiRes = await apiClient.updateProfile(currentUserId, profileData);
+      const apiPayload = {
+        ...profileData,
+        favorite_song: resolvedFavoriteSong
+      };
+      const apiRes = await apiClient.updateProfile(currentUserId, apiPayload);
       if (apiRes && apiRes.success && apiRes.user) {
         const local = localStorage.getItem(LOCAL_SESSION_KEY);
-        if (local) {
-          const session = JSON.parse(local);
-          session.user = {
-            ...session.user,
+        const session = local ? JSON.parse(local) : { user: {} };
+        session.user = {
+          ...session.user,
+          ...apiRes.user,
+          custom_status: resolvedCustomStatus,
+          custom_song: resolvedCustomSong,
+          favorite_song: apiRes.user.favorite_song ?? resolvedFavoriteSong,
+          user_metadata: {
+            ...(session.user?.user_metadata || {}),
             ...apiRes.user,
+            full_name: apiRes.user.full_name || fullName,
+            avatar_url: apiRes.user.avatar_url || avatarUrl,
             custom_status: resolvedCustomStatus,
             custom_song: resolvedCustomSong,
-            user_metadata: {
-              ...session.user.user_metadata,
-              ...apiRes.user,
-              full_name: apiRes.user.full_name || fullName,
-              avatar_url: apiRes.user.avatar_url || avatarUrl,
-              custom_status: resolvedCustomStatus,
-              custom_song: resolvedCustomSong,
-              phone: apiRes.user.phone || phone,
-              age: apiRes.user.age ?? profileData.age,
-              job: apiRes.user.job ?? profileData.job,
-              bio: apiRes.user.bio ?? profileData.bio,
-              privacy_age: apiRes.user.privacy_age ?? profileData.privacy_age,
-              privacy_phone: apiRes.user.privacy_phone ?? profileData.privacy_phone,
-              privacy_tags: apiRes.user.privacy_tags ?? profileData.privacy_tags,
-              tags: apiRes.user.tags || tags
-            }
-          };
+            favorite_song: apiRes.user.favorite_song ?? resolvedFavoriteSong,
+            phone: apiRes.user.phone || phone,
+            age: apiRes.user.age ?? profileData.age,
+            job: apiRes.user.job ?? profileData.job,
+            bio: apiRes.user.bio ?? profileData.bio,
+            privacy_age: apiRes.user.privacy_age ?? profileData.privacy_age,
+            privacy_phone: apiRes.user.privacy_phone ?? profileData.privacy_phone,
+            privacy_tags: apiRes.user.privacy_tags ?? profileData.privacy_tags,
+            tags: apiRes.user.tags || tags
+          }
+        };
+        if (local) {
           localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(session));
-          return { success: true, user: session.user };
         }
+        return { success: true, user: session.user };
       }
     } catch (apiErr) {
       console.warn('[VIVU Auth] Lỗi gọi API updateProfile:', apiErr.message);

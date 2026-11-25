@@ -19,7 +19,7 @@ export default function MessengerIncomingCallModal({
   const callerName = incomingCall.callerName || 'Người dùng VIVU';
 
   return (
-    <div className="fixed inset-0 z-70 bg-gradient-to-b from-[#0B0C10]/95 via-[#12131C]/95 to-[#050608]/98 backdrop-blur-2xl flex flex-col justify-between items-center py-14 px-6 select-none animate-fadeIn text-white">
+    <div className="fixed inset-0 z-[90] bg-gradient-to-b from-[#0B0C10]/95 via-[#12131C]/95 to-[#050608]/98 backdrop-blur-2xl flex flex-col justify-between items-center py-14 px-6 select-none animate-fadeIn text-white">
       {/* Top Header Information */}
       <div className="text-center space-y-2 mt-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-md">
@@ -60,7 +60,7 @@ export default function MessengerIncomingCallModal({
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={onDecline}
-            className="w-18 h-18 rounded-full bg-gradient-to-tr from-[#EF4444] to-[#F87171] text-white flex items-center justify-center shadow-[0_0_25px_rgba(239,68,68,0.5)] hover:scale-105 active:scale-90 transition-all cursor-pointer"
+            className="w-[72px] h-[72px] rounded-full bg-gradient-to-tr from-[#EF4444] to-[#F87171] text-white flex items-center justify-center shadow-[0_0_25px_rgba(239,68,68,0.5)] hover:scale-105 active:scale-90 transition-all cursor-pointer"
             title="Từ chối cuộc gọi"
           >
             <i className="bi bi-telephone-x-fill text-2xl" />
@@ -72,7 +72,7 @@ export default function MessengerIncomingCallModal({
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={onAccept}
-            className="w-18 h-18 rounded-full bg-gradient-to-tr from-[#10B981] to-[#34D399] text-white flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.55)] hover:scale-105 active:scale-90 transition-all cursor-pointer animate-bounce"
+            className="w-[72px] h-[72px] rounded-full bg-gradient-to-tr from-[#10B981] to-[#34D399] text-white flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.55)] hover:scale-105 active:scale-90 transition-all cursor-pointer animate-bounce"
             title="Nhận cuộc gọi"
           >
             <i className="bi bi-telephone-fill text-2xl" />

@@ -48,15 +48,12 @@ export function getMarkerBodyHtml({
           </div>
         ` : ''}
 
-        <!-- Nhân vật Chibi / Avatar đứng thẳng trên mặt đất -->
-        <div class="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center transition-transform group-hover:scale-115 active:scale-95 animate-chibi-float pointer-events-auto cursor-pointer" ${actionSound ? `data-action-sound="${actionSound}" data-chibi-sound="${actionSound}"` : ''}>
-          ${displayImg ? `
-            <img src="${displayImg}" alt="${name}" class="w-full h-full object-contain filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] pointer-events-auto cursor-pointer" />
-          ` : `
-            <div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-neutral-500 shadow-lg border-2 border-white pointer-events-auto cursor-pointer">
-              <i class="bi bi-person-fill text-2xl"></i>
-            </div>
-          `}
+        <!-- Nhân vật Chibi / Avatar đứng thẳng trên mặt đất (có viền & data-has-story khi có Story) -->
+        <div class="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center transition-transform group-hover:scale-115 active:scale-95 animate-chibi-float pointer-events-auto cursor-pointer ${hasStory ? 'rounded-full p-1 bg-gradient-to-tr from-[#FF2A85]/40 via-purple-500/30 to-[#00E5FF]/40 ring-2 ring-[#FF2A85] shadow-[0_0_20px_rgba(255,42,133,0.65)]' : ''}" ${hasStory ? 'data-has-story="true" title="Bấm để xem Story toàn màn hình"' : (actionSound ? `data-action-sound="${actionSound}" data-chibi-sound="${actionSound}"` : '')}>
+          ${displayImg
+            ? `<img src="${displayImg}" alt="${name}" class="w-full h-full object-contain filter drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)] pointer-events-auto cursor-pointer" />`
+            : `<div class="w-12 h-12 rounded-full bg-white flex items-center justify-center text-neutral-500 shadow-lg border-2 border-white pointer-events-auto cursor-pointer"><i class="bi bi-person-fill text-2xl"></i></div>`}
+          ${hasStory && storyCount > 1 ? `<span class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-black/85 text-white text-[8px] font-mono font-bold border border-white/30 shadow-md pointer-events-none">${storyCount}</span>` : ''}
 
           ${hasSong ? `
             <div class="vivu-vinyl-disc absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#111116] border border-white/40 shadow-[0_4px_10px_rgba(0,0,0,0.8)] flex items-center justify-center animate-spin-slow z-30 cursor-pointer pointer-events-auto hover:scale-125 transition-transform" data-song-title="${songTitle || ''}" title="Bài hát: ${songTitle || 'Đang phát'} (Bấm để bật/tắt)">
@@ -67,8 +64,8 @@ export function getMarkerBodyHtml({
               </div>
             </div>` : ''}
           ${isOwner && !hasStory ? `
-            <button id="btn-quick-create-story" type="button" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_10px_#FF2A85] flex items-center justify-center z-30 hover:scale-115 active:scale-90 transition-transform cursor-pointer pointer-events-auto" title="Đăng Story">
-              <i class="bi bi-plus-lg text-[11px] font-bold"></i>
+            <button id="btn-quick-create-story" data-quick-story="true" type="button" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_10px_#FF2A85] flex items-center justify-center z-30 hover:scale-115 active:scale-90 transition-transform cursor-pointer pointer-events-auto" title="Đăng Story">
+              <i class="bi bi-plus-lg text-[11px] font-bold pointer-events-none"></i>
             </button>` : ''}
         </div>
         <div class="w-11 h-2 rounded-full bg-black/45 blur-[1.5px] -mt-1 shadow-inner pointer-events-none"></div>
@@ -124,8 +121,8 @@ export function getMarkerBodyHtml({
 
           <!-- Nút (+) Đăng Story nhanh cho chính chủ nếu chưa có Story -->
           ${isOwner && !hasStory ? `
-            <button id="btn-quick-create-story" type="button" class="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_8px_#FF2A85] flex items-center justify-center z-20 hover:scale-110 active:scale-90 transition-transform cursor-pointer" title="Đăng Story">
-              <i class="bi bi-plus-lg text-[10px] font-bold"></i>
+            <button id="btn-quick-create-story" data-quick-story="true" type="button" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_10px_#FF2A85] flex items-center justify-center z-30 hover:scale-115 active:scale-90 transition-transform cursor-pointer pointer-events-auto" title="Đăng Story">
+              <i class="bi bi-plus-lg text-[11px] font-bold pointer-events-none"></i>
             </button>
           ` : ''}
 
@@ -145,7 +142,7 @@ export function getMarkerBodyHtml({
   // 1.3 PHONG CÁCH GIỌT NƯỚC CỔ ĐIỂN (CLASSIC TEARDROP)
   return `
     <div class="vivu-teardrop-marker flex flex-col items-center select-none relative group cursor-pointer animate-in zoom-in-95 duration-200 pointer-events-auto">
-      <div class="relative w-11 h-11 rounded-full p-[2px] ${isOwner ? 'bg-white border-2 border-[#10FFA0] shadow-[0_0_14px_rgba(16,255,160,0.65)]' : 'bg-white border-2 border-[#00E5FF] shadow-[0_0_14px_rgba(0,229,255,0.75)]'} flex items-center justify-center transition-transform group-hover:scale-110 active:scale-95">
+      <div class="relative w-11 h-11 rounded-full p-[2px] ${hasStory ? 'bg-gradient-to-tr from-[#FF2A85] via-purple-600 to-[#00E5FF] shadow-[0_0_18px_rgba(255,42,133,0.7)]' : (isOwner ? 'bg-white border-2 border-[#10FFA0] shadow-[0_0_14px_rgba(16,255,160,0.65)]' : 'bg-white border-2 border-[#00E5FF] shadow-[0_0_14px_rgba(0,229,255,0.75)]')} flex items-center justify-center transition-transform group-hover:scale-110 active:scale-95" ${hasStory ? 'data-has-story="true" title="Bấm để xem Story toàn màn hình"' : ''}>
         <div class="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
           ${avatar ? `<img src="${avatar}" alt="${name}" class="w-full h-full object-cover" />` : `<div class="w-full h-full bg-white flex items-center justify-center text-neutral-400"><i class="bi bi-person-fill text-lg"></i></div>`}
         </div>
@@ -155,8 +152,8 @@ export function getMarkerBodyHtml({
           </div>
         ` : ''}
         ${isOwner && !hasStory ? `
-          <button id="btn-quick-create-story" type="button" class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_8px_#FF2A85] flex items-center justify-center z-20 hover:scale-110 active:scale-90 transition-transform cursor-pointer" title="Đăng Story">
-            <i class="bi bi-plus-lg text-[10px] font-bold"></i>
+          <button id="btn-quick-create-story" data-quick-story="true" type="button" class="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#FF2A85] text-white border-2 border-white shadow-[0_0_10px_#FF2A85] flex items-center justify-center z-30 hover:scale-115 active:scale-90 transition-transform cursor-pointer pointer-events-auto" title="Đăng Story">
+            <i class="bi bi-plus-lg text-[11px] font-bold pointer-events-none"></i>
           </button>
         ` : ''}
       </div>
@@ -262,17 +259,17 @@ export function renderStoryBubbleBox(storiesOrSingle, isOwner = false, displayNa
 }
 
 // 2. RENDER BONG BÓNG TRẠNG THÁI / BÀI HÁT / CHIBI CHO CHỦ SỞ HỮU (BẠN)
-export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statusText, chibiId, actionMascot, actionId, chibiExpiresAt }) {
+export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statusText, chibiId, actionMascot, actionId, chibiExpiresAt, bodySkinMode = 'aura_circle' }) {
   // Khử tiêu đề mồ côi khi Story đã bị xóa
   const safeStatus = (statusText === 'Khoảnh khắc mới' || statusText === 'Tâm trạng') ? '' : statusText;
 
-  // ƯU TIÊN 1: BỘ CHIBI HÀNH ĐỘNG FB MESSENGER & ZALO (AMI, QOOBEE, QUỲNH AKA...)
-  if (actionMascot && actionId) {
+  // ƯU TIÊN 1: BỘ CHIBI HÀNH ĐỘNG (nếu thân ghim đã dùng zenly_3d hiển thị Chibi thì không vẽ lặp ảnh thứ 2 ở bong bóng)
+  if (actionMascot && actionId && bodySkinMode !== 'zenly_3d') {
     const actionUrl = getMascotActionDataUrl(actionMascot, actionId);
     return `
       <div class="owner-bubble-wrapper mb-1.5 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-pointer group" title="Bấm để phát âm thanh">
         <div class="relative flex items-center justify-center filter drop-shadow-[0_4px_14px_rgba(0,0,0,0.6)]">
-          <div class="chibi-mascot-pin w-13 h-13 flex items-center justify-center hover:scale-120 active:scale-95 transition-transform pointer-events-auto cursor-pointer" data-action-sound="${actionId}">
+          <div class="chibi-mascot-pin w-[52px] h-[52px] flex items-center justify-center hover:scale-120 active:scale-95 transition-transform pointer-events-auto cursor-pointer" data-action-sound="${actionId}">
             <img src="${actionUrl}" alt="Action" class="w-full h-full object-contain pointer-events-auto" />
           </div>
           ${safeStatus ? `
@@ -333,7 +330,7 @@ export function getOwnerBubbleHtml({ myActiveStory, myActiveStories, song, statu
 }
 
 // 3. RENDER BONG BÓNG TRẠNG THÁI / BÀI HÁT / CHIBI CHO BẠN BÈ & NGƯỜI LẠ
-export function getPeerBubbleHtml(item, isCoLocated = false) {
+export function getPeerBubbleHtml(item, isCoLocated = false, bodySkinMode = 'aura_circle') {
   const isOffline = item.isOnline === false;
   const displayName = item.hostName || item.host_name || item.name || 'Người dùng VIVU';
 
@@ -351,10 +348,10 @@ export function getPeerBubbleHtml(item, isCoLocated = false) {
   const peerSong = item.custom_song || item.songData || item.music || null;
   const statusText = item.custom_status || (item.title && item.title !== 'Đang trực tuyến' && item.title !== 'Khoảnh khắc mới' ? item.title : '');
 
-  // 1. CHIBI HÀNH ĐỘNG FB/ZALO HOẶC MASCOT
+  // 1. CHIBI HÀNH ĐỘNG FB/ZALO HOẶC MASCOT (tránh lặp 2 ảnh khi thân ghim đã dùng zenly_3d)
   const peerActionMascot = item.pin_mascot || item.actionMascot;
   const peerActionId = item.pin_action || item.actionId;
-  if (peerActionMascot && peerActionId) {
+  if (peerActionMascot && peerActionId && bodySkinMode !== 'zenly_3d') {
     const actionUrl = getMascotActionDataUrl(peerActionMascot, peerActionId);
     return `
       <div class="peer-bubble-wrapper mb-1.5 relative flex flex-col items-center animate-in zoom-in-90 duration-200 cursor-pointer group" title="${displayName} đang ${peerActionId}">

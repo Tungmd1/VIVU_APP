@@ -39,13 +39,13 @@ export default function UnifiedDynamicIsland({
     : `${radarDistance} km`;
 
   return (
-    <div className="fixed top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] left-1/2 -translate-x-1/2 z-50 max-w-[96vw] select-none pointer-events-auto font-sans flex flex-col items-center">
+    <div className="fixed top-[max(0.75rem,calc(env(safe-area-inset-top,0px)+0.5rem))] left-[104px] right-[58px] sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-50 sm:max-w-[92vw] select-none pointer-events-auto font-sans flex flex-col items-center">
       
       {/* 1. THÂN ĐẢO NỔI DYNAMIC ISLAND CHÍNH */}
       <motion.div
         layout
         transition={springTokens.dialog}
-        className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[rgba(18,20,30,0.92)] backdrop-blur-xl border border-white/15 shadow-[0_8px_30px_rgba(0,0,0,0.6)] text-white text-xs z-20"
+        className="relative flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[rgba(18,20,30,0.92)] backdrop-blur-xl border border-white/15 shadow-[0_8px_30px_rgba(0,0,0,0.6)] text-white text-xs z-20 max-w-full"
       >
         {/* Nút Thông Báo (Chuông) */}
         <button

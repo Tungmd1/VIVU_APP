@@ -69,7 +69,7 @@ export const chatController = {
         sender_name
       });
 
-      // Phát realtime qua Socket.IO và tạo thông báo nếu là direct chat
+      // Phát realtime qua Socket.IO và tạo thông báo
       if (targetConvId.startsWith('conv-direct-')) {
         const parts = targetConvId.replace('conv-direct-', '').split('--');
         const recipientId = parts.find(p => p !== message.sender);
@@ -88,6 +88,12 @@ export const chatController = {
             console.warn('[ChatController] Notification create error:', notifErr?.message);
           }
         }
+      } else if (targetConvId.startsWith('circle-')) {
+        const circle = dbStore.circles?.find(c => c.id === targetConvId);
+        const recipients = (circle?.member_ids || []).filter(mid => mid && mid !== message.sender);
+        recipients.forEach(recipientId => {
+          emitToUser(recipientId, 'chat:message', message);
+        });
       }
 
       res.status(201).json({ success: true, data: message });
@@ -125,6 +131,24 @@ export const chatController = {
     try {
       const { messageId, userId } = req.body;
       const updatedMsg = await dbService.stopLiveLocation(messageId, userId);
+      const stopPayload = {
+        messageId: updatedMsg.id,
+        clientMsgId: updatedMsg.client_msg_id || null,
+        conversationId: updatedMsg.conversation_id,
+        live_status: 'stopped',
+        stopped_at: updatedMsg.stopped_at
+      };
+      if (updatedMsg.conversation_id?.startsWith('conv-direct-')) {
+        const parts = updatedMsg.conversation_id.replace('conv-direct-', '').split('--');
+        parts.filter(pid => pid && pid !== updatedMsg.sender).forEach(pid => {
+          emitToUser(pid, 'chat:live_location_stopped', stopPayload);
+        });
+      } else if (updatedMsg.conversation_id?.startsWith('circle-')) {
+        const circle = dbStore.circles?.find(c => c.id === updatedMsg.conversation_id);
+        (circle?.member_ids || []).filter(mid => mid && mid !== updatedMsg.sender).forEach(mid => {
+          emitToUser(mid, 'chat:live_location_stopped', stopPayload);
+        });
+      }
       res.json({ success: true, data: updatedMsg, message: updatedMsg });
     } catch (err) {
       next(err);

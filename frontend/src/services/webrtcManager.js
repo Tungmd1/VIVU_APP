@@ -53,6 +53,20 @@ class WebRTCManager {
       return this.localStream;
     } catch (err) {
       console.warn('[WebRTCManager] getUserMedia error:', err.name, err.message);
+      if (isVideo && (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError' || err.name === 'OverconstrainedError' || err.name === 'NotAllowedError')) {
+        try {
+          console.warn('[WebRTCManager] Camera không khả dụng, chuyển sang chế độ chỉ nhận hình & dùng mic thoại');
+          this.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: constraints.audio,
+            video: false
+          });
+          this.isMuted = false;
+          this.isVideoOff = true;
+          return this.localStream;
+        } catch (audioErr) {
+          console.warn('[WebRTCManager] Fallback audio cũng thất bại:', audioErr.message);
+        }
+      }
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
         throw new Error('Quyền truy cập Camera/Microphone đã bị từ chối.');
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
@@ -66,21 +80,48 @@ class WebRTCManager {
   createPeerConnection({ onRemoteStream, onIceCandidate, onConnectionStateChange } = {}) {
     this.closePeerConnection();
     this.iceCandidateQueue = [];
+    this.remoteRawStream = new MediaStream();
 
     this.peerConnection = new RTCPeerConnection(RTC_CONFIG);
 
     // Gắn local tracks vào peer connection
+    let hasLocalVideo = false;
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => {
+        if (track.kind === 'video') hasLocalVideo = true;
         this.peerConnection.addTrack(track, this.localStream);
       });
     }
 
-    // Nhận remote track từ đối phương
+    // Nếu không có local video (VD: PC không camera hoặc camera tắt), đảm bảo sẵn sàng nhận video từ đối phương
+    if (!hasLocalVideo) {
+      try {
+        this.peerConnection.addTransceiver('video', { direction: 'recvonly' });
+      } catch (_) {}
+    }
+
+    // Gom audio/video track bền vững vào một MediaStream mới để React gắn lại srcObject tin cậy
     this.peerConnection.ontrack = (event) => {
-      if (event.streams && event.streams[0]) {
-        this.remoteStream = event.streams[0];
-        if (onRemoteStream) onRemoteStream(this.remoteStream);
+      if (!this.remoteRawStream) this.remoteRawStream = new MediaStream();
+      const incomingTracks = (event.streams && event.streams[0])
+        ? event.streams[0].getTracks()
+        : (event.track ? [event.track] : []);
+
+      incomingTracks.forEach((track) => {
+        const existingSameKind = this.remoteRawStream.getTracks().filter(
+          (t) => t.kind === track.kind && t.id !== track.id
+        );
+        existingSameKind.forEach((oldTrack) => {
+          try { this.remoteRawStream.removeTrack(oldTrack); } catch (_) {}
+        });
+        if (!this.remoteRawStream.getTracks().some((t) => t.id === track.id)) {
+          this.remoteRawStream.addTrack(track);
+        }
+      });
+
+      this.remoteStream = new MediaStream(this.remoteRawStream.getTracks());
+      if (onRemoteStream && this.remoteStream.getTracks().length > 0) {
+        onRemoteStream(this.remoteStream);
       }
     };
 
@@ -205,9 +246,10 @@ class WebRTCManager {
         }
       }
 
-      // Cập nhật lại local stream
+      // Tạo tham chiếu MediaStream mới để useWebRTCCall cập nhật lại thẻ <video>
       this.localStream.removeTrack(oldVideoTrack);
       this.localStream.addTrack(newVideoTrack);
+      this.localStream = new MediaStream(this.localStream.getTracks());
       this.currentFacingMode = nextFacingMode;
       return this.localStream;
     } catch (err) {
@@ -225,11 +267,13 @@ class WebRTCManager {
       this.localStream = null;
     }
     this.remoteStream = null;
+    this.remoteRawStream = null;
   }
 
   // Đóng kết nối P2P
   closePeerConnection() {
     this.iceCandidateQueue = [];
+    this.remoteRawStream = null;
     if (this.peerConnection) {
       try {
         this.peerConnection.ontrack = null;

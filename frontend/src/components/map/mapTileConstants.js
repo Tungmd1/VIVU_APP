@@ -1,16 +1,22 @@
 /**
  * mapTileConstants.js
- * Cấu hình tile OpenStreetMap / CartoDB Voyager và các hàm đo đạc tọa độ địa lý
- * Không sử dụng Google Maps tiles
+ * Cấu hình tile Google Maps (như bản chuẩn trước đây) kèm fallback OpenStreetMap / ESRI
+ * và các hàm đo đạc tọa độ địa lý
  */
 
 export const VIVU_MAP_TILES = {
-  streets: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  osm: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+  streets: 'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+  satellite: 'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+  osmFallback: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  esriFallback: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
 };
 
-export const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+export const TILE_LAYER_OPTIONS = {
+  subdomains: '0123',
+  maxZoom: 20
+};
+
+export const TILE_ATTRIBUTION = '&copy; Google Maps &amp; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 export function getDistanceKm(lat1, lon1, lat2, lon2) {
   const dLat = (lat2 - lat1) * (Math.PI / 180);

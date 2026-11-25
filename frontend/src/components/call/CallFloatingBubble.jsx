@@ -25,7 +25,7 @@ export default function CallFloatingBubble({
   };
 
   return (
-    <div className="fixed bottom-24 right-4 z-60 animate-in slide-in-from-bottom-5 duration-300 select-none">
+    <div className="fixed bottom-24 right-4 z-[80] animate-in slide-in-from-bottom-5 duration-300 select-none">
       <div className="relative group">
         {/* Main Floating Bubble Container */}
         <div

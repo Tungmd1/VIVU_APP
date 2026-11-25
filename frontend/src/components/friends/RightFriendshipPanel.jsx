@@ -19,8 +19,10 @@ export default function RightFriendshipPanel({
   currentUserAvatar,
   nearbyPeers = [],
   friends = [],
+  incomingRequestsCount = 0,
   onRequestHandled,
-  onStartChatWithUser
+  onStartChatWithUser,
+  onOpenUserProfile
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -57,7 +59,7 @@ export default function RightFriendshipPanel({
     loadRequests();
     const interval = setInterval(loadRequests, 8000);
     return () => clearInterval(interval);
-  }, [currentUserId]);
+  }, [currentUserId, isOpen, incomingRequestsCount, friends.length]);
 
   // Tìm kiếm người dùng khi gõ phím
   useEffect(() => {
@@ -189,7 +191,7 @@ export default function RightFriendshipPanel({
         aria-modal="true"
         aria-label="Khu vực Kết nối & Bạn bè"
         className={`fixed top-0 right-0 h-[100dvh] w-full max-w-[340px] sm:max-w-[380px] bg-white/98 backdrop-blur-2xl border-l border-[#D2D9F4] z-50 flex flex-col justify-between transition-transform duration-300 ease-out shadow-2xl font-sans select-none ${
-          isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+          isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none invisible'
         }`}
       >
         {/* 1. HEADER PANEL */}
@@ -338,6 +340,7 @@ export default function RightFriendshipPanel({
                 onlineFriendsCount={onlineFriendsCount}
                 onLocateFriend={handleLocateFriend}
                 onStartChatWithUser={onStartChatWithUser}
+                onOpenUserProfile={onOpenUserProfile}
                 onClose={onClose}
               />
 
@@ -420,6 +423,7 @@ export default function RightFriendshipPanel({
                 loadingActionId={loadingActionId}
                 onSendRequest={handleSendRequest}
                 onStartChatWithUser={onStartChatWithUser}
+                onOpenUserProfile={onOpenUserProfile}
               />
             </>
           )}

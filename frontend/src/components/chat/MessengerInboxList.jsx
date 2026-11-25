@@ -25,8 +25,7 @@ export default function MessengerInboxList({
   onBackToMap,
   onToggleRightFriendshipPanel,
   pendingFriendRequestsCount = 0,
-  onOpenCreateCircle,
-  onOpenClearConversation
+  onOpenCreateCircle
 }) {
   const onlineFriends = (friends || []).filter(f => f && (f.isOnline === true || f.is_online === true));
 
@@ -108,10 +107,10 @@ export default function MessengerInboxList({
           <input 
             id="chat-search-input"
             type="text" 
-            value={chatSearchQuery}
-            onChange={(e) => setChatSearchQuery(e.target.value)}
             placeholder="Tìm kiếm đoạn chat..." 
             aria-label="Tìm kiếm cuộc trò chuyện"
+            value={chatSearchQuery}
+            onChange={(e) => setChatSearchQuery(e.target.value)}
             className="w-full pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-full text-xs text-white placeholder-white/40 outline-none focus:border-[#FF2A85] focus:ring-1 focus:ring-[#FF2A85]/30 transition-all font-medium"
           />
           {chatSearchQuery && (
@@ -298,30 +297,16 @@ export default function MessengerInboxList({
                       </div>
 
                       <p className={`text-xs truncate mt-0.5 flex items-center gap-1.5 ${conv.unread ? 'font-semibold text-[#FF2A85]' : 'text-white/50'}`}>
-                        {(conv.lastMessage?.includes('trái tim') || conv.lastMessage?.includes('❤️')) && (
+                        {conv.lastMessage?.includes('trái tim') && (
                           <i className="bi bi-heart-fill text-[#FF2A85] text-[11px] shrink-0" aria-hidden="true"></i>
                         )}
-                        {(conv.lastMessage?.includes('vị trí GPS') || conv.lastMessage?.includes('📍')) && (
+                        {conv.lastMessage?.includes('vị trí GPS') && (
                           <i className="bi bi-geo-alt-fill text-[#00E5FF] text-[11px] shrink-0" aria-hidden="true"></i>
                         )}
-                        <span className="truncate">{conv.lastMessage?.replace(/^[❤️📍]\s*/, '')}</span>
+                        <span className="truncate">{conv.lastMessage?.replace(/^\W*\s*/, (m) => (/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u.test(m) ? '' : m))}</span>
                       </p>
                     </div>
                   </div>
-
-                  {/* Nút Xóa Tất Cả Tin Nhắn trong cuộc trò chuyện */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenClearConversation?.(conv);
-                    }}
-                    className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-sm opacity-80 group-hover:opacity-100"
-                    title="Xóa tất cả tin nhắn"
-                    aria-label="Xóa tất cả tin nhắn"
-                  >
-                    <i className="bi bi-trash3-fill text-xs"></i>
-                  </button>
                 </div>
               );
             })

@@ -100,20 +100,44 @@ describe('VIVU Chat Single Delete, Clear History & Archive Verification Suite', 
     );
   });
 
-  test('4. Xóa toàn bộ lịch sử tin nhắn trong cuộc trò chuyện (Clear conversation history)', async () => {
+  test('4. Xóa toàn bộ lịch sử tin nhắn: giữ lại trang/mục chat 1-1 với preview và tách biệt clearForEveryone vs chỉ phía tôi', async () => {
     await dbService.sendMessage({ conversation_id: convId, sender: userA.id, text: 'Msg 1' });
     await dbService.sendMessage({ conversation_id: convId, sender: userB.id, text: 'Msg 2' });
     await dbService.sendMessage({ conversation_id: convId, sender: userA.id, text: 'Msg 3' });
 
-    let msgs = await dbService.getMessages(convId, userA.id);
-    assert.strictEqual(msgs.length, 3, 'Phải có 3 tin nhắn');
+    let msgsA = await dbService.getMessages(convId, userA.id);
+    assert.strictEqual(msgsA.length, 3, 'Phải có 3 tin nhắn trước khi xóa');
 
-    // Xóa toàn bộ tin nhắn
-    const clearRes = await dbService.clearConversationMessages(convId, userA.id);
-    assert.strictEqual(clearRes.success, true);
+    // A) Chỉ xóa ở phía tôi (clearForEveryone = false) -> A mất tin nhắn nhưng giữ hội thoại, B vẫn giữ đủ 3 tin nhắn
+    const clearMeRes = await dbService.clearConversationMessages(convId, userA.id, false);
+    assert.strictEqual(clearMeRes.success, true);
 
-    msgs = await dbService.getMessages(convId, userA.id);
-    assert.strictEqual(msgs.length, 0, 'Toàn bộ tin nhắn phải được dọn sạch');
+    msgsA = await dbService.getMessages(convId, userA.id);
+    const msgsB = await dbService.getMessages(convId, userB.id);
+    assert.strictEqual(msgsA.length, 0, 'User A không còn thấy tin nhắn cũ');
+    assert.strictEqual(msgsB.length, 3, 'User B vẫn giữ nguyên 3 tin nhắn');
+
+    const convsA = await dbService.getUserConversations(userA.id);
+    const preservedConvA = convsA.find(c => c.id === convId);
+    assert.ok(preservedConvA, 'Cuộc trò chuyện 1-1 vẫn phải tồn tại sau khi xóa hết tin nhắn');
+    assert.strictEqual(preservedConvA.isCleared, true);
+    assert.strictEqual(preservedConvA.lastMessage, 'Đã xóa lịch sử trò chuyện');
+    assert.strictEqual(preservedConvA.messages.length, 0);
+
+    // B) Xóa với cả mọi người (clearForEveryone = true) -> cả A và B mất tin nhắn, nhưng cả 2 vẫn còn trang chat
+    const clearAllRes = await dbService.clearConversationMessages(convId, userA.id, true);
+    assert.strictEqual(clearAllRes.success, true);
+    assert.strictEqual((await dbService.getMessages(convId, userB.id)).length, 0);
+    const convsB = await dbService.getUserConversations(userB.id);
+    const preservedConvB = convsB.find(c => c.id === convId);
+    assert.ok(preservedConvB, 'User B vẫn phải giữ trang chat sau khi xóa cho cả mọi người');
+    assert.strictEqual(preservedConvB.lastMessage, 'Đã xóa lịch sử trò chuyện');
+
+    // C) Nhắn lại tin mới -> gỡ cờ isCleared và cập nhật lastMessage mới
+    await dbService.sendMessage({ conversation_id: convId, sender: userA.id, text: 'Nhắn lại sau khi dọn' });
+    const convAfterNew = (await dbService.getUserConversations(userA.id)).find(c => c.id === convId);
+    assert.strictEqual(convAfterNew.lastMessage, 'Nhắn lại sau khi dọn');
+    assert.strictEqual(convAfterNew.messages.length, 1);
   });
 
   test('5. Lưu trữ và bỏ lưu trữ cuộc trò chuyện (Archive / Unarchive conversation)', async () => {

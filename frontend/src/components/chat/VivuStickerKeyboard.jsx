@@ -96,7 +96,7 @@ export default function VivuStickerKeyboard({ isOpen, onClose, onSelectSticker }
               <img
                 src={sticker.image}
                 alt={sticker.name}
-                className="w-16 h-16 sm:w-18 sm:h-18 object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)] group-hover:scale-115 transition-transform duration-200"
+                className="w-16 h-16 sm:w-[72px] sm:h-[72px] object-contain filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.4)] group-hover:scale-115 transition-transform duration-200"
                 loading="lazy"
               />
 

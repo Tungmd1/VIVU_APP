@@ -44,7 +44,9 @@ export default function MessengerActiveRoom({
   setMessageInputText,
   handleSend,
   onDeleteMessage,
-  onClearConversation
+  onClearConversation,
+  onStopLiveLocation,
+  userSpeed
 }) {
   const chatFileInputRef = useRef(null);
   const chatVideoInputRef = useRef(null);
@@ -78,11 +80,11 @@ export default function MessengerActiveRoom({
     }
   };
 
-  // Dọn sạch toàn bộ lịch sử tin nhắn
-  const handleConfirmClear = async () => {
+  // Dọn sạch toàn bộ lịch sử tin nhắn (mặc định chỉ phía tôi, hỗ trợ tùy chọn cho cả hai phía)
+  const handleConfirmClear = async (clearForEveryone = false) => {
     try {
-      await apiClient.clearConversationMessages(activeConversationId, currentUserId, true);
-      onClearConversation?.(activeConversationId);
+      await apiClient.clearConversationMessages(activeConversationId, currentUserId, clearForEveryone);
+      onClearConversation?.(activeConversationId, clearForEveryone);
     } catch (e) {
       console.warn('Lỗi khi dọn sạch tin nhắn:', e);
     }
@@ -181,12 +183,25 @@ export default function MessengerActiveRoom({
       live_status: 'active',
       lat: safeLat,
       lng: safeLng,
-      speed: 0,
+      speed: userSpeed != null && !isNaN(Number(userSpeed)) ? Number(userSpeed) : 0,
       text: `Đang chia sẻ vị trí trực tiếp (${durationMinutes === 60 ? '1 giờ' : (durationMinutes === 480 ? '8 giờ' : `${durationMinutes} phút`)})`
     });
     setIsLiveLocationModalOpen(false);
     setIsToolsDrawerOpen(false);
     confetti({ particleCount: 35, spread: 50 });
+  };
+
+  // Dừng chia sẻ vị trí trực tiếp (ưu tiên callback đồng bộ App state + REST/Socket backend)
+  const handleStopShare = async (msgId) => {
+    if (!msgId) return;
+    if (onStopLiveLocation) {
+      return onStopLiveLocation(msgId);
+    }
+    try {
+      await apiClient.stopLiveLocation(msgId, currentUserId);
+    } catch (err) {
+      console.warn('[MessengerActiveRoom] stopLiveLocation fallback error:', err?.message);
+    }
   };
 
   return (
@@ -214,30 +229,43 @@ export default function MessengerActiveRoom({
 
           {/* VÙNG TIN NHẮN CUỘN ĐỘC LẬP */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-3.5 sm:p-4 space-y-3 bg-[#0a0e1c]">
-            {messages.map((msg, idx) => {
-              const isMe = msg.sender === 'me' || (currentUserId && msg.sender === currentUserId);
-              return (
-                <div key={msg.id || idx} className="space-y-1.5">
-                  <ChatMessageBubble
-                    msg={msg}
-                    isMe={isMe}
-                    currentUserId={currentUserId}
-                    activeConversation={activeConversation}
-                    onOpenTakeoverMeme={onOpenTakeoverMeme}
-                    onOpenMapForStory={onOpenMapForStory}
-                    onStartNavigation={onStartNavigation}
-                    setSelectedLightboxMedia={setSelectedLightboxMedia}
-                    onSelectMessageForDelete={setSelectedMessageForAction}
-                    onOpenChatProfile={() => setIsChatProfileModalOpen(true)}
-                  />
+            {messages.length === 0 ? (
+              <div className="h-full min-h-[220px] flex flex-col items-center justify-center text-center px-6 space-y-2 text-white/50 select-none">
+                <i className="bi bi-chat-dots text-2xl text-[#00E5FF] p-3 rounded-2xl bg-white/5 border border-white/10"></i>
+                <p className="text-xs font-semibold text-white/75">
+                  {activeConversation?.isCleared || activeConversation?.lastMessage === 'Đã xóa lịch sử trò chuyện' ? 'Đã xóa lịch sử trò chuyện' : 'Chưa có tin nhắn nào'}
+                </p>
+                <p className="text-[11px] text-white/40 max-w-xs">Khung trò chuyện vẫn được giữ nguyên. Nhập tin nhắn bên dưới để tiếp tục.</p>
+              </div>
+            ) : (
+              messages.map((msg, idx) => {
+                const isMe = msg.sender === 'me' || (currentUserId && msg.sender === currentUserId);
+                return (
+                  <div key={msg.id || idx} className="space-y-1.5">
+                    <ChatMessageBubble
+                      msg={msg}
+                      isMe={isMe}
+                      currentUserId={currentUserId}
+                      currentUserLat={userLat}
+                      currentUserLng={userLng}
+                      activeConversation={activeConversation}
+                      onOpenTakeoverMeme={onOpenTakeoverMeme}
+                      onOpenMapForStory={onOpenMapForStory}
+                      onStartNavigation={onStartNavigation}
+                      onStopShare={handleStopShare}
+                      setSelectedLightboxMedia={setSelectedLightboxMedia}
+                      onSelectMessageForDelete={setSelectedMessageForAction}
+                      onOpenChatProfile={() => setIsChatProfileModalOpen(true)}
+                    />
 
-                  {/* Thời gian tin nhắn */}
-                  <div className={`text-[9px] text-[#8E8E93] px-1 ${isMe ? 'text-right' : 'text-left'}`}>
-                    {msg.time || (msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
+                    {/* Thời gian tin nhắn */}
+                    <div className={`text-[9px] text-[#8E8E93] px-1 ${isMe ? 'text-right' : 'text-left'}`}>
+                      {msg.time || (msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
           {/* KHAY TIỆN ÍCH MỞ RỘNG (GỬI ẢNH, VIDEO, VỊ TRÍ, LIVE GPS, BÌNH CHỌN) */}
@@ -408,6 +436,7 @@ export default function MessengerActiveRoom({
         messages={messages}
         onSelectLightboxMedia={(media) => setSelectedLightboxMedia(media)}
         onStartCall={onStartCall}
+        onOpenUserProfile={onOpenUserProfile}
         onOpenClearModal={() => setIsClearModalOpen(true)}
         onOpenMap={() => {
           setIsChatProfileModalOpen(false);

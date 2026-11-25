@@ -1,12 +1,13 @@
 import { dbService } from '../services/dbService.js';
 
-const VALID_CATEGORIES = ['dining', 'music', 'dancing', 'sightseeing', 'cafe_dating', 'other'];
+const VALID_CATEGORIES = ['food', 'music', 'dance', 'sightseeing', 'dining', 'dancing', 'cafe_dating', 'other'];
 
 export const placeController = {
   async getSavedPlaces(req, res, next) {
     try {
       const userId = req.query?.userId || req.user?.id || null;
-      const places = await dbService.getSavedPlaces(userId);
+      const category = req.query?.category || null;
+      const places = await dbService.getSavedPlaces(userId, category);
       return res.json({ success: true, places });
     } catch (err) {
       next(err);

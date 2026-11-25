@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DEFAULT_WHITE_PERSON_AVATAR, getSafeAvatar } from '../../utils/avatarUtils';
+import apiClient from '../../services/apiClient';
 
 /**
  * GuestProfileModal - Modal xem hồ sơ cá nhân khách dạng thẻ Profile Card
@@ -11,26 +12,48 @@ export default function GuestProfileModal({
   isOpen,
   onClose,
   profile,
+  currentUserId = null,
   onDirectChat,
   onToggleFriend,
   onStartNavigation,
   isFriend = false
 }) {
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
+  const [fetchedData, setFetchedData] = useState(null);
+
+  const targetUserId = profile?.id || profile?.hostId || profile?.userId || profile?.user_id;
+
+  useEffect(() => {
+    setActivePhotoIdx(0);
+    if (!isOpen || !targetUserId) {
+      setFetchedData(null);
+      return;
+    }
+    let active = true;
+    apiClient.getUserProfile(targetUserId, currentUserId).then((res) => {
+      if (active && res) setFetchedData(res);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [isOpen, targetUserId, currentUserId]);
 
   if (!isOpen || !profile) return null;
 
-  const displayName = profile.hostName || profile.name || profile.full_name || 'Người dùng VIVU';
-  const rawAvatar = profile.hostAvatar || profile.avatar || profile.avatar_url;
+  const effectiveProfile = fetchedData?.profile ? { ...profile, ...fetchedData.profile } : profile;
+  const effectiveIsFriend = fetchedData?.isFriend ?? isFriend;
+
+  const displayName = effectiveProfile.hostName || effectiveProfile.name || effectiveProfile.full_name || 'Người dùng VIVU';
+  const rawAvatar = effectiveProfile.hostAvatar || effectiveProfile.avatar || effectiveProfile.avatar_url;
   const displayAvatar = getSafeAvatar(rawAvatar);
   const isDefaultAvatar = displayAvatar === DEFAULT_WHITE_PERSON_AVATAR;
 
-  const age = profile.age ? `${profile.age} tuổi` : '';
-  const bio = profile.bio || profile.description || profile.custom_status || '';
+  const age = effectiveProfile.age != null ? `${effectiveProfile.age} tuổi` : '';
+  const bio = effectiveProfile.bio || effectiveProfile.description || effectiveProfile.custom_status || '';
+  const favoriteSong = effectiveProfile.favorite_song || effectiveProfile.favoriteSong || '';
+  const tags = Array.isArray(effectiveProfile.tags) ? effectiveProfile.tags : [];
 
   // Lọc chỉ giữ ảnh thực tế, loại bỏ 100% link mockup (Rule 45)
-  const validPhotos = Array.isArray(profile.photos)
-    ? profile.photos.filter(p => p && typeof p === 'string' && !p.includes('unsplash.com') && !p.includes('dicebear.com'))
+  const validPhotos = Array.isArray(effectiveProfile.photos)
+    ? effectiveProfile.photos.filter(p => p && typeof p === 'string' && !p.includes('unsplash.com') && !p.includes('dicebear.com'))
     : [];
 
   const photos = validPhotos.length > 0
@@ -54,7 +77,7 @@ export default function GuestProfileModal({
   const distanceText = profile.distanceText || profile.liveDistance || profile.distance || 'Gần bạn';
 
   return (
-    <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-none">
+    <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 select-none">
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Card Profile chính */}
@@ -167,13 +190,32 @@ export default function GuestProfileModal({
             </p>
           )}
 
+          {favoriteSong && (
+            <div className="px-3 py-2 rounded-2xl bg-[#151619] border border-white/10 flex items-center gap-2 text-xs text-white">
+              <i className="bi bi-music-note-beamed text-[#FF2A85]" />
+              <span className="truncate font-semibold">
+                {typeof favoriteSong === 'string' ? favoriteSong : `${favoriteSong.title || 'Bài hát'}${favoriteSong.artist ? ` - ${favoriteSong.artist}` : ''}`}
+              </span>
+            </div>
+          )}
+
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <span key={tag} className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10 text-[10px] text-white/85">
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* 3 Nút hành động chính (Nhắn tin, Kết bạn, Chỉ đường) */}
           <div className="grid grid-cols-3 gap-1.5 pt-1">
             {/* 1. Nhắn tin */}
             <button
               onClick={() => {
                 onClose();
-                if (onDirectChat) onDirectChat(profile);
+                if (onDirectChat) onDirectChat(effectiveProfile);
               }}
               className="py-2.5 px-1.5 rounded-2xl bg-white text-black font-bold text-[11px] flex items-center justify-center gap-1 hover:bg-[#EAEAEA] active:scale-95 transition-all shadow-[0_0_12px_rgba(255,255,255,0.2)] cursor-pointer"
             >
@@ -184,16 +226,16 @@ export default function GuestProfileModal({
             {/* 2. Kết bạn / Hủy kết bạn */}
             <button
               onClick={() => {
-                if (onToggleFriend) onToggleFriend(profile);
+                if (onToggleFriend) onToggleFriend(effectiveProfile);
               }}
               className={`py-2.5 px-1.5 rounded-2xl font-semibold text-[11px] flex items-center justify-center gap-1 border transition-all active:scale-95 cursor-pointer ${
-                isFriend
+                effectiveIsFriend
                   ? 'bg-white/10 text-white border-white/20'
                   : 'bg-white/5 text-[#EEEEEE] border-white/10 hover:bg-white/10'
               }`}
             >
-              <i className={`bi ${isFriend ? 'bi-person-check-fill' : 'bi-person-plus-fill'} text-xs`}></i>
-              <span>{isFriend ? 'Đã bạn' : 'Kết bạn'}</span>
+              <i className={`bi ${effectiveIsFriend ? 'bi-person-check-fill' : 'bi-person-plus-fill'} text-xs`}></i>
+              <span>{effectiveIsFriend ? 'Đã bạn' : 'Kết bạn'}</span>
             </button>
 
             {/* 3. Chỉ đường */}

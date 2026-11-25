@@ -43,6 +43,8 @@ import FriendshipManagerModal from './components/friends/FriendshipManagerModal'
 import NotificationDrawer from './components/common/NotificationDrawer';
 import NotificationBellButton from './components/common/NotificationBellButton';
 import PinWardrobeModal from './components/profile/PinWardrobeModal';
+import SavedPlacesDrawer from './components/places/SavedPlacesDrawer';
+import SavedPlaceModal from './components/places/SavedPlaceModal';
 import { useSocket } from './hooks/useSocket';
 import { safeGetItem, safeSetItem, safeRemoveItem } from './utils/safeStorage';
 import { storyAudioPlayer } from './data/trendingSongs';
@@ -229,7 +231,19 @@ export default function App() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAppLocked, setIsAppLocked] = useState(false);
-  const [ghostMode, setGhostMode] = useState(false);
+  const [ghostMode, setGhostMode] = useState(() => {
+    try {
+      const uid = localStorage.getItem('vivu_current_user_id');
+      return uid ? localStorage.getItem(`vivu_ghost_mode_${uid}`) === 'true' : false;
+    } catch { return false; }
+  });
+  const [savedPlaces, setSavedPlaces] = useState([]);
+  const [isSavedPlacesOpen, setIsSavedPlacesOpen] = useState(false);
+  const [isSavedPlaceModalOpen, setIsSavedPlaceModalOpen] = useState(false);
+  const [editingSavedPlace, setEditingSavedPlace] = useState(null);
+  const [savedPlaceInitialCoords, setSavedPlaceInitialCoords] = useState(null);
+  const activeTabRef = useRef('social');
+  const activeConversationIdRef = useRef(null);
 
   // Tab điều hướng chính: 'social' (Xã Hội), 'friends' (Bạn Bè), 'chat' (Tin Nhắn), 'profile' (Tôi)
   const [activeTab, setActiveTab] = useState('social');
@@ -369,6 +383,8 @@ export default function App() {
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] = useState(false);
   const [isNavigationActive, setIsNavigationActive] = useState(false);
   const [navTarget, setNavTarget] = useState(null);
+  const [activeRouteInfo, setActiveRouteInfo] = useState(null);
+  const [navTravelMode, setNavTravelMode] = useState('driving');
 
   // Lắng nghe Magic Link recovery
   useEffect(() => {
@@ -568,6 +584,7 @@ export default function App() {
     remoteMediaStream,
     isCallMuted,
     isCallVideoOff,
+    remoteMediaState,
     startCall,
     acceptCall,
     declineCall,
@@ -1256,8 +1273,170 @@ export default function App() {
         return {
           ...c,
           messages: [],
-          lastMessage: ''
+          isCleared: true,
+          lastMessage: 'Đã xóa lịch sử trò chuyện',
+          unread: false,
+          unreadCount: 0
         };
+      }));
+    };
+
+    const handleChatMessage = (msg) => {
+      if (!msg) return;
+      const directConvId = msg.conversation_id || msg.conversationId;
+      if (!directConvId) return;
+      if (msg.id) {
+        if (seenMessageIdsRef.current.has(msg.id)) return;
+        seenMessageIdsRef.current.add(msg.id);
+      }
+
+      const isFromSelf = msg.sender === currentUserId || msg.sender === 'me';
+      const isViewingThisConv = activeTabRef.current === 'chat' && activeConversationIdRef.current === directConvId;
+      const previewText = msg.text || (
+        msg.type === 'sticker' || msg.sticker ? 'Đã gửi nhãn dán' :
+        msg.type === 'troll' || msg.troll ? 'Đã gửi hiệu ứng Troll' :
+        msg.image ? 'Đã gửi hình ảnh' :
+        msg.video ? 'Đã gửi video' :
+        (msg.is_location || msg.isLocation) ? 'Đã chia sẻ vị trí GPS' :
+        'Tin nhắn mới'
+      );
+
+      const isLiveLoc = Boolean(msg.is_live_location ?? msg.isLiveLocation);
+      const isLoc = Boolean(msg.is_location ?? msg.isLocation);
+      const incomingItem = {
+        id: msg.id || `msg-${Date.now()}`,
+        client_msg_id: msg.client_msg_id || msg.clientMsgId || null,
+        sender: isFromSelf ? 'me' : 'them',
+        sender_id: msg.sender,
+        senderName: msg.sender_name || msg.senderName || 'Người dùng VIVU',
+        text: msg.text,
+        image: msg.image,
+        video: msg.video,
+        sticker: msg.sticker,
+        type: msg.type,
+        isLocation: isLoc,
+        is_location: isLoc,
+        isLiveLocation: isLiveLoc,
+        is_live_location: isLiveLoc,
+        live_duration_minutes: msg.live_duration_minutes ?? msg.liveDurationMinutes ?? null,
+        live_status: msg.live_status ?? msg.liveStatus ?? (isLiveLoc ? 'active' : null),
+        live_expires_at: msg.live_expires_at ?? msg.liveExpiresAt ?? null,
+        speed: (msg.speed != null && !isNaN(Number(msg.speed))) ? Number(msg.speed) : null,
+        lat: msg.lat,
+        lng: msg.lng,
+        poll: msg.poll,
+        troll: msg.troll,
+        time: msg.created_at || 'Vừa xong'
+      };
+
+      setConversations(prevConvs => {
+        const idx = prevConvs.findIndex(c => c.id === directConvId);
+        if (idx >= 0) {
+          const cur = prevConvs[idx];
+          const updated = [...prevConvs];
+          const msgExists = cur.messages?.some(m => m.id === incomingItem.id);
+          updated[idx] = {
+            ...cur,
+            isCleared: false,
+            lastMessage: previewText,
+            time: 'Vừa xong',
+            unread: isFromSelf || isViewingThisConv ? false : true,
+            messages: msgExists ? cur.messages : [...(cur.messages || []), incomingItem]
+          };
+          return updated;
+        }
+        const partnerId = directConvId.startsWith('conv-direct-')
+          ? directConvId.replace('conv-direct-', '').split('--').find(p => p !== currentUserId)
+          : msg.sender;
+        const newConv = {
+          id: directConvId,
+          name: msg.sender_name || msg.senderName || 'Người dùng VIVU',
+          avatar: msg.sender_avatar || msg.senderAvatar || DEFAULT_WHITE_PERSON_AVATAR,
+          type: directConvId.startsWith('circle-') ? 'group' : 'direct',
+          friendId: partnerId || msg.sender,
+          online: true,
+          isStranger: false,
+          lastMessage: previewText,
+          time: 'Vừa xong',
+          unread: isFromSelf || isViewingThisConv ? false : true,
+          messages: [incomingItem]
+        };
+        return [newConv, ...prevConvs];
+      });
+
+      if (!isFromSelf) {
+        if (isViewingThisConv) {
+          apiClient.markMessagesAsRead(directConvId, currentUserId).catch(() => {});
+        } else {
+          playMessageNotificationSound();
+          setIncomingMessageToast({
+            id: incomingItem.id,
+            conversationId: directConvId,
+            senderName: incomingItem.senderName,
+            senderAvatar: msg.sender_avatar || msg.senderAvatar || DEFAULT_WHITE_PERSON_AVATAR,
+            text: previewText,
+            time: 'Vừa xong'
+          });
+          setTimeout(() => {
+            setIncomingMessageToast(prev => (prev?.id === incomingItem.id ? null : prev));
+          }, 6000);
+        }
+      }
+    };
+
+    const handleLiveLocationUpdate = (data) => {
+      if (!data) return;
+      const targetMsgId = data.messageId || data.id;
+      const targetConvId = data.conversation_id || data.conversationId;
+      setConversations(prev => prev.map(c => {
+        if (targetConvId && c.id !== targetConvId) return c;
+        let touched = false;
+        const nextMessages = (c.messages || []).map(m => {
+          const matchById = targetMsgId && (m.id === targetMsgId || m.client_msg_id === targetMsgId);
+          const matchActivePeer = !targetMsgId && m.is_live_location && m.live_status !== 'stopped' && (m.sender_id === data.sender || (c.friendId && c.friendId === data.sender));
+          if (!matchById && !matchActivePeer) return m;
+          touched = true;
+          return {
+            ...m,
+            lat: data.lat ?? m.lat,
+            lng: data.lng ?? m.lng,
+            speed: (data.speed != null && !isNaN(Number(data.speed))) ? Number(data.speed) : m.speed
+          };
+        });
+        return touched ? { ...c, messages: nextMessages } : c;
+      }));
+      if (data.sender && data.lat != null && data.lng != null) {
+        setNavTarget(prev => {
+          if (!prev) return prev;
+          const prevTargetId = prev.targetUserId || prev.hostId || prev.host_id || prev.userId || prev.id;
+          if (String(prevTargetId) !== String(data.sender)) return prev;
+          return {
+            ...prev,
+            realLat: Number(data.lat),
+            realLng: Number(data.lng),
+            lat: Number(data.lat),
+            lng: Number(data.lng),
+            speed: (data.speed != null && !isNaN(Number(data.speed))) ? Number(data.speed) : prev.speed
+          };
+        });
+      }
+    };
+
+    const handleLiveLocationStopped = (data) => {
+      if (!data) return;
+      const targetMsgId = data.messageId || data.id;
+      const targetClientId = data.clientMsgId || data.client_msg_id;
+      const targetConvId = data.conversationId || data.conversation_id;
+      setConversations(prev => prev.map(c => {
+        if (targetConvId && c.id !== targetConvId) return c;
+        let touched = false;
+        const nextMessages = (c.messages || []).map(m => {
+          const matches = (targetMsgId && m.id === targetMsgId) || (targetClientId && m.client_msg_id === targetClientId);
+          if (!matches) return m;
+          touched = true;
+          return { ...m, live_status: 'stopped', stopped_at: data.stopped_at || new Date().toISOString() };
+        });
+        return touched ? { ...c, messages: nextMessages } : c;
       }));
     };
 
@@ -1269,14 +1448,64 @@ export default function App() {
     socket.on('friend:accepted', handleFriendAccepted);
     socket.on('friend-request:incoming', handleIncomingFriendRequest);
     socket.on('friend:unfriended', handleUnfriended);
+    socket.on('chat:message', handleChatMessage);
+    socket.on('chat:live_location_update', handleLiveLocationUpdate);
+    socket.on('chat:live_location_stopped', handleLiveLocationStopped);
     socket.on('chat:read', handleChatRead);
     socket.on('chat:message_deleted', handleChatMessageDeleted);
     socket.on('chat:conversation_cleared', handleChatConversationCleared);
     socket.on('spatial:bump-trigger', handleBumpTrigger);
     socket.on('spatial:bump-peer-ready', handleBumpPeerReady);
     socket.on('spatial:bump-clink', handleBumpClink);
+    // 14.5. Sự kiện Nhóm được kích hoạt khi có bạn bè đầu tiên chấp nhận (CIRCLE:ACTIVATED)
+    const handleCircleActivated = (data) => {
+      console.log('[Socket.IO Client] [CIRCLE:ACTIVATED]', data);
+      if (data?.circle) {
+        setCustomCircles(prev => prev.map(c => c.id === data.circle.id ? { ...c, ...data.circle, status: 'active', isPendingConfirmation: false } : c));
+        const welcomeText = data.message?.text || `Nhóm "${data.circle.name}" đã được kích hoạt!`;
+        const initialMsg = {
+          id: `msg-sys-${Date.now()}`,
+          sender: 'system',
+          senderName: 'Hệ thống',
+          text: welcomeText,
+          is_system: true,
+          created_at: new Date().toISOString(),
+          time: 'Vừa xong'
+        };
+        const newGroupConv = {
+          id: data.circle.id,
+          type: 'group',
+          circleId: data.circle.id,
+          name: data.circle.name,
+          avatar: data.circle.image || DEFAULT_WHITE_PERSON_AVATAR,
+          memberCount: (data.circle.member_ids || []).length,
+          memberIds: data.circle.member_ids || [],
+          online: true,
+          lastMessage: welcomeText,
+          time: new Date().toISOString(),
+          unread: false,
+          unreadCount: 0,
+          messages: [initialMsg]
+        };
+        setConversations(prev => [newGroupConv, ...prev.filter(conv => conv.id !== data.circle.id)]);
+        confetti({ particleCount: 50, spread: 70 });
+        setRadarPingNotification(`Nhóm "${data.circle.name}" đã được kích hoạt thành công!`);
+      }
+    };
+
+    // 14.6. Sự kiện Nhóm bị hủy do bạn bè từ chối hết (CIRCLE:CANCELLED)
+    const handleCircleCancelled = (data) => {
+      console.log('[Socket.IO Client] [CIRCLE:CANCELLED]', data);
+      if (data?.circleId) {
+        setCustomCircles(prev => prev.filter(c => c.id !== data.circleId));
+        setRadarPingNotification(data.message || 'Lời mời tạo nhóm đã bị hủy do tất cả bạn bè từ chối.');
+      }
+    };
+
     socket.on('spatial:bump-peer-cancelled', handleBumpPeerCancelled);
     socket.on('circle:invite', handleCircleInvite);
+    socket.on('circle:activated', handleCircleActivated);
+    socket.on('circle:cancelled', handleCircleCancelled);
     socket.on('circle:member_joined', handleCircleMemberJoined);
     socket.on('circle:member_left', handleCircleMemberLeft);
     socket.on('circle:member_kicked', handleCircleMemberKicked);
@@ -1294,6 +1523,9 @@ export default function App() {
       socket.off('friend:accepted', handleFriendAccepted);
       socket.off('friend-request:incoming', handleIncomingFriendRequest);
       socket.off('friend:unfriended', handleUnfriended);
+      socket.off('chat:message', handleChatMessage);
+      socket.off('chat:live_location_update', handleLiveLocationUpdate);
+      socket.off('chat:live_location_stopped', handleLiveLocationStopped);
       socket.off('chat:read', handleChatRead);
       socket.off('chat:message_deleted', handleChatMessageDeleted);
       socket.off('chat:conversation_cleared', handleChatConversationCleared);
@@ -1302,6 +1534,8 @@ export default function App() {
       socket.off('spatial:bump-clink', handleBumpClink);
       socket.off('spatial:bump-peer-cancelled', handleBumpPeerCancelled);
       socket.off('circle:invite', handleCircleInvite);
+      socket.off('circle:activated', handleCircleActivated);
+      socket.off('circle:cancelled', handleCircleCancelled);
       socket.off('circle:member_joined', handleCircleMemberJoined);
       socket.off('circle:member_left', handleCircleMemberLeft);
       socket.off('troll:receive', handleTrollReceive);
@@ -1590,11 +1824,16 @@ export default function App() {
     }
   }, [currentUserId, currentUserName, currentUserAvatar, userLat, userLng, socketRef]);
 
+  const filteredNearbyOnlineFriends = useMemo(
+    () => allNearbyOnlineFriends.filter(p => p.id !== dismissedBumpPeerId),
+    [allNearbyOnlineFriends, dismissedBumpPeerId]
+  );
+
   // Quét cự ly siêu gần (< 15m) & Cảm biến Lắc Điện Thoại (Shake-to-Bump) - CHỈ DÀNH CHO BẠN BÈ ĐANG ONLINE
   const { nearbyFriend, nearbyDistanceMeters } = useProximityDetector({
     userLat,
     userLng,
-    friends: allNearbyOnlineFriends.filter(p => p.id !== dismissedBumpPeerId),
+    friends: filteredNearbyOnlineFriends,
     onTriggerBump: handleInitiateBump
   });
 
@@ -1644,8 +1883,8 @@ export default function App() {
       if (document.hidden) return;
 
       try {
-        // 1. CHỈ gửi toạ độ thực lên server khi đã đăng nhập (currentUserId hợp lệ)
-        if (currentUserId && (currentUserId.startsWith('user-') || currentUserId.startsWith('client-'))) {
+        // 1. CHỈ gửi toạ độ thực lên server khi đã đăng nhập và KHÔNG bật Tàng hình (ghostMode)
+        if (currentUserId && !ghostMode && (currentUserId.startsWith('user-') || currentUserId.startsWith('client-'))) {
           let safeChibi = userCustomChibi;
           let safeChibiExp = userCustomChibiExpiresAt;
           if (!safeChibi && currentUserId) {
@@ -1679,7 +1918,10 @@ export default function App() {
             userPinSkin,
             userPinMascot,
             userPinAction,
-            safeChibiExp
+            safeChibiExp,
+            location?.accuracy,
+            location?.timestamp,
+            location?.speed
           );
         }
 
@@ -2004,7 +2246,7 @@ export default function App() {
 
     // Lắng nghe sự kiện người dùng ẩn tab / khóa màn hình hoặc mở lại tab
     const handleVisibilityOrFocus = () => {
-      if (document.hidden) {
+      if (document.hidden || ghostMode) {
         if (currentUserId) {
           apiClient.setOffline(currentUserId);
         }
@@ -2021,7 +2263,26 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
-  }, [user?.id, user?.email, user?.user_metadata, userLat, userLng, userCustomStatus, currentUserId, currentUserName, currentUserAvatar, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction, isSocketConnected]);
+  }, [user?.id, user?.email, user?.user_metadata, userLat, userLng, userCustomStatus, currentUserId, currentUserName, currentUserAvatar, userCustomSong, userCustomChibi, userCustomChibiExpiresAt, userPinSkin, userPinMascot, userPinAction, isSocketConnected, ghostMode]);
+
+  // Đồng bộ chế độ Tàng hình & Địa điểm đã lưu khi đổi tài khoản
+  useEffect(() => {
+    if (!currentUserId) {
+      setSavedPlaces([]);
+      return;
+    }
+    try {
+      const savedGhost = localStorage.getItem(`vivu_ghost_mode_${currentUserId}`);
+      if (savedGhost === 'true' || savedGhost === 'false') {
+        setGhostMode(savedGhost === 'true');
+      } else if (typeof user?.ghost_mode === 'boolean') {
+        setGhostMode(user.ghost_mode);
+      }
+    } catch { }
+    apiClient.getSavedPlaces(currentUserId).then(places => {
+      setSavedPlaces(Array.isArray(places) ? places : []);
+    }).catch(() => {});
+  }, [currentUserId, user?.ghost_mode]);
 
   // Bộ đếm định kỳ tự động thu hồi Chibi khi hết thời gian tự hủy
   useEffect(() => {
@@ -2103,7 +2364,7 @@ export default function App() {
     const pollMessages = async () => {
       if (document.hidden) return;
       try {
-        const serverMsgs = await apiClient.getMessages(activeConversationId);
+        const serverMsgs = await apiClient.getMessages(activeConversationId, currentUserId);
         if (!isMounted || !Array.isArray(serverMsgs)) return;
 
         setConversations(prevConvs => {
@@ -2125,6 +2386,7 @@ export default function App() {
               id: m.id || m.client_msg_id,
               client_msg_id: m.client_msg_id,
               sender: isMe ? 'me' : 'them',
+              sender_id: m.sender,
               senderName: m.sender_name || (isMe ? 'Bạn' : curConv.name),
               text: m.text || '',
               image: m.image || null,
@@ -2286,6 +2548,7 @@ export default function App() {
       }
     };
 
+    checkGlobalInbox();
     const inboxInterval = setInterval(checkGlobalInbox, isSocketConnected ? 8000 : 3000);
     return () => {
       isMounted = false;
@@ -2301,7 +2564,7 @@ export default function App() {
     const fetchChatMessages = async () => {
       if (document.hidden) return;
       try {
-        const msgs = await apiClient.getMessages(activeConversationId);
+        const msgs = await apiClient.getMessages(activeConversationId, currentUserId);
         if (!isMounted || !Array.isArray(msgs)) return;
 
         setConversations(prevConvs => {
@@ -2314,6 +2577,7 @@ export default function App() {
                   id: m.id || m.client_msg_id,
                   client_msg_id: m.client_msg_id,
                   sender: isMe ? 'me' : 'them',
+                  sender_id: m.sender,
                   senderName: m.sender_name || (isMe ? 'Bạn' : c.name),
                   text: m.text || '',
                   image: m.image,
@@ -2336,6 +2600,9 @@ export default function App() {
                   time: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Vừa xong'
                 };
               });
+              if (mapped.length === 0 && (c.isCleared || c.lastMessage === 'Đã xóa lịch sử trò chuyện' || (Array.isArray(c.messages) && c.messages.some(m => String(m.id || '').startsWith('msg-welcome-'))))) {
+                return c;
+              }
               const lastM = mapped[mapped.length - 1];
               return {
                 ...c,
@@ -2468,16 +2735,17 @@ export default function App() {
       try {
         const targetId = profileData.userId || currentUserId;
         const scopedKey = targetId && targetId !== 'guest' ? `vivu_user_profile_data_${targetId}` : null;
-        const existingRaw = localStorage.getItem('vivu_user_profile_data');
+        const targetKey = scopedKey || 'vivu_user_profile_data';
+        const existingRaw = localStorage.getItem(targetKey);
         const existing = existingRaw ? JSON.parse(existingRaw) : {};
         const merged = {
           ...existing,
           ...profileData,
+          userId: targetId,
           fullName: profileData.fullName || existing.fullName || currentUserName,
           avatarUrl: profileData.avatarUrl !== undefined ? profileData.avatarUrl : (existing.avatarUrl || currentUserAvatar)
         };
-        localStorage.setItem('vivu_user_profile_data', JSON.stringify(merged));
-        if (scopedKey) localStorage.setItem(scopedKey, JSON.stringify(merged));
+        localStorage.setItem(targetKey, JSON.stringify(merged));
       } catch { }
 
       const res = await updateProfile({ ...profileData, userId: profileData.userId || currentUserId });
@@ -2769,30 +3037,42 @@ export default function App() {
 
   const handleStoryDirectChat = (story, replyText = null) => {
     setSelectedInteractiveStory(null);
+    setSelectedInteractiveStoryList([]);
     setSelectedGuestProfile(null);
-    const hostName = story.hostName || story.host_name || story.name;
-    const hostAvatar = story.hostAvatar || story.host_avatar || story.avatar;
-    const peerId = story.hostId || story.host_id || story.id;
+    setSelectedUserProfile(null);
+    setSelectedFriend(null);
+    const rawTarget = typeof story === 'string' ? { id: story } : (story || {});
+    const peerId = rawTarget.hostId || rawTarget.host_id || rawTarget.userId || rawTarget.user_id || rawTarget.friendId || rawTarget.partnerId || (rawTarget.id && !String(rawTarget.id).startsWith('story-') ? rawTarget.id : null);
+    const matchedFriend = peerId ? friends.find(f => String(f.id) === String(peerId)) : null;
+    const matchedPeer = peerId ? nearbyOnlinePeers.find(p => String(p.id) === String(peerId)) : null;
+    const hostName = rawTarget.hostName || rawTarget.host_name || rawTarget.fullName || rawTarget.full_name || rawTarget.name || matchedFriend?.name || matchedPeer?.name || matchedPeer?.full_name || 'Người dùng VIVU';
+    const hostAvatar = rawTarget.hostAvatar || rawTarget.host_avatar || rawTarget.avatar || rawTarget.avatar_url || matchedFriend?.avatar || matchedPeer?.avatar || matchedPeer?.avatar_url || DEFAULT_WHITE_PERSON_AVATAR;
     const directConvId = peerId ? apiClient.getDirectConversationId(currentUserId, peerId) : `conv-${Date.now()}`;
 
-    let conv = conversations.find(c => c.id === directConvId || c.name === hostName || (peerId && c.friendId === peerId));
+    let conv = conversations.find(c =>
+      c.id === directConvId ||
+      (peerId && (c.friendId === peerId || c.partnerId === peerId || c.targetUserId === peerId)) ||
+      (!peerId && hostName !== 'Người dùng VIVU' && c.name === hostName)
+    );
     if (!conv) {
-      const isFriend = friends.some(f => f.name === hostName || (peerId && f.id === peerId));
+      const isFriend = friends.some(f => (peerId && f.id === peerId) || (hostName !== 'Người dùng VIVU' && f.name === hostName));
       conv = {
         id: directConvId,
         name: hostName,
         avatar: hostAvatar,
         type: 'direct',
         friendId: peerId,
+        partnerId: peerId,
         online: true,
         isStranger: !isFriend,
         hasReplied: false,
-        lastMessage: replyText ? `Phản hồi story: ${replyText}` : `Bắt đầu trò chuyện: "${story.title || 'Xin chào'}"`,
+        lastMessage: replyText ? `Phản hồi story: ${replyText}` : `Bắt đầu trò chuyện: "${rawTarget.title || 'Xin chào'}"`,
         time: 'Vừa xong',
         messages: [
           {
-            id: `msg-${Date.now()}`,
+            id: `msg-welcome-${Date.now()}`,
             sender: 'them',
+            sender_id: peerId,
             senderName: hostName,
             text: `Chào bạn! Mình là ${hostName}, rất vui được kết nối trên VIVU!`
           }
@@ -2804,13 +3084,71 @@ export default function App() {
     if (replyText) {
       handleSendMessage({
         conversationId: conv.id,
-        text: `[Phản hồi Story "${story.title || 'Khoảnh khắc'}"]: ${replyText}`
+        text: `[Phản hồi Story "${rawTarget.title || 'Khoảnh khắc'}"]: ${replyText}`
       });
     }
 
     setActiveConversationId(conv.id);
     setActiveTab('chat');
   };
+
+  // Điều hướng thống nhất trên bản đồ: đóng mọi modal/story đang đè & đồng bộ tọa độ/tốc độ thực của mục tiêu
+  const handleStartNavigation = useCallback((target) => {
+    if (!target) return;
+    setSelectedInteractiveStory(null);
+    setSelectedInteractiveStoryList([]);
+    setSelectedUserProfile(null);
+    setSelectedGuestProfile(null);
+    setSelectedFriend(null);
+    setIsSavedPlacesOpen(false);
+    setActiveConversationId(null);
+
+    const isPlaceTarget = Boolean(target.category || target.place_id || String(target.id || '').startsWith('place-'));
+    const candidateId = isPlaceTarget
+      ? null
+      : (target.targetUserId || target.hostId || target.host_id || target.userId || target.user_id || target.friendId || target.sender_id || (
+          target.id && !String(target.id).startsWith('story-') ? target.id : null
+        ));
+    const matchedPeer = candidateId
+      ? (nearbyOnlinePeers.find(p => String(p.id) === String(candidateId)) || friends.find(f => String(f.id) === String(candidateId)))
+      : null;
+
+    const resolvedLat = Number(matchedPeer?.realLat ?? matchedPeer?.lat ?? target.realLat ?? target.lat);
+    const resolvedLng = Number(matchedPeer?.realLng ?? matchedPeer?.lng ?? target.realLng ?? target.lng);
+    const resolvedTarget = {
+      ...target,
+      ...(candidateId ? { targetUserId: candidateId } : {}),
+      name: target.title || target.name || target.hostName || target.host_name || matchedPeer?.full_name || matchedPeer?.name || 'Điểm đến',
+      ...(Number.isFinite(resolvedLat) && Number.isFinite(resolvedLng)
+        ? { realLat: resolvedLat, realLng: resolvedLng, lat: resolvedLat, lng: resolvedLng }
+        : {}),
+      speed: matchedPeer?.speed ?? target.speed ?? null
+    };
+
+    setNavTarget(resolvedTarget);
+    setIsNavigationActive(true);
+    setActiveTab(target.preferredTab || 'social');
+
+    if (Number.isFinite(resolvedLat) && Number.isFinite(resolvedLng) && window.__vivu_map) {
+      setTimeout(() => {
+        window.__vivu_map?.flyTo?.([resolvedLat, resolvedLng], 16.5, { duration: 0.9 });
+      }, 250);
+    }
+  }, [nearbyOnlinePeers, friends]);
+
+  // Đồng bộ liên tục vị trí và tốc độ mục tiêu đang dẫn đường nếu họ di chuyển
+  useEffect(() => {
+    if (!isNavigationActive || !navTarget?.targetUserId) return;
+    const peer = nearbyOnlinePeers.find(p => String(p.id) === String(navTarget.targetUserId))
+      || friends.find(f => String(f.id) === String(navTarget.targetUserId));
+    if (!peer) return;
+    const pLat = Number(peer.realLat ?? peer.lat);
+    const pLng = Number(peer.realLng ?? peer.lng);
+    const pSpeed = peer.speed != null && !isNaN(Number(peer.speed)) ? Number(peer.speed) : navTarget.speed;
+    if (!Number.isFinite(pLat) || !Number.isFinite(pLng)) return;
+    if (pLat === Number(navTarget.lat) && pLng === Number(navTarget.lng) && pSpeed === navTarget.speed) return;
+    setNavTarget(prev => prev ? { ...prev, realLat: pLat, realLng: pLng, lat: pLat, lng: pLng, speed: pSpeed } : prev);
+  }, [isNavigationActive, navTarget?.targetUserId, navTarget?.lat, navTarget?.lng, navTarget?.speed, nearbyOnlinePeers, friends]);
 
   // Kết bạn / Hủy kết bạn
   const handleStoryToggleFriend = async (story) => {
@@ -3248,7 +3586,8 @@ export default function App() {
     is_poll,
     poll,
     lat,
-    lng
+    lng,
+    speed
   }) => {
     const isLive = Boolean(isLiveLocation || is_live_location);
     const hasPoll = Boolean(isPoll || is_poll || poll);
@@ -3256,11 +3595,13 @@ export default function App() {
     const now = new Date().toISOString();
     const duration = Number(liveDurationMinutes || live_duration_minutes || 15);
     const activeSticker = sticker || (isStk && image ? { id: 'custom_sticker', name: text?.replace(/^\[Sticker:\s*|\s*\]$/g, '') || 'Sticker', image, soundType: soundType || sound_type } : null);
+    const parsedSpeed = (speed != null && !isNaN(Number(speed))) ? Number(speed) : (location?.speed != null && !isNaN(Number(location.speed)) ? Number(location.speed) : null);
 
     const newMsg = {
       id: `msg-${Date.now()}`,
       client_msg_id: `cmsg-${Date.now()}`,
       sender: 'me',
+      sender_id: currentUserId,
       senderName: currentUserName,
       type: isStk ? 'sticker' : type || null,
       isSticker: isStk,
@@ -3282,6 +3623,7 @@ export default function App() {
       poll: poll || null,
       lat,
       lng,
+      speed: parsedSpeed,
       created_at: now,
       time: 'Vừa xong'
     };
@@ -3290,6 +3632,7 @@ export default function App() {
       if (c.id === conversationId) {
         return {
           ...c,
+          isCleared: false,
           isStranger: false,
           hasReplied: true,
           lastMessage: isStk ? `[Sticker] ${activeSticker?.name || 'Nhãn dán'}` : hasPoll ? `Bình chọn: ${poll?.title || text}` : isLive ? 'Đã chia sẻ vị trí trực tiếp' : text || (image ? 'Đã gửi hình ảnh' : video ? 'Đã gửi video' : isLocation ? 'Đã chia sẻ vị trí GPS' : 'Đã gửi tin nhắn'),
@@ -3303,6 +3646,7 @@ export default function App() {
     // Gửi lên backend server
     apiClient.sendMessage({
       conversationId,
+      client_msg_id: newMsg.client_msg_id,
       type: isStk ? 'sticker' : type || null,
       isSticker: isStk,
       is_sticker: isStk,
@@ -3320,9 +3664,29 @@ export default function App() {
       poll: poll || null,
       lat,
       lng,
+      speed: parsedSpeed,
       sender: currentUserId,
       sender_name: currentUserName
     });
+  };
+
+  // Dừng chia sẻ vị trí trực tiếp trong Chat (đồng bộ State + API + Socket cho người nhận)
+  const handleStopLiveLocation = async (messageId) => {
+    if (!messageId) return;
+    const stoppedAt = new Date().toISOString();
+    setConversations(prev => prev.map(c => ({
+      ...c,
+      messages: (c.messages || []).map(m =>
+        (m.id === messageId || m.client_msg_id === messageId)
+          ? { ...m, live_status: 'stopped', stopped_at: stoppedAt }
+          : m
+      )
+    })));
+    try {
+      await apiClient.stopLiveLocation(messageId, currentUserId);
+    } catch (e) {
+      console.warn('stopLiveLocation error:', e?.message);
+    }
   };
 
   // Thả tim nhanh (Đồng bộ tức thì lên Backend để lưu vĩnh viễn & không bị biến mất khi polling)
@@ -3388,7 +3752,12 @@ export default function App() {
       if (created) {
         setCustomCircles(prev => [created, ...prev.filter(c => c.id !== created.id)]);
         setIsCreateCircleModalOpen(false);
-        // Thêm vào danh sách cuộc trò chuyện ngay để hiển thị trong Chat
+        if (created.status === 'pending_confirmation') {
+          const invitedCount = (created.invited_member_ids || circlePayload.invitedMemberIds || circlePayload.memberIds || []).length;
+          setRadarPingNotification(`Đã gửi lời mời tạo nhóm "${created.name}" tới ${invitedCount} bạn bè! Nhóm sẽ kích hoạt ngay khi có người đồng ý.`);
+          return;
+        }
+        // Thêm vào danh sách cuộc trò chuyện ngay để hiển thị trong Chat khi đã kích hoạt
         const welcomeText = (created.member_ids || []).length > 1
           ? `Bạn đã tạo nhóm "${created.name}" và mời ${(created.member_ids || []).length - 1} bạn bè`
           : `Bạn đã tạo nhóm "${created.name}"`;
@@ -3467,6 +3836,15 @@ export default function App() {
         action: 'accept',
         userName: currentUserName
       });
+      setNotifications(prev => {
+        const updated = prev.map(n =>
+          (n.id === notif?.id || (n.type === 'group_invite' && n.action_data?.circleId === circleId))
+            ? { ...n, status: 'accepted', read: true }
+            : n
+        );
+        setUnreadNotificationsCount(updated.filter(n => !n.read && n.status !== 'cancelled').length);
+        return updated;
+      });
       if (res?.data) {
         const updatedCircle = res.data;
         setCustomCircles(prev => [updatedCircle, ...prev.filter(c => c.id !== circleId)]);
@@ -3504,6 +3882,16 @@ export default function App() {
         userId: currentUserId,
         action: 'decline',
         userName: currentUserName
+      });
+      setCustomCircles(prev => prev.filter(c => c.id !== circleId));
+      setNotifications(prev => {
+        const updated = prev.map(n =>
+          (n.id === notif?.id || (n.type === 'group_invite' && n.action_data?.circleId === circleId))
+            ? { ...n, status: 'declined', read: true }
+            : n
+        );
+        setUnreadNotificationsCount(updated.filter(n => !n.read && n.status !== 'cancelled').length);
+        return updated;
       });
     } catch (e) {
       console.warn('Lỗi từ chối lời mời nhóm:', e);
@@ -3630,21 +4018,70 @@ export default function App() {
       }
       : null;
 
+  activeTabRef.current = activeTab;
+  activeConversationIdRef.current = activeConversationId;
+
+  const profilePageUserProp = useMemo(() => ({
+    ...user,
+    id: currentUserId,
+    user_metadata: {
+      ...user,
+      ...user?.user_metadata,
+      full_name: currentUserName || user?.user_metadata?.full_name || user?.full_name,
+      avatar_url: currentUserAvatar || user?.user_metadata?.avatar_url || user?.avatar_url
+    }
+  }), [user, currentUserId, currentUserName, currentUserAvatar]);
+
+  const handleToggleGhostMode = async () => {
+    const nextGhost = !ghostMode;
+    setGhostMode(nextGhost);
+    if (currentUserId) {
+      try {
+        localStorage.setItem(`vivu_ghost_mode_${currentUserId}`, String(nextGhost));
+      } catch { }
+      try {
+        await updateProfile({ ghost_mode: nextGhost });
+      } catch { }
+      if (nextGhost) {
+        apiClient.setOffline(currentUserId).catch(() => {});
+      } else if (userLat && userLng) {
+        apiClient.updateGps(
+          currentUserId,
+          userLat,
+          userLng,
+          userCustomStatus || '',
+          currentUserName,
+          currentUserAvatar,
+          currentUserCode,
+          user?.phone,
+          userCustomSong,
+          userCustomChibi,
+          userPinSkin,
+          userPinMascot,
+          userPinAction,
+          userCustomChibiExpiresAt
+        ).catch(() => {});
+      }
+    }
+  };
+
   // Đã xóa Auth Gate cưỡng chế màn hình đen. 
   // Ứng dụng tự động vào thẳng Bản đồ 3D (Chế độ Khách), không bao giờ bị chớp đen màn hình khi mở trên điện thoại.
 
   return (
     <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden overscroll-none select-none font-sans text-white bg-[#07090E]">
 
-      {/* 0.1 LOGO VIVU ĐỘC LẬP Ở GÓC TRÁI TRÊN CÙNG (Ẩn khi đang xem hồ sơ người khác) */}
-      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && !selectedUserProfile && !selectedGuestProfile && (
+      {/* 0.1 LOGO VIVU ĐỘC LẬP Ở GÓC TRÁI TRÊN CÙNG (Chỉ hiển thị trên Map khi không mở modal) */}
+      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') &&
+        !selectedUserProfile && !selectedGuestProfile && !isEditProfileOpen && !isSettingsOpen && !isUserMenuOpen && !isSavedPlacesOpen && !isSavedPlaceModalOpen && (
         <TopAppLogo
           onClick={handleRecenterMap}
         />
       )}
 
-      {/* 0.2 VIVU DYNAMIC ISLAND THÔNG MINH (NỞ TO RA KHI CÓ THÔNG BÁO / TIN NHẮN) */}
-      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map' || activeIslandAlert) && (
+      {/* 0.2 VIVU DYNAMIC ISLAND THÔNG MINH (Chỉ gắn đỉnh trên màn hình Map để không che Tiêu đề / Modal) */}
+      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') &&
+        !selectedUserProfile && !selectedGuestProfile && !isEditProfileOpen && !isSettingsOpen && !isUserMenuOpen && !isSavedPlacesOpen && !isSavedPlaceModalOpen && (
         <UnifiedDynamicIsland
           radarDistance={radarDistance}
           onSelectRadarDistance={(d) => setRadarDistance(d)}
@@ -3665,8 +4102,36 @@ export default function App() {
         />
       )}
 
+      {/* 0.2b TOAST THÔNG BÁO GỌN Ở ĐÁY KHI ĐANG Ở TAB CHAT / PROFILE */}
+      {activeIslandAlert && activeTab !== 'social' && activeTab !== 'friends' && activeTab !== 'map' && !isEditProfileOpen && !isSettingsOpen && (
+        <div
+          onClick={() => activeIslandAlert.onClick?.()}
+          className="fixed bottom-[98px] right-3 sm:bottom-6 sm:right-6 z-40 max-w-[calc(100vw-1.5rem)] sm:max-w-xs bg-[#12141E]/95 backdrop-blur-xl border border-white/15 rounded-2xl p-3 shadow-2xl flex items-center gap-2.5 cursor-pointer animate-in fade-in slide-in-from-bottom-2"
+        >
+          <div className="w-8 h-8 rounded-full bg-[#FF2A85]/20 text-[#FF2A85] flex items-center justify-center shrink-0">
+            <i className="bi bi-bell-fill text-xs" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold text-white truncate">{activeIslandAlert.title || 'Thông báo mới'}</div>
+            <div className="text-[11px] text-white/65 truncate">{activeIslandAlert.subtitle}</div>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              activeIslandAlert.onDismiss?.();
+            }}
+            aria-label="Đóng thông báo nhanh"
+            className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-[10px] shrink-0 cursor-pointer"
+          >
+            <i className="bi bi-x-lg" />
+          </button>
+        </div>
+      )}
+
       {/* 0.3 ẢNH ĐẠI DIỆN ĐỘC LẬP Ở GÓC PHẢI TRÊN CÙNG: Nhấn chuyển hướng thẳng đến trang cá nhân của bạn */}
-      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && !selectedUserProfile && !selectedGuestProfile && (
+      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') &&
+        !selectedUserProfile && !selectedGuestProfile && !isEditProfileOpen && !isSettingsOpen && !isUserMenuOpen && !isSavedPlacesOpen && !isSavedPlaceModalOpen && (
         <BumpUserAvatar
           userAvatar={currentUserAvatar}
           userName={currentUserName}
@@ -3686,6 +4151,7 @@ export default function App() {
         currentUserAvatar={currentUserAvatar}
         nearbyPeers={nearbyOnlinePeers}
         friends={friends}
+        incomingRequestsCount={pendingFriendRequests.length}
         onRequestHandled={async () => {
           if (currentUserId) {
             const reqs = await apiClient.getFriendRequests(currentUserId);
@@ -3698,10 +4164,14 @@ export default function App() {
           setIsRightFriendshipPanelOpen(false);
           handleStoryDirectChat(targetUser);
         }}
+        onOpenUserProfile={(targetUser) => {
+          setIsRightFriendshipPanelOpen(false);
+          handleOpenUserProfile(targetUser, 'friends');
+        }}
       />
 
-      {/* 1. BẢN ĐỒ GOOGLE MAPS ĐƯỜNG PHỐ & VỆ TINH HYBRID (ZERO-CRASH, 2D SỐNG ĐỘNG) */}
-      <GoogleMapView
+      {/* 1. BẢN ĐỒ VIVU ĐƯỜNG PHỐ & VỆ TINH HYBRID (ZERO-CRASH, 2D SỐNG ĐỘNG) */}
+      <VivuMapView
         currentUserId={currentUserId}
         currentUserName={currentUserName}
         userLat={userLat}
@@ -3721,12 +4191,15 @@ export default function App() {
         viewMode={activeTab}
         stories={liveStories}
         friends={liveFriends}
+        savedPlaces={savedPlaces}
         onlinePeers={nearbyOnlinePeers}
         radarDistance={radarDistance}
         isAdjustingRadius={isAdjustingRadius}
         isRadarScanning={isRadarScanning}
         isNavigationActive={isNavigationActive}
         navTarget={navTarget}
+        navTravelMode={navTravelMode}
+        onRouteCalculated={setActiveRouteInfo}
         activeCircleFilter={activeCircleFilter}
         onClearCircleFilter={() => setActiveCircleFilter(null)}
         onOpenStoryDetail={handleOpenStoryViewer}
@@ -3738,11 +4211,13 @@ export default function App() {
         onOpenProfile={() => setActiveTab('profile')}
         onOpenCreateStory={() => setIsCreateModalOpen(true)}
         onOpenMemeTroll={(target) => setTrollTargetUser(target)}
+        onOpenSavedPlaces={() => setIsSavedPlacesOpen(true)}
+        onStartNavigation={handleStartNavigation}
         onSetManualLocation={setManualCoords}
       />
 
       {/* BANNER THÔNG BÁO VỊ TRÍ THỰC TẾ (GPS THẬT) */}
-      {(activeTab === 'social' || activeTab === 'friends') && (
+      {(activeTab === 'social' || activeTab === 'friends') && !selectedUserProfile && !selectedGuestProfile && !activeCallSession && !incomingCallSession && (
         <GpsStatusBanner
           locationSource={locationSource}
           cityName={cityName}
@@ -3752,22 +4227,11 @@ export default function App() {
         />
       )}
 
-      {/* 2.0 NÚT CHUÔNG THÔNG BÁO NỔI CHO CÁC TAB KHÔNG PHẢI MAP */}
-      {activeTab !== 'social' && activeTab !== 'friends' && !(activeTab === 'chat' && activeConversationId !== null) && (
-        <div className="fixed top-4 right-4 z-40">
-          <NotificationBellButton
-            unreadCount={unreadNotificationsCount}
-            onClick={() => setIsNotificationsDrawerOpen(true)}
-            isOpen={isNotificationsDrawerOpen}
-          />
-        </div>
-      )}
-
-      {/* 2.05 BANNER PHÁT HIỆN BẠN BÈ Ở CẬN (< 15M) & ĐANG ONLINE - CHẠM HOẶC LẮC ĐIỆN THOẠI ĐỂ CỤNG LY 3D */}
+      {/* 2.0 BANNER PHÁT HIỆN BẠN BÈ Ở CẬN (< 15M) (Chuông thông báo đã tích hợp gọn trong Header từng tab) */}
       {(activeTab === 'social' || activeTab === 'friends') &&
         nearbyFriend &&
         (nearbyFriend.isOnline === true || nearbyFriend.is_online === true || nearbyFriend.online === true) &&
-        !isBumpModalOpen && (
+        !isBumpModalOpen && !selectedUserProfile && !selectedGuestProfile && !activeCallSession && !incomingCallSession && (
           <ProximityBumpBanner
             nearbyFriend={nearbyFriend}
             distanceMeters={nearbyDistanceMeters}
@@ -3777,7 +4241,7 @@ export default function App() {
         )}
 
       {/* 2.1 HUY HIỆU CỤM: THÔNG BÁO CÓ NGƯỜI ĐANG ĐỨNG CÙNG VỊ TRÍ TRONG TAB XÃ HỘI */}
-      {activeTab === 'social' && coLocatedPeer && (
+      {activeTab === 'social' && coLocatedPeer && !isNavigationActive && !selectedUserProfile && !selectedGuestProfile && !activeCallSession && !incomingCallSession && (
         <div
           onClick={() => {
             if (window.__vivu_map) {
@@ -3841,7 +4305,16 @@ export default function App() {
       {isNavigationActive && (
         <NavigationBanner
           navTarget={navTarget}
-          onClose={() => setIsNavigationActive(false)}
+          userLat={userLat ?? location?.lat}
+          userLng={userLng ?? location?.lng}
+          userSpeed={location?.speed}
+          routeInfo={activeRouteInfo}
+          travelMode={navTravelMode}
+          onToggleTravelMode={() => setNavTravelMode(m => m === 'driving' ? 'foot' : 'driving')}
+          onClose={() => {
+            setIsNavigationActive(false);
+            setActiveRouteInfo(null);
+          }}
         />
       )}
 
@@ -3853,7 +4326,7 @@ export default function App() {
         /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && (
           <a
             href={publicTunnelUrl}
-            className="fixed top-2 left-1/2 -translate-x-1/2 z-60 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-[0_4px_16px_rgba(14,165,233,0.4)] border border-white/20 active:scale-95 transition-all"
+            className="fixed top-2 left-1/2 -translate-x-1/2 z-[60] px-3.5 py-1.5 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-[0_4px_16px_rgba(14,165,233,0.4)] border border-white/20 active:scale-95 transition-all"
           >
             <i className="bi bi-geo-alt-fill text-amber-300"></i>
             <span>Dùng link HTTPS để bật GPS chính xác</span>
@@ -3872,7 +4345,7 @@ export default function App() {
         }}
         onOpenCreateStory={() => setIsCreateModalOpen(true)}
         unreadCount={conversations.filter(c => c.unread).length}
-        className={((activeTab === 'chat' && activeConversationId) || isQuickStatusSheetOpen || isPinWardrobeOpen || isUserMenuOpen) ? 'hidden' : ''}
+        className={((activeTab === 'chat' && activeConversationId) || isQuickStatusSheetOpen || isPinWardrobeOpen || isUserMenuOpen || selectedUserProfile || selectedGuestProfile || activeCallSession || incomingCallSession) ? 'hidden' : ''}
       />
 
       {/* 6. TRÌNH XEM STORY TOÀN MÀN HÌNH TƯƠNG TÁC CAO CẤP (MULTI-STORY & DELETE) */}
@@ -3903,10 +4376,11 @@ export default function App() {
         <UserProfileViewModal
           isOpen={Boolean(selectedUserProfile)}
           profile={selectedUserProfile}
+          currentUserId={currentUserId}
           originSource={userProfileOriginSource}
           allFriends={friends}
           onClose={() => setSelectedUserProfile(null)}
-          isFriend={friends.some(f => (selectedUserProfile.id && f.id === selectedUserProfile.id) || (selectedUserProfile.hostId && f.id === selectedUserProfile.hostId) || (selectedUserProfile.userId && f.id === selectedUserProfile.userId) || f.name === (selectedUserProfile.hostName || selectedUserProfile.name || selectedUserProfile.fullName))}
+          isFriend={friends.some(f => (selectedUserProfile.id && f.id === selectedUserProfile.id) || (selectedUserProfile.hostId && f.id === selectedUserProfile.hostId) || (selectedUserProfile.userId && f.id === selectedUserProfile.userId) || (selectedUserProfile.user_id && f.id === selectedUserProfile.user_id) || f.name === (selectedUserProfile.hostName || selectedUserProfile.name || selectedUserProfile.fullName))}
           onDirectChat={(profile) => {
             setSelectedUserProfile(null);
             handleStoryDirectChat(profile);
@@ -3914,12 +4388,7 @@ export default function App() {
           onToggleFriend={(profile) => {
             handleStoryToggleFriend(profile);
           }}
-          onStartNavigation={(profile) => {
-            setSelectedUserProfile(null);
-            setNavTarget(profile);
-            setIsNavigationActive(true);
-            setActiveTab('social');
-          }}
+          onStartNavigation={(profile) => handleStartNavigation(profile)}
           onOpenStoryDetail={handleOpenStoryViewer}
         />
       )}
@@ -3929,6 +4398,7 @@ export default function App() {
         <GuestProfileModal
           isOpen={Boolean(selectedGuestProfile)}
           profile={selectedGuestProfile}
+          currentUserId={currentUserId}
           onClose={() => setSelectedGuestProfile(null)}
           isFriend={friends.some(f => (selectedGuestProfile.id && f.id === selectedGuestProfile.id) || (selectedGuestProfile.hostId && f.id === selectedGuestProfile.hostId) || f.name === (selectedGuestProfile.hostName || selectedGuestProfile.name))}
           onDirectChat={(profile) => {
@@ -3938,12 +4408,7 @@ export default function App() {
           onToggleFriend={(profile) => {
             handleStoryToggleFriend(profile);
           }}
-          onStartNavigation={(profile) => {
-            setSelectedGuestProfile(null);
-            setNavTarget(profile);
-            setIsNavigationActive(true);
-            setActiveTab('social');
-          }}
+          onStartNavigation={(profile) => handleStartNavigation(profile)}
         />
       )}
 
@@ -4023,12 +4488,7 @@ export default function App() {
             setSelectedFriend(null);
             handleStoryDirectChat(f);
           }}
-          onStartNavigation={(f) => {
-            setNavTarget(f);
-            setSelectedFriend(null);
-            setIsNavigationActive(true);
-            setActiveTab('friends');
-          }}
+          onStartNavigation={(f) => handleStartNavigation(f)}
         />
       )}
 
@@ -4128,6 +4588,10 @@ export default function App() {
         userName={currentUserName}
         userCode={currentUserCode}
         onClose={() => setIsUserMenuOpen(false)}
+        onOpenProfile={() => {
+          setIsUserMenuOpen(false);
+          setActiveTab('profile');
+        }}
         onOpenCreateStory={() => setIsCreateModalOpen(true)}
         onOpenEditProfile={() => setIsEditProfileOpen(true)}
         onOpenQuickStatus={() => {
@@ -4249,6 +4713,7 @@ export default function App() {
           duration={callDuration}
           isMuted={isCallMuted}
           isVideoOff={isCallVideoOff}
+          remoteMediaState={remoteMediaState}
           onToggleMute={toggleMute}
           onToggleVideo={toggleVideo}
           onSwitchCamera={switchCamera}
@@ -4305,6 +4770,8 @@ export default function App() {
           currentUserCode={currentUserCode}
           onSendMessage={handleSendMessage}
           onSendQuickHeart={handleSendQuickHeart}
+          onStopLiveLocation={handleStopLiveLocation}
+          userSpeed={location?.speed}
           onStartCall={(conv, type) => {
             let targetId = conv?.partnerId || conv?.friendId || conv?.peer_id || conv?.user_id;
             if (!targetId && typeof conv?.id === 'string' && conv.id.startsWith('conv-direct-')) {
@@ -4343,19 +4810,7 @@ export default function App() {
             setActiveTab('social');
             setActiveConversationId(null);
           }}
-          onStartNavigation={(target) => {
-            setNavTarget(target);
-            setIsNavigationActive(true);
-            setActiveTab('social');
-            setActiveConversationId(null);
-            const targetLat = Number(target?.realLat ?? target?.lat);
-            const targetLng = Number(target?.realLng ?? target?.lng);
-            if (!isNaN(targetLat) && !isNaN(targetLng) && window.__vivu_map) {
-              setTimeout(() => {
-                window.__vivu_map.flyTo([targetLat, targetLng], 16.8, { duration: 0.9 });
-              }, 300);
-            }
-          }}
+          onStartNavigation={(target) => handleStartNavigation(target)}
           onOpenDirectChat={handleStoryDirectChat}
           onOpenMemeTroll={(target) => setTrollTargetUser(target)}
           onOpenTakeoverMeme={(takeoverData) => setActiveTakeoverMeme(takeoverData)}
@@ -4378,7 +4833,10 @@ export default function App() {
               return {
                 ...c,
                 messages: [],
-                lastMessage: ''
+                isCleared: true,
+                lastMessage: 'Đã xóa lịch sử trò chuyện',
+                unread: false,
+                unreadCount: 0
               };
             }));
           }}
@@ -4389,16 +4847,7 @@ export default function App() {
       {activeTab === 'profile' && (
         <ProfilePageView
           key={currentUserId || 'guest'}
-          user={{
-            ...user,
-            id: currentUserId,
-            user_metadata: {
-              ...user,
-              ...user?.user_metadata,
-              full_name: currentUserName || user?.user_metadata?.full_name || user?.full_name,
-              avatar_url: currentUserAvatar || user?.user_metadata?.avatar_url || user?.avatar_url
-            }
-          }}
+          user={profilePageUserProp}
           isAuthenticated={isAuthenticated}
           onOpenLogin={() => setIsAuthModalOpen(true)}
           onLogout={logout}
@@ -4414,6 +4863,8 @@ export default function App() {
           onRequestLocation={requestLocation}
           onOpenEditProfile={() => setIsEditProfileOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenNotifications={() => setIsNotificationsDrawerOpen(true)}
+          unreadNotificationsCount={unreadNotificationsCount}
           onUpdateAvatar={handleDirectUpdateAvatar}
           onUpdateProfile={handleUpdateFullProfile}
           onOpenRightFriendshipPanel={() => setIsRightFriendshipPanelOpen(true)}
@@ -4431,11 +4882,7 @@ export default function App() {
           }}
           onTriggerBump={(target) => handleInitiateBump(target)}
           onOpenMemeTroll={(target) => setTrollTargetUser(target)}
-          onStartNavigation={(target) => {
-            setNavTarget(target);
-            setIsNavigationActive(true);
-            setActiveTab('social');
-          }}
+          onStartNavigation={(target) => handleStartNavigation(target)}
           onOpenStoryHighlight={(highlight) => {
             if (highlight && Array.isArray(highlight.stories) && highlight.stories.length > 0) {
               const hlStories = highlight.stories.map(s => ({
@@ -4465,7 +4912,7 @@ export default function App() {
         onClearChatHistory={handleClearChatHistory}
         onOpenChangePassword={() => setIsResetPasswordOpen(true)}
         ghostMode={ghostMode}
-        onToggleGhostMode={() => setGhostMode(prev => !prev)}
+        onToggleGhostMode={handleToggleGhostMode}
         messagePrivacy={messagePrivacy}
         onUpdateMessagePrivacy={handleUpdateMessagePrivacy}
         currentThemeAccent={themeAccent}
@@ -4701,6 +5148,63 @@ export default function App() {
           }}
         />
       )}
+
+      {/* 29. QUẢN LÝ ĐỊA ĐIỂM ĐÃ LƯU TRÊN BẢN ĐỒ */}
+      <SavedPlacesDrawer
+        isOpen={isSavedPlacesOpen}
+        onClose={() => setIsSavedPlacesOpen(false)}
+        savedPlaces={savedPlaces}
+        userLat={userLat}
+        userLng={userLng}
+        onOpenCreateModal={() => {
+          setEditingSavedPlace(null);
+          setSavedPlaceInitialCoords(userLat != null && userLng != null ? { lat: userLat, lng: userLng } : null);
+          setIsSavedPlaceModalOpen(true);
+        }}
+        onEditPlace={(place) => {
+          setEditingSavedPlace(place);
+          setIsSavedPlaceModalOpen(true);
+        }}
+        onDeletePlace={async (placeId) => {
+          if (!currentUserId) return;
+          await apiClient.deleteSavedPlace(placeId, currentUserId);
+          setSavedPlaces(prev => prev.filter(p => p.id !== placeId));
+        }}
+        onFocusPlace={(place) => {
+          setActiveTab('social');
+          if (place?.lat && place?.lng && window.__vivu_map) {
+            window.__vivu_map.flyTo([Number(place.lat), Number(place.lng)], 17, { duration: 0.7 });
+          }
+        }}
+        onStartNavigation={(place) => handleStartNavigation(place)}
+      />
+
+      <SavedPlaceModal
+        isOpen={isSavedPlaceModalOpen}
+        onClose={() => {
+          setIsSavedPlaceModalOpen(false);
+          setEditingSavedPlace(null);
+        }}
+        initialPlace={editingSavedPlace}
+        defaultCoords={savedPlaceInitialCoords}
+        userLat={userLat}
+        userLng={userLng}
+        onSave={async (payload) => {
+          if (!currentUserId) throw new Error('Vui lòng đăng nhập để lưu địa điểm');
+          if (payload.id) {
+            const updated = await apiClient.updateSavedPlace(payload.id, { ...payload, userId: currentUserId });
+            setSavedPlaces(prev => prev.map(p => (p.id === updated.id ? updated : p)));
+          } else {
+            const created = await apiClient.createSavedPlace({ ...payload, userId: currentUserId });
+            setSavedPlaces(prev => [created, ...prev]);
+          }
+        }}
+        onDelete={async (placeId) => {
+          if (!currentUserId) return;
+          await apiClient.deleteSavedPlace(placeId, currentUserId);
+          setSavedPlaces(prev => prev.filter(p => p.id !== placeId));
+        }}
+      />
 
     </div>
   );

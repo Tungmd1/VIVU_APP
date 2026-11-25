@@ -12,6 +12,8 @@ export default function RightActionStack({
   onFitPeers,
   onRecenterGps,
   onToggleMapStyle,
+  onOpenSavedPlaces,
+  savedPlacesCount = 0,
   mapStyleType = 'streets',
   hasPeers = false,
   isGpsLoading = false
@@ -43,7 +45,7 @@ export default function RightActionStack({
   };
 
   return (
-    <div className="fixed right-3.5 bottom-24 z-30 flex flex-col items-center gap-2 pointer-events-auto select-none font-sans">
+    <div className="fixed right-3.5 bottom-[104px] sm:bottom-24 z-30 flex flex-col items-center gap-2 pointer-events-auto select-none font-sans">
       
       {/* 1. THANH CUỘN CHỨC NĂNG CAPSULE */}
       <div className="relative flex flex-col items-center">
@@ -63,7 +65,7 @@ export default function RightActionStack({
         {/* Hộp chứa các nút công cụ tinh giản */}
         <div
           ref={scrollRef}
-          className="flex flex-col items-center gap-2 p-1.5 rounded-full bg-[rgba(15,16,24,0.88)] border border-[#00E5FF]/30 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl max-h-[168px] overflow-y-auto no-scrollbar scroll-smooth overscroll-contain touch-pan-y"
+          className="flex flex-col items-center gap-2 p-1.5 rounded-full bg-[rgba(15,16,24,0.88)] border border-[#00E5FF]/30 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl max-h-[240px] overflow-y-auto no-scrollbar scroll-smooth overscroll-contain touch-pan-y"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {/* Nút 1: Chuyển đổi Bản đồ Đường phố <-> Vệ tinh */}
@@ -111,6 +113,27 @@ export default function RightActionStack({
               aria-label="Đặt lại hướng Bắc"
             >
               <i className="bi bi-compass text-base group-hover:scale-110 transition-transform"></i>
+            </button>
+          )}
+
+          {/* Nút 4: Địa điểm đã lưu trên bản đồ */}
+          {onOpenSavedPlaces && (
+            <button
+              type="button"
+              onClick={(e) => {
+                triggerCyberSplash(e);
+                onOpenSavedPlaces();
+              }}
+              className="relative w-10 h-10 rounded-full bg-[rgba(20,20,30,0.9)] hover:bg-[rgba(30,30,45,0.95)] border border-amber-400/40 hover:border-amber-400 text-amber-400 shadow-md backdrop-blur-xl flex items-center justify-center shrink-0 active:scale-90 transition-all cursor-pointer group"
+              title="Địa điểm đã lưu"
+              aria-label="Mở danh sách địa điểm đã lưu"
+            >
+              <i className="bi bi-star-fill text-sm group-hover:scale-110 transition-transform"></i>
+              {savedPlacesCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-400 text-black text-[9px] font-black flex items-center justify-center border border-[#0A0E18]">
+                  {savedPlacesCount}
+                </span>
+              )}
             </button>
           )}
         </div>

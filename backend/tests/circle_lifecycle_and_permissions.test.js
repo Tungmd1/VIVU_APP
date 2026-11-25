@@ -263,4 +263,25 @@ describe('VIVU Circle Lifecycle & Permission Enforcement Suite', () => {
     // Dọn dẹp
     await dbService.deleteCircle(directCircle.id, userA.id);
   });
+
+  test('11. Tạo nhóm từ UI có requireConfirmation: true -> status pending_confirmation, kích hoạt khi bạn bè accept', async () => {
+    const pendingCircle = await dbService.createCircle({
+      name: 'Nhóm Chờ Xác Nhận',
+      ownerId: userA.id,
+      invitedMemberIds: [userB.id],
+      requireConfirmation: true
+    });
+
+    assert.equal(pendingCircle.status, 'pending_confirmation');
+    assert.deepEqual(pendingCircle.member_ids, [userA.id]);
+
+    // Bấm accept -> nhóm nâng lên status: 'active'
+    const acceptRes = await dbService.respondToCircleInvite(pendingCircle.id, userB.id, 'accept');
+    assert.equal(acceptRes.activatedNow, true);
+    assert.equal(acceptRes.circle.status, 'active');
+    assert.ok(acceptRes.circle.member_ids.includes(userB.id));
+
+    // Dọn dẹp
+    await dbService.deleteCircle(pendingCircle.id, userA.id);
+  });
 });

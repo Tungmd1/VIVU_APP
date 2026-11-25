@@ -240,12 +240,12 @@ export const apiClient = {
     return null;
   },
 
-  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt) {
+  async updateGps(userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt, accuracy = undefined, timestamp = undefined, speed = undefined) {
     try {
       const res = await fetch(`${API_BASE_URL}/gps/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt })
+        body: JSON.stringify({ userId, lat, lng, customStatus, name, avatar, userCode, phone, customSong, customChibi, pinSkin, pinMascot, pinAction, chibiExpiresAt, accuracy, timestamp, speed })
       });
       const json = await res.json();
       if (json.success && json.data) return json.data;
@@ -594,19 +594,25 @@ export const apiClient = {
         },
         body: JSON.stringify(circlePayload)
       });
-      const json = await res.json();
-      if (json.success && json.data) return json.data;
-      throw new Error(json.message || 'Lỗi tạo nhóm từ máy chủ');
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.success && json.data) return json.data;
+      const serverErr = new Error(json.message || 'Lỗi tạo nhóm từ máy chủ');
+      serverErr.isServerError = true;
+      serverErr.status = res.status;
+      throw serverErr;
     } catch (err) {
-      console.warn('[API Client] createCircle fallback:', err.message);
-      // Local fallback khi offline
+      if (err?.isServerError) throw err;
+      console.warn('[API Client] createCircle network fallback:', err.message);
+      // Local fallback chỉ khi mất kết nối mạng thực sự (không che lỗi HTTP 4xx/5xx)
       if (circlePayload.name) {
         return {
           id: `circle-${Date.now()}`,
           name: circlePayload.name,
           image: circlePayload.image || null,
+          status: 'pending_confirmation',
+          isPendingConfirmation: true,
           owner_id: circlePayload.ownerId || 'me',
-          member_ids: [circlePayload.ownerId || 'me', ...(circlePayload.memberIds || [])],
+          member_ids: [circlePayload.ownerId || 'me'],
           created_at: new Date().toISOString()
         };
       }
@@ -915,6 +921,80 @@ export const apiClient = {
     } catch (err) {
       throw err;
     }
+  },
+
+  // ==========================================
+  // HỒ SƠ ĐÃ PHÂN QUYỀN & ĐỊA ĐIỂM ĐÃ LƯU
+  // ==========================================
+  async getUserProfile(targetUserId, viewerId = null) {
+    if (!targetUserId) return null;
+    try {
+      const qs = viewerId ? `?viewerId=${encodeURIComponent(viewerId)}` : '';
+      const res = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(targetUserId)}${qs}`, {
+        headers: viewerId ? { 'x-user-id': viewerId } : {}
+      });
+      const json = await res.json();
+      if (json.success && json.profile) return json;
+    } catch (err) {
+      console.warn('[API Client] getUserProfile error:', err.message);
+    }
+    return null;
+  },
+
+  async getSavedPlaces(userId, category = null) {
+    if (!userId) return [];
+    try {
+      const params = new URLSearchParams({ userId });
+      if (category && category !== 'all') params.set('category', category);
+      const res = await fetch(`${API_BASE_URL}/places?${params.toString()}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.places)) return json.places;
+    } catch (err) {
+      console.warn('[API Client] getSavedPlaces error:', err.message);
+    }
+    return [];
+  },
+
+  async createSavedPlace(placeData) {
+    const res = await fetch(`${API_BASE_URL}/places`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(placeData)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Không thể lưu địa điểm');
+    }
+    return json.place;
+  },
+
+  async updateSavedPlace(placeId, updateData) {
+    const res = await fetch(`${API_BASE_URL}/places/${encodeURIComponent(placeId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData)
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Không thể cập nhật địa điểm');
+    }
+    return json.place;
+  },
+
+  async deleteSavedPlace(placeId, userId) {
+    const res = await fetch(`${API_BASE_URL}/places/${encodeURIComponent(placeId)}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId || ''
+      },
+      body: JSON.stringify({ userId })
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Không thể xóa địa điểm');
+    }
+    return json;
   }
 };
 

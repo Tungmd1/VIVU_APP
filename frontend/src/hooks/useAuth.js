@@ -262,28 +262,34 @@ export function useAuth() {
     setAuthError(null);
     try {
       const res = await authService.updateUserProfile(profileData);
+      const syncedUser = res?.user || {};
+      const nextFavSong = syncedUser.favorite_song ?? profileData.favorite_song ?? profileData.favoriteSong;
+      const nextStatus = profileData.customStatus !== undefined ? profileData.customStatus : (syncedUser.custom_status ?? undefined);
       setUser(prev => {
         const base = prev || { id: 'guest', is_guest: true, user_metadata: {} };
         return {
           ...base,
           ...profileData,
-          full_name: profileData.fullName || base.full_name,
-          avatar_url: profileData.avatarUrl !== undefined ? profileData.avatarUrl : base.avatar_url,
-          custom_status: profileData.customStatus || base.custom_status,
+          ...syncedUser,
+          full_name: syncedUser.full_name || profileData.fullName || base.full_name,
+          avatar_url: profileData.avatarUrl !== undefined ? profileData.avatarUrl : (syncedUser.avatar_url ?? base.avatar_url),
+          custom_status: nextStatus !== undefined ? nextStatus : base.custom_status,
+          favorite_song: nextFavSong !== undefined ? nextFavSong : base.favorite_song,
           user_metadata: {
             ...base.user_metadata,
-            full_name: profileData.fullName || base.user_metadata?.full_name,
-            avatar_url: profileData.avatarUrl !== undefined ? profileData.avatarUrl : base.user_metadata?.avatar_url,
-            custom_status: profileData.customStatus || base.user_metadata?.custom_status,
-            phone: profileData.phone,
-            age: profileData.age,
-            job: profileData.job,
-            bio: profileData.bio,
-            tags: profileData.tags,
-            favorite_song: profileData.favorite_song,
-            privacy_age: profileData.privacy_age,
-            privacy_phone: profileData.privacy_phone,
-            privacy_tags: profileData.privacy_tags
+            ...(syncedUser.user_metadata || {}),
+            full_name: syncedUser.full_name || profileData.fullName || base.user_metadata?.full_name,
+            avatar_url: profileData.avatarUrl !== undefined ? profileData.avatarUrl : (syncedUser.avatar_url ?? base.user_metadata?.avatar_url),
+            custom_status: nextStatus !== undefined ? nextStatus : base.user_metadata?.custom_status,
+            phone: profileData.phone ?? syncedUser.phone ?? base.user_metadata?.phone,
+            age: profileData.age ?? syncedUser.age ?? base.user_metadata?.age,
+            job: profileData.job ?? syncedUser.job ?? base.user_metadata?.job,
+            bio: profileData.bio ?? syncedUser.bio ?? base.user_metadata?.bio,
+            tags: profileData.tags ?? syncedUser.tags ?? base.user_metadata?.tags,
+            favorite_song: nextFavSong !== undefined ? nextFavSong : base.user_metadata?.favorite_song,
+            privacy_age: profileData.privacy_age ?? syncedUser.privacy_age ?? base.user_metadata?.privacy_age,
+            privacy_phone: profileData.privacy_phone ?? syncedUser.privacy_phone ?? base.user_metadata?.privacy_phone,
+            privacy_tags: profileData.privacy_tags ?? syncedUser.privacy_tags ?? base.user_metadata?.privacy_tags
           }
         };
       });

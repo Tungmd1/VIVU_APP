@@ -100,10 +100,16 @@ export function useGeolocation() {
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        const rawSpeed = pos.coords.speed;
+        const speedKmh = rawSpeed != null && Number.isFinite(rawSpeed) && rawSpeed >= 0
+          ? Number((rawSpeed * 3.6).toFixed(1))
+          : 0;
+
         const coords = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
           accuracy: pos.coords.accuracy,
+          speed: speedKmh,
           timestamp: pos.timestamp || Date.now(),
           source: 'gps',
           cityName: locationRef.current?.cityName || 'Vị trí GPS',
@@ -215,10 +221,31 @@ export function useGeolocation() {
             if (dist < 8) return;
           }
 
+          let computedSpeedKmh = 0;
+          if (pos.coords.speed != null && Number.isFinite(pos.coords.speed) && pos.coords.speed >= 0) {
+            computedSpeedKmh = Number((pos.coords.speed * 3.6).toFixed(1));
+          } else if (locationRef.current?.timestamp) {
+            const timeDiffSec = Math.max(0.5, ((pos.timestamp || Date.now()) - locationRef.current.timestamp) / 1000);
+            if (timeDiffSec <= 30) {
+              const dMeters = getDistanceMeters(
+                locationRef.current.lat,
+                locationRef.current.lng,
+                pos.coords.latitude,
+                pos.coords.longitude
+              );
+              const speedMs = dMeters / timeDiffSec;
+              const spd = speedMs * 3.6;
+              if (spd >= 1.5 && spd <= 150) {
+                computedSpeedKmh = Number(spd.toFixed(1));
+              }
+            }
+          }
+
           const coords = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude,
             accuracy: pos.coords.accuracy,
+            speed: computedSpeedKmh,
             timestamp: pos.timestamp || Date.now(),
             source: 'gps',
             cityName: locationRef.current?.cityName || 'Vị trí GPS',

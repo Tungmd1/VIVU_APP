@@ -5,7 +5,6 @@ import MessengerInboxList from './MessengerInboxList';
 import MessengerActiveRoom from './MessengerActiveRoom';
 import GroupMembersModal from './GroupMembersModal';
 import CreatePollModal from './CreatePollModal';
-import ClearChatModal from './ClearChatModal';
 import { recordSentMessage } from '../../utils/personalityAnalytics';
 import apiClient from '../../services/apiClient';
 
@@ -50,12 +49,13 @@ export default function MessengerChatView({
   onOpenMemeTroll,
   onOpenTakeoverMeme,
   onDeleteMessage,
-  onClearConversation
+  onClearConversation,
+  onStopLiveLocation,
+  userSpeed
 }) {
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [chatFilterTab, setChatFilterTab] = useState('all'); // 'all', 'group', 'spam'
   const [messageInputText, setMessageInputText] = useState('');
-  const [conversationToClear, setConversationToClear] = useState(null);
   const [isGroupMembersModalOpen, setIsGroupMembersModalOpen] = useState(false);
   const [isCreatePollModalOpen, setIsCreatePollModalOpen] = useState(false);
   const [isToolsDrawerOpen, setIsToolsDrawerOpen] = useState(false);
@@ -84,9 +84,9 @@ export default function MessengerChatView({
   const activeConversation = enrichedConversations.find(c => c.id === activeConversationId);
   const activeFriend = friends.find(f => f.id === activeConversation?.friendId || f.name === activeConversation?.name);
 
-  // Lọc hội thoại: Phải có tin nhắn mới hiện trong trang tin nhắn
+  // Lọc hội thoại: Giữ cả cuộc trò chuyện có tin nhắn lẫn cuộc trò chuyện vừa dọn sạch lịch sử
   const hasValidMessages = (conv) => {
-    return Boolean((conv.messages && conv.messages.length > 0) || conv.lastMessage);
+    return Boolean((conv.messages && conv.messages.length > 0) || conv.lastMessage || conv.isCleared);
   };
 
   const filteredConversations = enrichedConversations.filter(conv => {
@@ -105,7 +105,8 @@ export default function MessengerChatView({
   const spamCount = validConvs.filter(c => Boolean(c.isStranger)).length;
 
   // Gửi tin nhắn văn bản & kích hoạt Streak & Phân tích hành vi tính cách
-  const handleSend = () => {
+  const handleSend = (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     if (!messageInputText.trim()) return;
     const currentMessageCount = messages.length || 0;
     const newCount = currentMessageCount + 1;
@@ -124,20 +125,6 @@ export default function MessengerChatView({
 
     if (newCount >= 3 && newCount % 3 === 0) {
       confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
-    }
-  };
-
-  // Xóa toàn bộ tin nhắn trong cuộc trò chuyện (KHÔNG xóa nhóm hay bạn bè)
-  const handleConfirmClearConversation = async () => {
-    if (!conversationToClear) return;
-    const convId = conversationToClear.id;
-    try {
-      await apiClient.clearConversationMessages(convId, currentUserId, true);
-      onClearConversation?.(convId);
-    } catch (e) {
-      console.warn('Lỗi khi xóa tất cả tin nhắn:', e);
-    } finally {
-      setConversationToClear(null);
     }
   };
 
@@ -187,7 +174,6 @@ export default function MessengerChatView({
         onToggleRightFriendshipPanel={onToggleRightFriendshipPanel}
         pendingFriendRequestsCount={pendingFriendRequestsCount}
         onOpenCreateCircle={onOpenCreateCircle}
-        onOpenClearConversation={(conv) => setConversationToClear(conv)}
       />
 
       {/* CỘT PHẢI / KHUNG CHAT HOẠT ĐỘNG (ACTIVE CHAT ROOM) */}
@@ -218,14 +204,8 @@ export default function MessengerChatView({
         handleSend={handleSend}
         onDeleteMessage={onDeleteMessage}
         onClearConversation={onClearConversation}
-      />
-
-      {/* MODAL XÁC NHẬN XÓA TẤT CẢ TIN NHẮN (KHÔNG XÓA NHÓM, CHỈ DỌN SẠCH LỊCH SỬ TIN NHẮN) */}
-      <ClearChatModal
-        isOpen={Boolean(conversationToClear)}
-        partnerName={conversationToClear?.name}
-        onClose={() => setConversationToClear(null)}
-        onConfirmClear={handleConfirmClearConversation}
+        onStopLiveLocation={onStopLiveLocation}
+        userSpeed={userSpeed}
       />
 
       {/* MODAL TẠO BÌNH CHỌN LỊCH HẸN */}

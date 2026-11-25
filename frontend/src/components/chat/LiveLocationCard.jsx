@@ -130,7 +130,9 @@ export default function LiveLocationCard({
                 realLng: Number(msg.lng),
                 lat: Number(msg.lat),
                 lng: Number(msg.lng),
-                name: msg.sender_name || 'Vị trí trực tiếp'
+                name: msg.sender_name || msg.senderName || 'Vị trí trực tiếp',
+                targetUserId: msg.sender_id || (msg.sender && msg.sender !== 'me' && msg.sender !== 'them' ? msg.sender : null),
+                speed: msg.speed ?? null
               });
             }}
             icon="bi-cursor-fill"

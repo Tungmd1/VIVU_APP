@@ -10,6 +10,7 @@ export default function ProfileDetailsSection({
   job,
   phone,
   bio,
+  favoriteSong,
   tags = [],
   isOwner = false,
   isFriend = false,
@@ -72,6 +73,22 @@ export default function ProfileDetailsSection({
           {bio || 'Chưa cập nhật tiểu sử giới thiệu.'}
         </p>
       </div>
+
+      {favoriteSong && (
+        <div className="p-2.5 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-[#FF2A85]/15 border border-[#FF2A85]/30 text-[#FF2A85] flex items-center justify-center shrink-0">
+            <i className="bi bi-music-note-beamed text-sm" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] text-white/50 block font-semibold">Bài hát yêu thích</span>
+            <p className="text-xs font-bold text-white truncate">
+              {typeof favoriteSong === 'string'
+                ? favoriteSong
+                : `${favoriteSong.title || 'Bài hát'}${favoriteSong.artist ? ` - ${favoriteSong.artist}` : ''}`}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-1.5">

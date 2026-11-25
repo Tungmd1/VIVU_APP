@@ -64,15 +64,18 @@ export function bindOwnerMarkerEvents(el, {
     e.preventDefault();
     e.stopPropagation();
   });
-  el.addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
+  // Ngăn Leaflet nuốt sự kiện nhấn/kéo trên toàn bộ nút và biểu tượng ghim của bản thân
+  ['pointerdown', 'mousedown', 'touchstart'].forEach((evtName) => {
+    el.addEventListener(evtName, (e) => {
+      e.stopPropagation();
+    }, { passive: evtName === 'touchstart' });
   });
 
   el.addEventListener('click', (e) => {
     e.stopPropagation();
 
     // 1. NÚT CHỨC NĂNG NHỎ: Nút (+) Đăng Story nhanh - Ưu tiên hàng đầu (Rule 3)
-    if (e.target.closest('#btn-quick-create-story')) {
+    if (e.target.closest('#btn-quick-create-story') || e.target.closest('[data-quick-story="true"]')) {
       if (onOpenCreateStoryRef.current) {
         onOpenCreateStoryRef.current();
       }
@@ -283,33 +286,9 @@ export function bindPeerMarkerEvents(el, {
       return;
     }
 
-    // 2. Chibi sound + toggle nhạc của bạn bè khi bấm vào Chibi hoặc Bong bóng
-    const chibiEl = e.target.closest('[data-chibi-sound]');
-    const peerBubble = e.target.closest('.peer-bubble-wrapper');
-    if (chibiEl || peerBubble) {
-      if (curSong && storyAudioPlayer) {
-        // Có bài hát -> Ưu tiên phát nhạc Apple Music, triệt tiêu tiếng kêu điện tử Chibi lạ
-        const isPlaying = storyAudioPlayer.togglePlay(curSong, { loop: true });
-        const playIcon = el.querySelector('#btn-play-peer-song i');
-        if (playIcon) playIcon.className = isPlaying ? 'bi bi-pause-fill text-[9px] text-[#10FFA0]' : 'bi bi-play-fill text-[9px]';
-      } else if (chibiEl) {
-        // Không có bài hát -> Phát tiếng kêu của Chibi bạn bè
-        const soundType = chibiEl.getAttribute('data-chibi-sound');
-        if (soundType) playChibiSound(soundType);
-      }
-      return;
-    }
-
-    const actionEl = e.target.closest('[data-action-sound]');
-    if (actionEl) {
-      const soundType = actionEl.getAttribute('data-action-sound');
-      if (soundType) playActionSound(soundType);
-      return;
-    }
-
     if (!curItem) return;
 
-    // 3. Xem Story khi bấm vào pin Story Ring hoặc khung Story
+    // 2. Xem Story khi bấm vào pin Story Ring, Chibi có Story, hoặc khung Story (ưu tiên trước sound/bubble)
     const peerStoryPin = e.target.closest('[data-has-story="true"]');
     const peerStoryBox = e.target.closest('#btn-view-peer-story') || e.target.closest('.vivu-story-gif-box') || peerStoryPin;
     if (peerStoryBox) {
@@ -324,6 +303,28 @@ export function bindPeerMarkerEvents(el, {
         onOpenStoryDetailRef.current(targetStory);
         return;
       }
+    }
+
+    // 3. Chibi sound + toggle nhạc của bạn bè khi bấm vào Chibi (không có Story) hoặc Bong bóng
+    const chibiEl = e.target.closest('[data-chibi-sound]');
+    const peerBubble = e.target.closest('.peer-bubble-wrapper');
+    if (chibiEl || peerBubble) {
+      if (curSong && storyAudioPlayer) {
+        const isPlaying = storyAudioPlayer.togglePlay(curSong, { loop: true });
+        const playIcon = el.querySelector('#btn-play-peer-song i');
+        if (playIcon) playIcon.className = isPlaying ? 'bi bi-pause-fill text-[9px] text-[#10FFA0]' : 'bi bi-play-fill text-[9px]';
+      } else if (chibiEl) {
+        const soundType = chibiEl.getAttribute('data-chibi-sound');
+        if (soundType) playChibiSound(soundType);
+      }
+      return;
+    }
+
+    const actionEl = e.target.closest('[data-action-sound]');
+    if (actionEl) {
+      const soundType = actionEl.getAttribute('data-action-sound');
+      if (soundType) playActionSound(soundType);
+      return;
     }
 
     // 4. Mở hồ sơ người dùng

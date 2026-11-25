@@ -13,6 +13,7 @@ export default function ChatProfileModal({
   messages = [],
   onStartCall,
   onOpenMap,
+  onOpenUserProfile,
   onSelectLightboxMedia,
   onOpenClearModal
 }) {
@@ -166,6 +167,25 @@ export default function ChatProfileModal({
                 <i className="bi bi-geo-alt-fill text-base"></i>
                 <span>Xem Map</span>
               </button>
+
+              {onOpenUserProfile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    const target = friend || {
+                      id: conversation?.friendId || conversation?.partnerId || conversation?.userId,
+                      name: conversation?.name,
+                      avatar: conversation?.avatar
+                    };
+                    onOpenUserProfile(target, 'chat');
+                  }}
+                  className="py-2.5 px-2 rounded-2xl bg-white/5 hover:bg-white/15 text-white text-xs font-semibold border border-white/15 flex flex-col items-center gap-1 active:scale-95 transition-all cursor-pointer shadow-sm"
+                >
+                  <i className="bi bi-person-vcard text-base text-[#10FFA0]"></i>
+                  <span>Xem hồ sơ</span>
+                </button>
+              )}
             </div>
 
             {/* 3. MỤC "KHO LƯU TRỮ PHƯƠNG TIỆN" (Ảnh & Video giống Messenger) */}

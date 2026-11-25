@@ -5,8 +5,8 @@ import path from 'node:path';
 import { E2E_CONFIG } from '../config/env.js';
 import { auditGoogleReferences } from '../helpers/staticAuditHelper.js';
 
-describe('Feature 7: Eliminate Google References (T1.07)', () => {
-  test('TC 7.1: Zero instances of maps.google.com or google.com/maps across frontend', () => {
+describe('Feature 7: Leaflet Map Engine & Clean Google Maps SDK Removal (T1.07)', () => {
+  test('TC 7.1: Zero instances of maps.google.com or google.com/maps redirect links across frontend', () => {
     const audit = auditGoogleReferences();
     const mapViolations = audit.violations.filter(v => /maps\.google\.com|google\.com\/maps/i.test(v.snippet));
     assert.equal(mapViolations.length, 0, `Found Google Maps URL violations: ${JSON.stringify(mapViolations)}`);

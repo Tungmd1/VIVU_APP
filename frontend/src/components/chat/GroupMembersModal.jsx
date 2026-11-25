@@ -94,7 +94,7 @@ export default function GroupMembersModal({
   };
 
   return (
-    <div className="fixed inset-0 z-60 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in select-none font-sans">
+    <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in select-none font-sans">
       <div className="absolute inset-0" onClick={onClose} />
 
       <div className="relative w-full max-w-md bg-white border border-[#D2D9F4] rounded-t-3xl sm:rounded-3xl p-5 shadow-[0_25px_60px_rgba(0,0,0,0.15)] z-10 text-[#131315] max-h-[88vh] flex flex-col space-y-3.5 animate-in slide-in-from-bottom-6 duration-200">

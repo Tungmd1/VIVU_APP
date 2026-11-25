@@ -10,6 +10,7 @@ export default function FriendsListSection({
   onlineFriendsCount = 0,
   onLocateFriend,
   onStartChatWithUser,
+  onOpenUserProfile,
   onClose
 }) {
   return (
@@ -87,8 +88,23 @@ export default function FriendsListSection({
                   </div>
                 </div>
 
-                {/* Cụm nút hành động: Nhắn tin & Định vị bản đồ */}
+                {/* Cụm nút hành động: Xem hồ sơ, Nhắn tin & Định vị bản đồ */}
                 <div className="flex items-center gap-1 shrink-0">
+                  {onOpenUserProfile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose?.();
+                        onOpenUserProfile(friend);
+                      }}
+                      className="w-7 h-7 rounded-xl bg-[#F2F3FF] hover:bg-[#E6E7F6] text-[#131315] border border-[#D2D9F4] flex items-center justify-center text-xs active:scale-90 transition-all cursor-pointer shadow-xs"
+                      title="Xem hồ sơ"
+                      aria-label={`Xem hồ sơ của ${friendName}`}
+                    >
+                      <i className="bi bi-person-vcard text-xs"></i>
+                    </button>
+                  )}
+
                   {hasCoords && (
                     <button
                       type="button"

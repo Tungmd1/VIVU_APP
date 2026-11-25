@@ -129,17 +129,17 @@ export default function TrollThreeCanvas({ item, onImpact }) {
     const particleSystem = new THREE.Points(particleGeo, particleMat);
     scene.add(particleSystem);
 
-    // 6. Animation Physics Loop
-    let animId = null;
+    // 6. Animation Physics Loop (THREE.Timer + setAnimationLoop + prefers-reduced-motion)
+    const timer = new THREE.Timer();
+    const prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     let hasImpacted = false;
-    const flightDuration = 380; // ms to reach screen
-    const startTime = performance.now();
+    const flightDuration = prefersReducedMotion ? 0 : 380; // ms to reach screen
 
-    const animate = (currentTime) => {
-      animId = requestAnimationFrame(animate);
-      const elapsed = currentTime - startTime;
+    const animate = () => {
+      timer.update();
+      const elapsed = timer.getElapsed() * 1000;
 
-      if (elapsed < flightDuration) {
+      if (flightDuration > 0 && elapsed < flightDuration) {
         // Thrown towards the glass with cubic acceleration
         const progress = elapsed / flightDuration;
         const easeInCubic = progress * progress * progress;
@@ -156,13 +156,19 @@ export default function TrollThreeCanvas({ item, onImpact }) {
           hasImpacted = true;
           if (projectileMesh) {
             projectileMesh.position.copy(targetPos);
-            projectileMesh.rotation.set(0, 0, (Math.random() - 0.5) * 0.3); // slight natural tilt
+            projectileMesh.rotation.set(0, 0, prefersReducedMotion ? 0 : (Math.random() - 0.5) * 0.3);
           }
           if (onImpactRef.current) {
             onImpactRef.current();
           }
-          particleMat.opacity = 1.0;
-          ringMat.opacity = 0.9;
+          particleMat.opacity = prefersReducedMotion ? 0.45 : 1.0;
+          ringMat.opacity = prefersReducedMotion ? 0 : 0.9;
+        }
+
+        if (prefersReducedMotion) {
+          renderer.render(scene, camera);
+          renderer.setAnimationLoop(null);
+          return;
         }
 
         // Post-impact: Projectile floating gently on glass
@@ -200,7 +206,7 @@ export default function TrollThreeCanvas({ item, onImpact }) {
       renderer.render(scene, camera);
     };
 
-    animId = requestAnimationFrame(animate);
+    renderer.setAnimationLoop(animate);
 
     // 7. Responsive Resize Handler
     const handleResize = () => {
@@ -215,7 +221,8 @@ export default function TrollThreeCanvas({ item, onImpact }) {
 
     // 8. Clean Resource Disposal
     return () => {
-      cancelAnimationFrame(animId);
+      renderer.setAnimationLoop(null);
+      timer.dispose?.();
       window.removeEventListener('resize', handleResize);
 
       if (projectileGeo) projectileGeo.dispose();

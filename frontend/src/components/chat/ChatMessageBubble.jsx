@@ -12,10 +12,13 @@ export default function ChatMessageBubble({
   msg,
   isMe,
   currentUserId,
+  currentUserLat,
+  currentUserLng,
   activeConversation,
   onOpenTakeoverMeme,
   onOpenMapForStory,
   onStartNavigation,
+  onStopShare,
   setSelectedLightboxMedia,
   onSelectMessageForDelete,
   onOpenChatProfile
@@ -158,24 +161,67 @@ export default function ChatMessageBubble({
           msg={msg}
           isMe={isMe}
           currentUserId={currentUserId}
-          onOpenMapForStory={onOpenMapForStory}
-          onStartNavigation={onStartNavigation}
+          currentUserLat={currentUserLat}
+          currentUserLng={currentUserLng}
+          onOpenMap={onOpenMapForStory}
+          onStartNavigation={(target) => onStartNavigation?.({
+            ...target,
+            targetUserId: target?.targetUserId || msg.sender_id || (isMe ? currentUserId : activeConversation?.friendId),
+            speed: target?.speed ?? msg.speed ?? null
+          })}
+          onStopShare={onStopShare}
         />
       ) : (msg.isLocation || msg.is_location) ? (
-        /* 8. Thẻ Vị trí Tĩnh GPS */
+        /* 8. Thẻ Vị trí Tĩnh GPS với 2 nút Xem Map & Chỉ đường Nội Bộ VIVU */
         <div 
-          onClick={(e) => {
-            if (onOpenMapForStory) onOpenMapForStory({ lat: msg.lat, lng: msg.lng });
-          }}
-          className="p-3 bg-[#1c2438] hover:bg-[#222c44] border border-cyan-500/40 rounded-2xl cursor-pointer transition-all space-y-1.5 max-w-[220px]"
+          className="p-3 bg-[#121c24] border border-[#00E5FF]/30 rounded-2xl space-y-2 max-w-[240px] text-white shadow-md select-none"
         >
-          <div className="flex items-center gap-2 text-cyan-400 font-bold text-xs">
-            <i className="bi bi-geo-alt-fill text-base animate-bounce" />
-            <span>Vị trí GPS</span>
+          <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+            <div className="flex items-center gap-1.5 text-[#00E5FF] font-bold text-xs">
+              <i className="bi bi-geo-alt-fill text-sm animate-pulse" />
+              <span>Vị trí GPS</span>
+            </div>
+            {currentUserLat != null && currentUserLng != null && msg.lat != null && msg.lng != null && (
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#00E5FF]/15 text-[#00E5FF] border border-[#00E5FF]/25 font-bold">
+                {(() => {
+                  const dLat = (Number(msg.lat) - Number(currentUserLat)) * Math.PI / 180;
+                  const dLon = (Number(msg.lng) - Number(currentUserLng)) * Math.PI / 180;
+                  const a = Math.sin(dLat / 2) ** 2 + Math.cos(Number(currentUserLat) * Math.PI / 180) * Math.cos(Number(msg.lat) * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+                  const dKm = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                  return dKm < 1 ? `${Math.round(dKm * 1000)} m` : `${dKm.toFixed(1)} km`;
+                })()}
+              </span>
+            )}
           </div>
-          <p className="text-[11px] text-white/80 line-clamp-1">{msg.text || 'Nhấn để mở bản đồ'}</p>
+          <p className="text-[11px] text-white/90 line-clamp-2">{msg.text || 'Vị trí được chia sẻ'}</p>
           <div className="text-[9px] text-cyan-300 font-mono">
-            {msg.lat?.toFixed(5)}, {msg.lng?.toFixed(5)}
+            {Number(msg.lat)?.toFixed(5)}, {Number(msg.lng)?.toFixed(5)}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => onOpenMapForStory?.({ lat: msg.lat, lng: msg.lng, name: msg.text })}
+              className="py-1 px-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold flex items-center justify-center gap-1 border border-white/10 transition-all cursor-pointer active:scale-95"
+            >
+              <i className="bi bi-map-fill text-[10px]" />
+              <span>Xem Map</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onStartNavigation?.({
+                realLat: Number(msg.lat),
+                realLng: Number(msg.lng),
+                lat: Number(msg.lat),
+                lng: Number(msg.lng),
+                name: msg.text || 'Vị trí GPS',
+                targetUserId: msg.sender_id || (isMe ? currentUserId : activeConversation?.friendId),
+                speed: msg.speed ?? null
+              })}
+              className="py-1 px-2 rounded-xl bg-[#0A8395] hover:bg-[#0A8395]/90 text-white text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm transition-all cursor-pointer active:scale-95"
+            >
+              <i className="bi bi-cursor-fill text-[10px]" />
+              <span>Chỉ đường</span>
+            </button>
           </div>
         </div>
       ) : (

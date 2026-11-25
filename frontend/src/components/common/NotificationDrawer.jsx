@@ -222,10 +222,10 @@ export default function NotificationDrawer({
                           onClose();
                         }
                       } else if (notif.type === 'group_invite') {
-                        if (onOpenConversation && notif.action_data?.circleId) {
+                        if (notif.status === 'accepted' && onOpenConversation && notif.action_data?.circleId) {
                           onOpenConversation(notif.action_data.circleId);
+                          onClose();
                         }
-                        onClose();
                       }
                     }}
                     className={`p-3 rounded-2xl transition-all duration-200 flex gap-3 relative group cursor-pointer border ${

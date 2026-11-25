@@ -45,11 +45,14 @@ export const storyController = {
   async deleteStory(req, res, next) {
     try {
       const { storyId } = req.params;
-      const userId = req.query.userId || req.body?.userId;
+      const userId = req.query.userId || req.body?.userId || req.headers['x-user-id'];
       const userCode = req.query.userCode || req.body?.userCode;
       const result = await dbService.deleteStory(storyId, userId, userCode);
       res.json({ success: true, data: result });
     } catch (err) {
+      if (err.statusCode === 403) {
+        return res.status(403).json({ success: false, message: err.message });
+      }
       next(err);
     }
   },

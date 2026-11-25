@@ -75,7 +75,7 @@ export const circleController = {
    */
   async createCircle(req, res, next) {
     try {
-      const { name, description, image, member_ids, memberIds, owner_id, ownerId, creatorName, creatorAvatar } = req.body;
+      const { name, description, image, member_ids, memberIds, invitedMemberIds, owner_id, ownerId, creatorName } = req.body;
       const effectiveOwnerId = ownerId || owner_id || req.headers['x-user-id'];
       
       if (!name || !name.trim()) {
@@ -85,54 +85,42 @@ export const circleController = {
         return res.status(400).json({ success: false, message: 'ID người tạo nhóm là bắt buộc' });
       }
 
-      const invitedList = Array.isArray(memberIds) ? memberIds : (Array.isArray(member_ids) ? member_ids : []);
+      const rawInvited = Array.isArray(invitedMemberIds)
+        ? invitedMemberIds
+        : (Array.isArray(memberIds) ? memberIds : (Array.isArray(member_ids) ? member_ids : []));
+      const invitedList = rawInvited.filter(fid => fid && fid !== effectiveOwnerId);
+
+      if (invitedList.length === 0) {
+        return res.status(400).json({ success: false, message: 'Vui lòng mời ít nhất 1 bạn bè xác nhận tham gia để tạo nhóm' });
+      }
 
       const newCircle = await dbService.createCircle({
         name: name.trim(),
         description: description || '',
         image: image || null,
-        privacy: 'private', // Mặc định private sau khi loại bỏ công khai/riêng tư khỏi UI
+        privacy: 'private',
         ownerId: effectiveOwnerId,
-        memberIds: invitedList // Thêm trực tiếp thành viên vào nhóm
+        invitedMemberIds: invitedList,
+        requireConfirmation: true
       });
 
-      // 1. Tạo thông báo & phát realtime cho từng thành viên được thêm vào nhóm
+      // CHỈ gửi lời mời xác nhận (circle:invite), KHÔNG tự kết nạp và KHÔNG tạo phòng chat trước khi bạn bè xác nhận
       invitedList.forEach(fid => {
-        if (fid && fid !== effectiveOwnerId) {
-          notificationService.createGroupInviteNotification({
-            toUserId: fid,
-            fromUserId: effectiveOwnerId,
-            circleId: newCircle.id,
-            circleName: newCircle.name,
-            circleAvatar: newCircle.image,
-            inviterName: creatorName || 'Bạn bè'
-          });
-
-          // Phát socket event để client của bạn bè cập nhật danh sách nhóm & tin nhắn
-          emitToUser(fid, 'circle:member_joined', {
-            circle: newCircle,
-            joinedUserId: fid,
-            addedBy: effectiveOwnerId
-          });
-        }
-      });
-
-      // 2. Thêm tin nhắn khởi tạo phòng chat nhóm
-      try {
-        await dbService.saveMessage({
-          id: `msg-sys-${Date.now()}`,
-          conversation_id: newCircle.id,
-          sender: effectiveOwnerId,
-          sender_name: creatorName || 'Trưởng nhóm',
-          text: invitedList.length > 0 
-            ? `${creatorName || 'Trưởng nhóm'} đã tạo nhóm và thêm ${invitedList.length} thành viên`
-            : `${creatorName || 'Trưởng nhóm'} đã tạo nhóm "${newCircle.name}"`,
-          is_system: true,
-          created_at: new Date().toISOString()
+        notificationService.createGroupInviteNotification({
+          toUserId: fid,
+          fromUserId: effectiveOwnerId,
+          circleId: newCircle.id,
+          circleName: newCircle.name,
+          circleAvatar: newCircle.image,
+          inviterName: creatorName || 'Bạn bè'
         });
-      } catch (e) {
-        console.warn('[Circle Controller] Error adding welcome message:', e.message);
-      }
+
+        emitToUser(fid, 'circle:invite', {
+          circle: newCircle,
+          inviterId: effectiveOwnerId,
+          inviterName: creatorName || 'Bạn bè'
+        });
+      });
 
       res.status(201).json({ success: true, data: newCircle });
     } catch (err) {
@@ -308,7 +296,7 @@ export const circleController = {
         return res.status(400).json({ success: false, message: 'Hành động phải là accept hoặc decline' });
       }
 
-      const { circle, status } = await dbService.respondToCircleInvite(id, { userId, action });
+      const { circle, status, activatedNow, cancelledNow } = await dbService.respondToCircleInvite(id, { userId, action });
 
       // Giải quyết thông báo
       notificationService.handleGroupInviteResolved({
@@ -318,8 +306,9 @@ export const circleController = {
       });
 
       if (action === 'accept') {
-        // Ghi tin nhắn hệ thống vào phòng chat
-        const joinText = `${userName || 'Thành viên mới'} đã tham gia nhóm`;
+        const joinText = activatedNow
+          ? `Nhóm "${circle.name}" đã được kích hoạt sau khi ${userName || 'Thành viên mới'} xác nhận tham gia!`
+          : `${userName || 'Thành viên mới'} đã tham gia nhóm`;
         try {
           const sysMsg = await dbService.saveMessage({
             id: `msg-sys-${Date.now()}`,
@@ -331,17 +320,26 @@ export const circleController = {
             created_at: new Date().toISOString()
           });
 
-          // Phát tin nhắn realtime cho tất cả thành viên
           (circle.member_ids || []).forEach(mid => {
             emitToUser(mid, 'chat:receive', sysMsg);
-            emitToUser(mid, 'circle:member_joined', { circle, newMemberId: userId, userName });
+            if (activatedNow) {
+              emitToUser(mid, 'circle:activated', { circle, activatedBy: userId, userName });
+            }
+            emitToUser(mid, 'circle:member_joined', { circle, newMemberId: userId, userName, activatedNow });
           });
         } catch (e) {
           console.warn('[Circle Controller] Error saving join message:', e.message);
         }
+      } else if (cancelledNow) {
+        emitToUser(circle.owner_id, 'circle:cancelled', {
+          circleId: circle.id,
+          circleName: circle.name,
+          declinedBy: userId,
+          userName
+        });
       }
 
-      res.json({ success: true, data: circle, status });
+      res.json({ success: true, data: circle, status, activatedNow, cancelledNow });
     } catch (err) {
       next(err);
     }

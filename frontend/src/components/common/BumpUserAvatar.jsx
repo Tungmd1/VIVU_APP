@@ -29,7 +29,7 @@ export default function BumpUserAvatar({
   );
 
   return (
-    <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-40 pointer-events-auto select-none font-sans">
+    <div className="fixed top-3 right-2.5 sm:top-4 sm:right-4 z-40 pointer-events-auto select-none font-sans">
       <button
         type="button"
         onClick={onClick}
@@ -38,7 +38,7 @@ export default function BumpUserAvatar({
         className="group relative block p-0 rounded-full bg-transparent border-0 outline-none active:scale-95 transition-transform duration-150 cursor-pointer"
       >
         {/* Khung tròn chuẩn Cyberpunk với viền ánh kim và bóng đổ sâu */}
-        <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full p-[2.5px] bg-[#0a0e1c] border-2 border-white/20 group-hover:border-[#FF2A85] shadow-[0_8px_32px_rgba(0,0,0,0.8)] group-hover:shadow-[0_0_24px_rgba(255,42,133,0.5)] transition-all duration-200">
+        <div className="relative w-11 h-11 sm:w-16 sm:h-16 rounded-full p-[2.5px] bg-[#0a0e1c] border-2 border-white/20 group-hover:border-[#FF2A85] shadow-[0_8px_32px_rgba(0,0,0,0.8)] group-hover:shadow-[0_0_24px_rgba(255,42,133,0.5)] transition-all duration-200">
           <div className="w-full h-full rounded-full overflow-hidden bg-white flex items-center justify-center">
             {hasRealAvatar ? (
               <img

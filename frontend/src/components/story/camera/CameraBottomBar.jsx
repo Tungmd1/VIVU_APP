@@ -18,7 +18,7 @@ export default function CameraBottomBar({
   onFlipCamera
 }) {
   return (
-    <div className="relative z-30 shrink-0 w-full flex flex-col items-center bg-gradient-to-t from-black via-black/80 to-transparent pt-2 pb-6 px-4 pointer-events-auto">
+    <div className="relative z-30 shrink-0 w-full flex flex-col items-center bg-gradient-to-t from-black via-black/80 to-transparent pt-2 pb-24 px-4 pointer-events-auto">
       
       {/* Hàng 1: Nút Shutter to tròn ở tâm & Bong bóng bộ lọc tròn kế bên */}
       <div className="w-full flex items-center justify-center gap-3.5 py-1">

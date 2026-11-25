@@ -28,7 +28,7 @@ export default function AppLockOverlay({
   };
 
   return (
-    <div className="fixed inset-0 z-70 bg-gradient-to-br from-vivu-mocha via-[#352520] to-[#1F1613] text-white flex flex-col items-center justify-center p-6 select-none animate-fadeIn">
+    <div className="fixed inset-0 z-[70] bg-gradient-to-br from-vivu-mocha via-[#352520] to-[#1F1613] text-white flex flex-col items-center justify-center p-6 select-none animate-fadeIn">
       {/* Vòng sáng bảo mật phía sau */}
       <div className="absolute w-72 h-72 rounded-full bg-vivu-peach/10 blur-3xl pointer-events-none"></div>
 

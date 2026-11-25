@@ -20,7 +20,7 @@ export default function ProximityBumpBanner({
 
   return (
     <AnimatePresence>
-      <div className="fixed bottom-24 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-md z-40 pointer-events-auto select-none font-sans">
+      <div className="fixed top-[74px] left-3 right-3 sm:top-auto sm:bottom-[114px] sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-full sm:max-w-md z-40 pointer-events-auto select-none font-sans">
         <motion.div
           initial={{ opacity: 0, y: 20, scale: 0.95, filter: 'blur(4px)' }}
           animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}

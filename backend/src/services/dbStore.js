@@ -20,6 +20,7 @@ const INITIAL_DB = {
   notifications: [],
   highlights: [],
   archivedConversations: [],
+  clearedConversations: [],
   savedPlaces: []
 };
 
@@ -115,6 +116,7 @@ class DatabaseStore {
           notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
           highlights: Array.isArray(parsed.highlights) ? parsed.highlights : [],
           archivedConversations: Array.isArray(parsed.archivedConversations) ? parsed.archivedConversations : [],
+          clearedConversations: Array.isArray(parsed.clearedConversations) ? parsed.clearedConversations : [],
           savedPlaces: Array.isArray(parsed.savedPlaces) ? parsed.savedPlaces : []
         };
         this.isLoaded = true;
@@ -241,18 +243,27 @@ class DatabaseStore {
         }
       }
 
-      // Đảm bảo cấu trúc savedPlaces luôn hợp lệ
+      // Đảm bảo cấu trúc savedPlaces & clearedConversations luôn hợp lệ và không mồ côi
       if (!Array.isArray(this.data.savedPlaces)) {
         this.data.savedPlaces = [];
+      }
+      const prevClearedCount = Array.isArray(this.data.clearedConversations) ? this.data.clearedConversations.length : 0;
+      if (Array.isArray(this.data.clearedConversations)) {
+        this.data.clearedConversations = this.data.clearedConversations.filter(
+          cc => cc && cc.userId && validUserIds.has(cc.userId)
+        );
+      } else {
+        this.data.clearedConversations = [];
       }
 
       const removedProfiles = prevProfilesCount - this.data.profiles.length;
       const removedMessages = prevMessagesCount - this.data.messages.length;
+      const removedCleared = prevClearedCount - this.data.clearedConversations.length;
       if (removedProfiles > 0 || removedMessages > 0) {
         console.log(`[DB Sanitizer] Đã thanh lọc: loại bỏ ${removedProfiles} hồ sơ khách vãng lai, ${removedMessages} tin nhắn rác.`);
       }
 
-      const hasChanges = (removedProfiles > 0 || removedMessages > 0 || prevUserCount > this.data.users.length);
+      const hasChanges = (removedProfiles > 0 || removedMessages > 0 || removedCleared > 0 || prevUserCount > this.data.users.length);
       return hasChanges;
     } catch (sErr) {
       console.warn('[DB Sanitizer] Lỗi thanh lọc:', sErr.message);
@@ -401,16 +412,31 @@ class DatabaseStore {
       if (!parsed && fs.existsSync(DB_BAK_FILE)) {
         parsed = this.loadRawJson(DB_BAK_FILE);
       }
-      if (parsed && Array.isArray(parsed.users)) {
-        // Hợp nhất tài khoản giữa memory và đĩa (không bao giờ xóa mất user trong memory)
-        const diskUsers = parsed.users;
-        const diskUserMap = new Map(diskUsers.map(u => [u.id || u.email, u]));
-        this.data.users.forEach(u => {
-          if (!diskUserMap.has(u.id || u.email)) {
-            diskUsers.push(u);
+      const mergeNewerRecords = (memList = [], diskList = []) => {
+        const mergedMap = new Map();
+        for (const item of diskList) {
+          const key = item?.id || item?.email;
+          if (key) mergedMap.set(key, item);
+        }
+        for (const memItem of memList) {
+          const key = memItem?.id || memItem?.email;
+          if (!key) continue;
+          const diskItem = mergedMap.get(key);
+          if (!diskItem) {
+            mergedMap.set(key, memItem);
+          } else {
+            const memTs = new Date(memItem.updated_at || memItem.last_seen_at || memItem.created_at || 0).getTime();
+            const diskTs = new Date(diskItem.updated_at || diskItem.last_seen_at || diskItem.created_at || 0).getTime();
+            mergedMap.set(key, memTs >= diskTs ? memItem : diskItem);
           }
-        });
-        this.data.users = diskUsers;
+        }
+        return Array.from(mergedMap.values());
+      };
+      if (parsed && Array.isArray(parsed.users)) {
+        this.data.users = mergeNewerRecords(this.data.users, parsed.users);
+      }
+      if (parsed && Array.isArray(parsed.profiles)) {
+        this.data.profiles = mergeNewerRecords(this.data.profiles, parsed.profiles);
       }
     } catch (e) {
       console.warn('[DB Engine] reloadFromDisk warning:', e.message);
@@ -444,6 +470,9 @@ class DatabaseStore {
 
   get archivedConversations() { return this.data.archivedConversations || []; }
   set archivedConversations(val) { this.data.archivedConversations = val; this.saveToDisk(); }
+
+  get clearedConversations() { return this.data.clearedConversations || []; }
+  set clearedConversations(val) { this.data.clearedConversations = val; this.saveToDisk(); }
 
   get savedPlaces() { return this.data.savedPlaces || []; }
   set savedPlaces(val) { this.data.savedPlaces = val; this.saveToDisk(); }

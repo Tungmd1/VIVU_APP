@@ -9,7 +9,7 @@ import { webrtcManager } from '../services/webrtcManager';
  * 1. Khắc phục hoàn toàn lỗi Double Offer Glare: Caller tạo Offer, Callee chỉ Answer.
  * 2. Đảm bảo trạng thái active và bắt đầu đếm giờ CHỈ KHI đồng thời:
  *    connectionState === 'connected' VÀ remoteStream.getTracks().some(t => t.readyState === 'live').
- * 3. Loại bỏ 100% alert(), dùng notification / toast in-app không gây nghẽn JS thread.
+ * 3. Loại bỏ 100% hộp thoại chặn luồng trình duyệt, dùng notification / toast in-app không gây nghẽn JS thread.
  * 4. Tự động gửi call:reject (permission_denied) khi Callee bị từ chối quyền truy cập camera/mic.
  */
 export function useWebRTCCall({
@@ -27,6 +27,7 @@ export function useWebRTCCall({
   const [remoteMediaStream, setRemoteMediaStream] = useState(null);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [isCallVideoOff, setIsCallVideoOff] = useState(false);
+  const [remoteMediaState, setRemoteMediaState] = useState({ isMuted: false, isVideoOff: false });
 
   const durationTimerRef = useRef(null);
   const activeCallRef = useRef(null);
@@ -78,6 +79,7 @@ export function useWebRTCCall({
     setRemoteMediaStream(null);
     setIsCallMuted(false);
     setIsCallVideoOff(false);
+    setRemoteMediaState({ isMuted: false, isVideoOff: false });
   }, [stopDurationTimer]);
 
   // Kiểm tra điều kiện kép trước khi kích hoạt trạng thái active & đếm giờ
@@ -231,14 +233,24 @@ export function useWebRTCCall({
   // Bật/Tắt Mic
   const toggleMute = useCallback(() => {
     const nextState = webrtcManager.toggleAudio();
-    setIsCallMuted(!nextState);
-  }, []);
+    const nextMuted = !nextState;
+    setIsCallMuted(nextMuted);
+    const targetId = activeCallRef.current?.targetUserId || activeCallRef.current?.callerId;
+    if (socket && targetId) {
+      socket.emit('call:media_state', { targetUserId: targetId, isMuted: nextMuted, isVideoOff: isCallVideoOff });
+    }
+  }, [socket, isCallVideoOff]);
 
   // Bật/Tắt Video
   const toggleVideo = useCallback(() => {
     const nextState = webrtcManager.toggleVideo();
-    setIsCallVideoOff(!nextState);
-  }, []);
+    const nextVideoOff = !nextState;
+    setIsCallVideoOff(nextVideoOff);
+    const targetId = activeCallRef.current?.targetUserId || activeCallRef.current?.callerId;
+    if (socket && targetId) {
+      socket.emit('call:media_state', { targetUserId: targetId, isMuted: isCallMuted, isVideoOff: nextVideoOff });
+    }
+  }, [socket, isCallMuted]);
 
   // Lật Camera
   const switchCamera = useCallback(async () => {
@@ -333,12 +345,22 @@ export function useWebRTCCall({
       cleanupCall();
     };
 
+    const onMediaState = (payload) => {
+      if (payload) {
+        setRemoteMediaState({
+          isMuted: Boolean(payload.isMuted),
+          isVideoOff: Boolean(payload.isVideoOff)
+        });
+      }
+    };
+
     socket.on('call:incoming', onIncoming);
     socket.on('call:ringing', onRinging);
     socket.on('call:accepted', onAccepted);
     socket.on('call:signal', onSignal);
     socket.on('call:rejected', onRejected);
     socket.on('call:ended', onEnded);
+    socket.on('call:media_state', onMediaState);
 
     return () => {
       socket.off('call:incoming', onIncoming);
@@ -347,6 +369,7 @@ export function useWebRTCCall({
       socket.off('call:signal', onSignal);
       socket.off('call:rejected', onRejected);
       socket.off('call:ended', onEnded);
+      socket.off('call:media_state', onMediaState);
     };
   }, [socket, initPeerConnection, notify, cleanupCall]);
 
@@ -359,6 +382,7 @@ export function useWebRTCCall({
     remoteMediaStream,
     isCallMuted,
     isCallVideoOff,
+    remoteMediaState,
     startCall,
     acceptCall,
     declineCall,

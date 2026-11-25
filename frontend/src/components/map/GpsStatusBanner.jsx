@@ -51,7 +51,7 @@ export default function GpsStatusBanner({
   // Trạng thái thu gọn (minimized capsule)
   if (isMinimized) {
     return (
-      <div className="fixed left-3.5 bottom-24 z-30 pointer-events-auto select-none font-sans animate-in fade-in duration-200">
+      <div className="fixed left-3.5 bottom-[104px] sm:bottom-24 z-30 pointer-events-auto select-none font-sans animate-in fade-in duration-200">
         <button
           type="button"
           onClick={() => setIsMinimized(false)}
@@ -72,7 +72,7 @@ export default function GpsStatusBanner({
   }
 
   return (
-    <div className="fixed left-3.5 bottom-24 z-30 max-w-[calc(100vw-5rem)] sm:max-w-sm animate-in slide-in-from-bottom-2 duration-250 pointer-events-auto select-none font-sans">
+    <div className="fixed left-3.5 bottom-[104px] sm:bottom-24 z-30 max-w-[calc(100vw-5rem)] sm:max-w-sm animate-in slide-in-from-bottom-2 duration-250 pointer-events-auto select-none font-sans">
       <div className="p-2.5 rounded-2xl bg-white text-[#14252E] border border-[#D8E3E7] shadow-[0_4px_16px_rgba(20,37,46,0.12)] transition-all">
         
         {/* Hàng 1: Trạng thái GPS, Độ chính xác & Thời gian */}

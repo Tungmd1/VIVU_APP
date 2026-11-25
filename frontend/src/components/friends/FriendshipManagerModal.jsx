@@ -182,7 +182,7 @@ export default function FriendshipManagerModal({
   const totalReceived = requests.received?.length || 0;
 
   return (
-    <div className="fixed inset-0 z-55 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200 select-none font-sans">
+    <div className="fixed inset-0 z-[55] flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200 select-none font-sans">
       <div className="absolute inset-0" onClick={onClose} />
 
       <div className="relative z-10 w-full max-w-md bg-white border border-[#D8E3E7] rounded-3xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.15)] text-[#14252E] flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">

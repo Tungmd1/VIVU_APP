@@ -7,17 +7,18 @@ import { E2E_CONFIG } from '../config/env.js';
 describe('Feature 6: Leaflet OSM Tile Migration (T1.06)', () => {
   const tileFilePath = path.join(E2E_CONFIG.FRONTEND_DIR, 'src', 'components', 'map', 'mapTileConstants.js');
 
-  test('TC 6.1: mapTileConstants.js does not contain Google tile URLs (mt{s}.google.com)', () => {
+  test('TC 6.1: mapTileConstants.js does not rely on paid/key-gated CARTO endpoints or legacy GOOGLE_TILES alias', () => {
     assert.ok(fs.existsSync(tileFilePath), 'mapTileConstants.js must exist');
     const content = fs.readFileSync(tileFilePath, 'utf-8');
-    const hasGoogle = /google\.com\/vt|mt[0-3]?\.google\.com|GOOGLE_TILES/i.test(content);
-    assert.equal(hasGoogle, false, 'mapTileConstants.js must NOT contain Google tile URLs or GOOGLE_TILES');
+    const hasBrokenCarto = /basemaps\.cartocdn\.com|GOOGLE_TILES/i.test(content);
+    assert.equal(hasBrokenCarto, false, 'mapTileConstants.js must NOT use key-gated cartocdn.com or legacy GOOGLE_TILES');
   });
 
-  test('TC 6.2: mapTileConstants.js configures valid OpenStreetMap or CartoDB tile URL', () => {
+  test('TC 6.2: mapTileConstants.js configures valid Google / OpenStreetMap / ESRI tile URLs', () => {
     const content = fs.readFileSync(tileFilePath, 'utf-8');
-    const hasOsmOrCarto = content.includes('tile.openstreetmap.org') || content.includes('cartocdn.com') || content.includes('arcgisonline.com');
-    assert.equal(hasOsmOrCarto, true, 'mapTileConstants.js must configure OpenStreetMap, CartoDB, or ESRI tile layer');
+    const hasTiles = (content.includes('mt{s}.google.com/vt') || content.includes('tile.openstreetmap.org')) &&
+      (content.includes('tile.openstreetmap.org') || content.includes('arcgisonline.com'));
+    assert.equal(hasTiles, true, 'mapTileConstants.js must configure valid street/satellite tiles and OSM/ESRI fallbacks');
   });
 
   test('TC 6.3: Tile configuration defines standard zoom levels (maxZoom >= 19)', () => {

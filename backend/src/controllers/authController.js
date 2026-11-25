@@ -202,7 +202,8 @@ export const authController = {
     try {
       const { 
         userId, 
-        fullName, 
+        fullName,
+        full_name,
         avatarUrl, 
         avatar_url, 
         customStatus, 
@@ -213,10 +214,19 @@ export const authController = {
         bio, 
         tags, 
         photos, 
-        favorite_song, 
-        privacy_age, 
-        privacy_phone, 
-        privacy_tags, 
+        favorite_song,
+        favoriteSong,
+        privacy_age,
+        privacyAge,
+        privacy_phone,
+        privacyPhone,
+        privacy_tags,
+        privacyTags,
+        messagePrivacy,
+        message_privacy,
+        themeAccent,
+        theme_accent,
+        locationConsent,
         pinSkin, 
         pin_skin,
         customChibi, 
@@ -233,17 +243,24 @@ export const authController = {
       if (!userId) {
         return res.status(400).json({ success: false, message: 'userId là bắt buộc' });
       }
+      const targetFullName = fullName !== undefined ? fullName : full_name;
       const targetAvatar = avatarUrl !== undefined ? avatarUrl : avatar_url;
       const targetStatus = customStatus !== undefined ? customStatus : custom_status;
       const targetChibi = customChibi !== undefined ? customChibi : custom_chibi;
       const targetChibiExp = chibiExpiresAt !== undefined ? chibiExpiresAt : chibi_expires_at;
       const targetSong = customSong !== undefined ? customSong : custom_song;
+      const targetFavoriteSong = favorite_song !== undefined ? favorite_song : favoriteSong;
+      const targetPrivacyAge = privacy_age !== undefined ? privacy_age : privacyAge;
+      const targetPrivacyPhone = privacy_phone !== undefined ? privacy_phone : privacyPhone;
+      const targetPrivacyTags = privacy_tags !== undefined ? privacy_tags : privacyTags;
+      const targetMessagePrivacy = messagePrivacy !== undefined ? messagePrivacy : message_privacy;
+      const targetThemeAccent = themeAccent !== undefined ? themeAccent : theme_accent;
       const targetSkin = pinSkin !== undefined ? pinSkin : pin_skin;
       const targetMascot = pinMascot !== undefined ? pinMascot : pin_mascot;
       const targetAction = pinAction !== undefined ? pinAction : pin_action;
 
       const updatedUser = await dbService.updateUserProfile(userId, {
-        fullName,
+        fullName: targetFullName,
         avatarUrl: targetAvatar,
         customStatus: targetStatus,
         age,
@@ -252,10 +269,13 @@ export const authController = {
         bio,
         tags,
         photos,
-        favorite_song,
-        privacy_age,
-        privacy_phone,
-        privacy_tags,
+        favorite_song: targetFavoriteSong,
+        privacy_age: targetPrivacyAge,
+        privacy_phone: targetPrivacyPhone,
+        privacy_tags: targetPrivacyTags,
+        messagePrivacy: targetMessagePrivacy,
+        themeAccent: targetThemeAccent,
+        locationConsent,
         pinSkin: targetSkin,
         customChibi: targetChibi,
         chibiExpiresAt: targetChibiExp,

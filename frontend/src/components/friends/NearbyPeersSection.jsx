@@ -11,7 +11,8 @@ export default function NearbyPeersSection({
   sentRequests = [],
   loadingActionId,
   onSendRequest,
-  onStartChatWithUser
+  onStartChatWithUser,
+  onOpenUserProfile
 }) {
   return (
     <div className="space-y-2.5 pt-2">
@@ -63,6 +64,18 @@ export default function NearbyPeersSection({
                 </div>
 
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {onOpenUserProfile && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenUserProfile(peer)}
+                      className="w-7 h-7 rounded-xl bg-[#F2F3FF] hover:bg-[#E6E7F6] text-[#131315] border border-[#D2D9F4] flex items-center justify-center text-xs active:scale-90 transition-all cursor-pointer shadow-xs"
+                      title="Xem hồ sơ"
+                      aria-label={`Xem hồ sơ của ${peerName}`}
+                    >
+                      <i className="bi bi-person-vcard text-xs"></i>
+                    </button>
+                  )}
+
                   {onStartChatWithUser && (
                     <button
                       type="button"

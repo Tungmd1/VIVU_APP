@@ -35,6 +35,7 @@ export default function MessengerActiveRoom({
   onOpenTakeoverMeme,
   setIsGroupMembersModalOpen,
   onOpenMapForStory,
+  onOpenLiveTracking,
   onStartNavigation,
   onOpenCreatePoll,
   onOpenCreateCircle,
@@ -251,6 +252,7 @@ export default function MessengerActiveRoom({
                       activeConversation={activeConversation}
                       onOpenTakeoverMeme={onOpenTakeoverMeme}
                       onOpenMapForStory={onOpenMapForStory}
+                      onOpenLiveTracking={onOpenLiveTracking}
                       onStartNavigation={onStartNavigation}
                       onStopShare={handleStopShare}
                       setSelectedLightboxMedia={setSelectedLightboxMedia}

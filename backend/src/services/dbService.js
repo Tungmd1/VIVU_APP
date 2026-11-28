@@ -27,6 +27,19 @@ export function parseExpiryMs(val, defaultHours = 24, createdAt = null) {
   return (isNaN(base) ? Date.now() : base) + (Number(defaultHours) || 24) * 3600000;
 }
 
+export function setSocketPresenceChecker(fn) {
+  globalThis.__vivu_socketPresenceChecker = fn;
+}
+
+export function checkIsUserOnline(profileOrUser, ageMs = Infinity) {
+  if (!profileOrUser) return false;
+  const uid = profileOrUser.id || profileOrUser.userId;
+  if (uid && typeof globalThis.__vivu_socketPresenceChecker === 'function' && globalThis.__vivu_socketPresenceChecker(uid)) {
+    return true;
+  }
+  return profileOrUser.is_online !== false && ageMs < 60000;
+}
+
 export const dbService = {
   isCloud: isCloudEnabled,
 
@@ -50,7 +63,7 @@ export const dbService = {
     const resolvedAvatar = author.avatar_url || author.avatar || story.host_avatar || null;
     const resolvedCode = author.user_code || rawCode || (resolvedId ? this.generateUserCode(resolvedId) : null);
     const ageMs = author.last_seen_at ? Date.now() - new Date(author.last_seen_at).getTime() : Infinity;
-    const authorOnline = Boolean(author.is_online !== false && ageMs < 15000);
+    const authorOnline = checkIsUserOnline(author, ageMs);
     return {
       ...story,
       host_id: resolvedId,
@@ -323,7 +336,7 @@ export const dbService = {
         const regUser = userById.get(p.id) || {};
         const combined = { ...regUser, ...p };
         const ageMs = p.last_seen_at ? now - new Date(p.last_seen_at).getTime() : (p.is_online ? 0 : Infinity);
-        const isOnline = p.is_online !== false && ageMs < 15000;
+        const isOnline = checkIsUserOnline(p, ageMs);
 
         // Tự động đính kèm Story đang hoạt động chưa hết hạn của người này
         const userStory = inMemoryStore.stories.find(s => {
@@ -777,7 +790,7 @@ export const dbService = {
     const chibiExp = parseExpiryMs(combined.chibi_expires_at, 24);
     const isChibiExpired = combined.chibi_expires_at && chibiExp <= Date.now();
     const ageMs = combined.last_seen_at ? Date.now() - new Date(combined.last_seen_at).getTime() : Infinity;
-    const isOnline = p ? (p.is_online !== false && ageMs < 15000) : false;
+    const isOnline = p ? checkIsUserOnline(p, ageMs) : false;
 
     const filtered = this.filterProfileForViewer({
       ...combined,
@@ -1395,7 +1408,7 @@ export const dbService = {
       const p = inMemoryStore.profiles.find(prof => prof.id === fId) || {};
       const combined = { ...u, ...p, id: fId };
       const ageMs = combined.last_seen_at ? Date.now() - new Date(combined.last_seen_at).getTime() : Infinity;
-      const isOnline = p.is_online !== false && ageMs < 15000;
+      const isOnline = checkIsUserOnline(p, ageMs);
       const chibiExp = parseExpiryMs(combined.chibi_expires_at, 24);
       const isChibiExpired = combined.chibi_expires_at && chibiExp <= Date.now();
       const filtered = this.filterProfileForViewer({
@@ -1584,7 +1597,7 @@ export const dbService = {
         const isStranger = !isFriend && !hasReplied;
 
         const ageMs = combinedPartner.last_seen_at ? Date.now() - new Date(combinedPartner.last_seen_at).getTime() : Infinity;
-        const isOnline = partnerProfile.is_online !== false && ageMs < 15000;
+        const isOnline = checkIsUserOnline(partnerProfile, ageMs);
         const isArchived = Boolean(
           (inMemoryStore.archivedConversations || []).some(a => a.userId === userId && a.conversationId === convId)
         );
@@ -1737,7 +1750,7 @@ export const dbService = {
       const hasReplied = Boolean(cc.hadReplied);
       const isStranger = !isFriend && !hasReplied;
       const ageMs = combinedPartner.last_seen_at ? Date.now() - new Date(combinedPartner.last_seen_at).getTime() : Infinity;
-      const isOnline = partnerProfile.is_online !== false && ageMs < 15000;
+      const isOnline = checkIsUserOnline(partnerProfile, ageMs);
       const isArchived = Boolean(
         (inMemoryStore.archivedConversations || []).some(a => a.userId === userId && a.conversationId === cc.conversationId)
       );

@@ -11,6 +11,7 @@ import { apiClient } from './services/apiClient';
 
 // Import các Module Components
 import VivuMapView from './components/map/VivuMapView';
+import LiveLocationTrackingView from './components/map/LiveLocationTrackingView';
 import UnifiedDynamicIsland from './components/layout/UnifiedDynamicIsland';
 import RadarDistanceSelector from './components/map/RadarDistanceSelector';
 import NavigationBanner from './components/map/NavigationBanner';
@@ -242,6 +243,7 @@ export default function App() {
   const [isSavedPlaceModalOpen, setIsSavedPlaceModalOpen] = useState(false);
   const [editingSavedPlace, setEditingSavedPlace] = useState(null);
   const [savedPlaceInitialCoords, setSavedPlaceInitialCoords] = useState(null);
+  const [activeLiveTrackingSession, setActiveLiveTrackingSession] = useState(null);
   const activeTabRef = useRef('social');
   const activeConversationIdRef = useRef(null);
 
@@ -1388,12 +1390,15 @@ export default function App() {
       if (!data) return;
       const targetMsgId = data.messageId || data.id;
       const targetConvId = data.conversation_id || data.conversationId;
+      const senderId = data.userId || data.sender;
+
+      // Cập nhật vào danh sách tin nhắn chat
       setConversations(prev => prev.map(c => {
         if (targetConvId && c.id !== targetConvId) return c;
         let touched = false;
         const nextMessages = (c.messages || []).map(m => {
           const matchById = targetMsgId && (m.id === targetMsgId || m.client_msg_id === targetMsgId);
-          const matchActivePeer = !targetMsgId && m.is_live_location && m.live_status !== 'stopped' && (m.sender_id === data.sender || (c.friendId && c.friendId === data.sender));
+          const matchActivePeer = !targetMsgId && m.is_live_location && m.live_status !== 'stopped' && (m.sender_id === senderId || (c.friendId && c.friendId === senderId));
           if (!matchById && !matchActivePeer) return m;
           touched = true;
           return {
@@ -1405,11 +1410,33 @@ export default function App() {
         });
         return touched ? { ...c, messages: nextMessages } : c;
       }));
-      if (data.sender && data.lat != null && data.lng != null) {
+
+      // Cập nhật tức thì vào màn hình theo dõi Live Tracking Mode nếu đang mở
+      setActiveLiveTrackingSession(prev => {
+        if (!prev) return prev;
+        const msgMatch = targetMsgId && prev.messageId && (String(targetMsgId) === String(prev.messageId));
+        const userMatch = senderId && prev.targetUserId && (String(senderId) === String(prev.targetUserId));
+        const convMatch = targetConvId && prev.conversationId && (String(targetConvId) === String(prev.conversationId)) && senderId !== currentUserId;
+        if (msgMatch || userMatch || convMatch) {
+          return {
+            ...prev,
+            targetCoords: {
+              lat: Number(data.lat),
+              lng: Number(data.lng),
+              speed: (data.speed != null && !isNaN(Number(data.speed))) ? Number(data.speed) : (prev.targetCoords?.speed ?? 0),
+              accuracy: data.accuracy ?? null,
+              timestamp: data.timestamp || Date.now()
+            }
+          };
+        }
+        return prev;
+      });
+
+      if (senderId && data.lat != null && data.lng != null) {
         setNavTarget(prev => {
           if (!prev) return prev;
           const prevTargetId = prev.targetUserId || prev.hostId || prev.host_id || prev.userId || prev.id;
-          if (String(prevTargetId) !== String(data.sender)) return prev;
+          if (String(prevTargetId) !== String(senderId)) return prev;
           return {
             ...prev,
             realLat: Number(data.lat),
@@ -1427,6 +1454,8 @@ export default function App() {
       const targetMsgId = data.messageId || data.id;
       const targetClientId = data.clientMsgId || data.client_msg_id;
       const targetConvId = data.conversationId || data.conversation_id;
+      const senderId = data.userId || data.sender;
+
       setConversations(prev => prev.map(c => {
         if (targetConvId && c.id !== targetConvId) return c;
         let touched = false;
@@ -1438,6 +1467,16 @@ export default function App() {
         });
         return touched ? { ...c, messages: nextMessages } : c;
       }));
+
+      setActiveLiveTrackingSession(prev => {
+        if (!prev) return prev;
+        const msgMatch = targetMsgId && prev.messageId && (String(targetMsgId) === String(prev.messageId));
+        const userMatch = senderId && prev.targetUserId && (String(senderId) === String(prev.targetUserId));
+        if (msgMatch || userMatch) {
+          return { ...prev, isStopped: true };
+        }
+        return prev;
+      });
     };
 
     socket.on('user:offline', handleUserOffline);
@@ -1451,6 +1490,8 @@ export default function App() {
     socket.on('chat:message', handleChatMessage);
     socket.on('chat:live_location_update', handleLiveLocationUpdate);
     socket.on('chat:live_location_stopped', handleLiveLocationStopped);
+    socket.on('live_location:update', handleLiveLocationUpdate);
+    socket.on('live_location:stopped', handleLiveLocationStopped);
     socket.on('chat:read', handleChatRead);
     socket.on('chat:message_deleted', handleChatMessageDeleted);
     socket.on('chat:conversation_cleared', handleChatConversationCleared);
@@ -1526,6 +1567,8 @@ export default function App() {
       socket.off('chat:message', handleChatMessage);
       socket.off('chat:live_location_update', handleLiveLocationUpdate);
       socket.off('chat:live_location_stopped', handleLiveLocationStopped);
+      socket.off('live_location:update', handleLiveLocationUpdate);
+      socket.off('live_location:stopped', handleLiveLocationStopped);
       socket.off('chat:read', handleChatRead);
       socket.off('chat:message_deleted', handleChatMessageDeleted);
       socket.off('chat:conversation_cleared', handleChatConversationCleared);
@@ -1879,8 +1922,9 @@ export default function App() {
     let isMounted = true;
 
     const syncHeartbeat = async () => {
-      // NẾU TAB ĐANG BỊ ẨN HOẶC KHÓA MÀN HÌNH -> KHÔNG PHÁT SÓNG GPS ĐỂ TRÁNH GIỮ ONLINE ẢO
-      if (document.hidden) return;
+      // Nếu tab bị ẩn: nếu đang có phiên chia sẻ vị trí trực tiếp thì VẪN DUY TRÌ phát sóng GPS để đối phương theo dõi không gián đoạn
+      const hasLiveShareActive = Boolean(activeLiveTrackingSession || (Array.isArray(conversations) && conversations.some(c => c.messages?.some(m => (m.sender === 'me' || m.sender === currentUserId || m.sender_id === currentUserId) && (m.is_live_location || m.isLiveLocation) && m.live_status !== 'stopped'))));
+      if (document.hidden && !hasLiveShareActive) return;
 
       try {
         // 1. CHỈ gửi toạ độ thực lên server khi đã đăng nhập và KHÔNG bật Tàng hình (ghostMode)
@@ -3689,6 +3733,94 @@ export default function App() {
     }
   };
 
+  // Mở chế độ theo dõi vị trí trực tiếp toàn màn hình (Live Location Tracking Mode)
+  const handleOpenLiveTracking = (msg) => {
+    if (!msg) return;
+    const isMe = msg.sender === 'me' || (currentUserId && msg.sender === currentUserId);
+    const activeConv = conversations.find(c => c.id === (activeConversationId || msg.conversation_id || msg.conversationId)) || conversations.find(c => c.id === activeConversationId);
+    const targetId = isMe 
+      ? (activeConv?.friendId || activeConv?.partnerId || activeConv?.userId)
+      : (msg.sender_id || (msg.sender && msg.sender !== 'them' ? msg.sender : null) || activeConv?.friendId);
+    const tName = isMe 
+      ? (activeConv?.name || 'Bạn bè') 
+      : (msg.sender_name || msg.senderName || activeConv?.name || 'Đối phương');
+    const tAvatar = isMe 
+      ? (activeConv?.avatar || '') 
+      : (msg.senderAvatar || activeConv?.avatar || '');
+
+    setActiveLiveTrackingSession({
+      conversationId: activeConversationId || msg.conversation_id || msg.conversationId,
+      messageId: msg.id || msg.client_msg_id,
+      targetUserId: targetId,
+      targetName: tName,
+      targetAvatar: tAvatar,
+      targetCoords: {
+        lat: Number(msg.lat ?? userLat),
+        lng: Number(msg.lng ?? userLng),
+        speed: msg.speed != null ? Number(msg.speed) : 0,
+        timestamp: msg.created_at ? new Date(msg.created_at).getTime() : Date.now()
+      },
+      isStopped: msg.live_status === 'stopped'
+    });
+  };
+
+  // Luồng phát sóng toạ độ Live liên tục không gián đoạn qua Socket.IO (3s/lần)
+  useEffect(() => {
+    if (!socket || !socket.connected || !currentUserId || userLat == null || userLng == null) return;
+
+    // Tìm các tin nhắn live location đang hoạt động do tôi phát
+    const activeLiveMsgs = [];
+    (conversations || []).forEach(c => {
+      (c.messages || []).forEach(m => {
+        const isMyMsg = m.sender === 'me' || m.sender_id === currentUserId || m.sender === currentUserId;
+        const isLive = Boolean(m.is_live_location || m.isLiveLocation);
+        const isActive = isLive && m.live_status !== 'stopped' && (!m.live_expires_at || new Date(m.live_expires_at).getTime() > Date.now());
+        if (isMyMsg && isActive) {
+          activeLiveMsgs.push({
+            conversationId: c.id,
+            targetUserId: c.friendId || c.partnerId,
+            messageId: m.id || m.client_msg_id
+          });
+        }
+      });
+    });
+
+    if (activeLiveMsgs.length === 0 && !activeLiveTrackingSession) return;
+
+    const streamInterval = setInterval(() => {
+      if (!socket || !socket.connected) return;
+
+      const streamData = {
+        userId: currentUserId,
+        lat: userLat,
+        lng: userLng,
+        speed: (location?.speed != null && !isNaN(Number(location.speed))) ? Number(location.speed) : 0,
+        accuracy: location?.accuracy ?? null,
+        timestamp: Date.now()
+      };
+
+      if (activeLiveMsgs.length > 0) {
+        activeLiveMsgs.forEach(item => {
+          socket.emit('live_location:update', {
+            ...streamData,
+            conversationId: item.conversationId,
+            targetUserId: item.targetUserId,
+            messageId: item.messageId
+          });
+        });
+      } else if (activeLiveTrackingSession?.targetUserId) {
+        socket.emit('live_location:update', {
+          ...streamData,
+          conversationId: activeLiveTrackingSession.conversationId,
+          targetUserId: activeLiveTrackingSession.targetUserId,
+          messageId: activeLiveTrackingSession.messageId
+        });
+      }
+    }, 3000);
+
+    return () => clearInterval(streamInterval);
+  }, [socket, currentUserId, userLat, userLng, location?.speed, location?.accuracy, conversations, activeLiveTrackingSession]);
+
   // Thả tim nhanh (Đồng bộ tức thì lên Backend để lưu vĩnh viễn & không bị biến mất khi polling)
   const handleSendQuickHeart = () => {
     if (!activeConversationId) return;
@@ -4071,9 +4203,9 @@ export default function App() {
   return (
     <div className="fixed inset-0 w-screen h-[100dvh] overflow-hidden overscroll-none select-none font-sans text-white bg-[#07090E]">
 
-      {/* 0.1 LOGO VIVU ĐỘC LẬP Ở GÓC TRÁI TRÊN CÙNG (Chỉ hiển thị trên Map khi không mở modal) */}
+      {/* 0.1 LOGO VIVU ĐỘC LẬP Ở GÓC TRÁI TRÊN CÙNG (Chỉ hiển thị trên Map khi không mở modal và không ở Live Tracking) */}
       {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') &&
-        !selectedUserProfile && !selectedGuestProfile && !isEditProfileOpen && !isSettingsOpen && !isUserMenuOpen && !isSavedPlacesOpen && !isSavedPlaceModalOpen && (
+        !selectedUserProfile && !selectedGuestProfile && !isEditProfileOpen && !isSettingsOpen && !isUserMenuOpen && !isSavedPlacesOpen && !isSavedPlaceModalOpen && !activeLiveTrackingSession && (
         <TopAppLogo
           onClick={handleRecenterMap}
         />
@@ -4081,7 +4213,7 @@ export default function App() {
 
       {/* 0.2 VIVU DYNAMIC ISLAND THÔNG MINH (Chỉ gắn đỉnh trên màn hình Map để không che Tiêu đề / Modal) */}
       {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') &&
-        !selectedUserProfile && !selectedGuestProfile && !isEditProfileOpen && !isSettingsOpen && !isUserMenuOpen && !isSavedPlacesOpen && !isSavedPlaceModalOpen && (
+        !selectedUserProfile && !selectedGuestProfile && !isEditProfileOpen && !isSettingsOpen && !isUserMenuOpen && !isSavedPlacesOpen && !isSavedPlaceModalOpen && !activeLiveTrackingSession && (
         <UnifiedDynamicIsland
           radarDistance={radarDistance}
           onSelectRadarDistance={(d) => setRadarDistance(d)}
@@ -4214,10 +4346,11 @@ export default function App() {
         onOpenSavedPlaces={() => setIsSavedPlacesOpen(true)}
         onStartNavigation={handleStartNavigation}
         onSetManualLocation={setManualCoords}
+        isLiveTrackingActive={Boolean(activeLiveTrackingSession)}
       />
 
       {/* BANNER THÔNG BÁO VỊ TRÍ THỰC TẾ (GPS THẬT) */}
-      {(activeTab === 'social' || activeTab === 'friends') && !selectedUserProfile && !selectedGuestProfile && !activeCallSession && !incomingCallSession && (
+      {(activeTab === 'social' || activeTab === 'friends') && !selectedUserProfile && !selectedGuestProfile && !activeCallSession && !incomingCallSession && !activeLiveTrackingSession && (
         <GpsStatusBanner
           locationSource={locationSource}
           cityName={cityName}
@@ -4334,19 +4467,21 @@ export default function App() {
           </a>
         )}
 
-      {/* 5. THANH DOCK ĐÁY BÓNG MỜ TRONG SUỐT (ẨN HOÀN TOÀN KHI ĐANG MỞ PHÒNG CHAT ĐỂ TỐI ĐA KHÔNG GIAN BÀN PHÍM) */}
-      <VivuBottomDock
-        activeTab={activeTab}
-        setActiveTab={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'chat' && activeConversationId) {
-            setActiveConversationId(null);
-          }
-        }}
-        onOpenCreateStory={() => setIsCreateModalOpen(true)}
-        unreadCount={conversations.filter(c => c.unread).length}
-        className={((activeTab === 'chat' && activeConversationId) || isQuickStatusSheetOpen || isPinWardrobeOpen || isUserMenuOpen || selectedUserProfile || selectedGuestProfile || activeCallSession || incomingCallSession) ? 'hidden' : ''}
-      />
+      {/* 5. THANH DOCK ĐÁY BÓNG MỜ TRONG SUỐT (ẨN HOÀN TOÀN KHI ĐANG MỞ PHÒNG CHAT HOẶC THEO DÕI LIVE LOCATION) */}
+      {!activeLiveTrackingSession && (
+        <VivuBottomDock
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            if (tab === 'chat' && activeConversationId) {
+              setActiveConversationId(null);
+            }
+          }}
+          onOpenCreateStory={() => setIsCreateModalOpen(true)}
+          unreadCount={conversations.filter(c => c.unread).length}
+          className={((activeTab === 'chat' && activeConversationId) || isQuickStatusSheetOpen || isPinWardrobeOpen || isUserMenuOpen || selectedUserProfile || selectedGuestProfile || activeCallSession || incomingCallSession) ? 'hidden' : ''}
+        />
+      )}
 
       {/* 6. TRÌNH XEM STORY TOÀN MÀN HÌNH TƯƠNG TÁC CAO CẤP (MULTI-STORY & DELETE) */}
       {selectedInteractiveStory && (
@@ -4795,6 +4930,7 @@ export default function App() {
           onLeaveGroup={handleLeaveCircle}
           onKickMember={handleKickMember}
           onViewCircleOnMap={handleViewCircleOnMap}
+          onOpenLiveTracking={handleOpenLiveTracking}
           onOpenMapForStory={(msg) => {
             setActiveTab('social');
             setActiveConversationId(null);
@@ -5205,6 +5341,32 @@ export default function App() {
           setSavedPlaces(prev => prev.filter(p => p.id !== placeId));
         }}
       />
+
+      {/* 22. GIAO DIỆN THEO DÕI VỊ TRÍ TRỰC TIẾP TOÀN MÀN HÌNH (LIVE TRACKING MODE) */}
+      {activeLiveTrackingSession && (
+        <LiveLocationTrackingView
+          myUserId={currentUserId}
+          myName={currentUserName}
+          myAvatar={currentUserAvatar}
+          myCoords={{
+            lat: userLat,
+            lng: userLng,
+            speed: location?.speed ?? 0,
+            accuracy: location?.accuracy ?? null
+          }}
+          targetUserId={activeLiveTrackingSession.targetUserId}
+          targetName={activeLiveTrackingSession.targetName}
+          targetAvatar={activeLiveTrackingSession.targetAvatar}
+          targetCoords={activeLiveTrackingSession.targetCoords}
+          isStopped={activeLiveTrackingSession.isStopped}
+          onClose={() => setActiveLiveTrackingSession(null)}
+          onStopMyShare={() => {
+            if (activeLiveTrackingSession.messageId) {
+              handleStopLiveLocation(activeLiveTrackingSession.messageId);
+            }
+          }}
+        />
+      )}
 
     </div>
   );

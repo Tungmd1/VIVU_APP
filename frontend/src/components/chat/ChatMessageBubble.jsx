@@ -17,6 +17,7 @@ export default function ChatMessageBubble({
   activeConversation,
   onOpenTakeoverMeme,
   onOpenMapForStory,
+  onOpenLiveTracking,
   onStartNavigation,
   onStopShare,
   setSelectedLightboxMedia,
@@ -164,6 +165,7 @@ export default function ChatMessageBubble({
           currentUserLat={currentUserLat}
           currentUserLng={currentUserLng}
           onOpenMap={onOpenMapForStory}
+          onOpenLiveTracking={onOpenLiveTracking}
           onStartNavigation={(target) => onStartNavigation?.({
             ...target,
             targetUserId: target?.targetUserId || msg.sender_id || (isMe ? currentUserId : activeConversation?.friendId),

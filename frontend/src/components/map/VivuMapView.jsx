@@ -71,7 +71,8 @@ export default function VivuMapView({
   onOpenMemeTroll,
   onOpenSavedPlaces,
   onStartNavigation,
-  onSetManualLocation
+  onSetManualLocation,
+  isLiveTrackingActive = false
 }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
@@ -123,9 +124,9 @@ export default function VivuMapView({
 
   const isOwnerItem = (item) => Boolean(
     item && (
-      item.id === currentUserId || 
-      item.hostId === currentUserId || 
-      item.host_id === currentUserId || 
+      item.id === currentUserId ||
+      item.hostId === currentUserId ||
+      item.host_id === currentUserId ||
       item.user_id === currentUserId ||
       item.isOwnerStory === true
     )
@@ -313,11 +314,11 @@ export default function VivuMapView({
       hasAction: Boolean(userPinMascot && userPinAction)
     });
 
-    const ownerHtml = getOwnerBubbleHtml({ 
+    const ownerHtml = getOwnerBubbleHtml({
       myActiveStory,
       myActiveStories,
       song,
-      statusText, 
+      statusText,
       chibiId: userCustomChibi,
       actionMascot: userPinMascot,
       actionId: userPinAction,
@@ -453,37 +454,37 @@ export default function VivuMapView({
             currentMarkerPosRef.current = { lat: targetLat, lng: targetLng };
             userMarkerRef.current.setLatLng([targetLat, targetLng]);
           } else {
-          // CHUYỂN ĐỘNG LERP MƯỢT MÀ BẰNG requestAnimationFrame (~800ms)
-          const duration = 800; // ms
-          const startTime = performance.now();
+            // CHUYỂN ĐỘNG LERP MƯỢT MÀ BẰNG requestAnimationFrame (~800ms)
+            const duration = 800; // ms
+            const startTime = performance.now();
 
-          const step = (now) => {
-            const elapsed = now - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            // Hàm chuyển động êm cubic ease-out: 1 - (1 - p)^3
-            const ease = 1 - Math.pow(1 - progress, 3);
+            const step = (now) => {
+              const elapsed = now - startTime;
+              const progress = Math.min(elapsed / duration, 1);
+              // Hàm chuyển động êm cubic ease-out: 1 - (1 - p)^3
+              const ease = 1 - Math.pow(1 - progress, 3);
 
-            const curLat = startLat + (targetLat - startLat) * ease;
-            const curLng = startLng + (targetLng - startLng) * ease;
+              const curLat = startLat + (targetLat - startLat) * ease;
+              const curLng = startLng + (targetLng - startLng) * ease;
 
-            currentMarkerPosRef.current = { lat: curLat, lng: curLng };
-            if (userMarkerRef.current) {
-              userMarkerRef.current.setLatLng([curLat, curLng]);
-            }
-
-            if (progress < 1) {
-              animFrameIdRef.current = requestAnimationFrame(step);
-            } else {
-              // Điểm kết thúc tuyệt đối 100% là tọa độ GPS thật mới nhận
-              currentMarkerPosRef.current = { lat: targetLat, lng: targetLng };
+              currentMarkerPosRef.current = { lat: curLat, lng: curLng };
               if (userMarkerRef.current) {
-                userMarkerRef.current.setLatLng([targetLat, targetLng]);
+                userMarkerRef.current.setLatLng([curLat, curLng]);
               }
-              animFrameIdRef.current = null;
-            }
-          };
 
-          animFrameIdRef.current = requestAnimationFrame(step);
+              if (progress < 1) {
+                animFrameIdRef.current = requestAnimationFrame(step);
+              } else {
+                // Điểm kết thúc tuyệt đối 100% là tọa độ GPS thật mới nhận
+                currentMarkerPosRef.current = { lat: targetLat, lng: targetLng };
+                if (userMarkerRef.current) {
+                  userMarkerRef.current.setLatLng([targetLat, targetLng]);
+                }
+                animFrameIdRef.current = null;
+              }
+            };
+
+            animFrameIdRef.current = requestAnimationFrame(step);
           }
         }
       }
@@ -766,7 +767,7 @@ export default function VivuMapView({
           mapRef.current.fitBounds(res.bounds, { padding: [60, 60], maxZoom: 16.8 });
         }
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     return () => {
       isMounted = false;
@@ -798,7 +799,7 @@ export default function VivuMapView({
     <div className="absolute inset-0 w-full h-full overflow-hidden select-none font-sans">
       <div ref={mapContainerRef} className="absolute inset-0 z-0 w-full h-full bg-[#E8ECEF]" />
 
-      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && (
+      {(activeTab === 'social' || activeTab === 'friends' || activeTab === 'map') && !isLiveTrackingActive && (
         <RightActionStack
           onResetCompass={handleResetCompass}
           onFitPeers={handleFitPeers}

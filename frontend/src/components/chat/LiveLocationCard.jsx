@@ -12,12 +12,22 @@ export default function LiveLocationCard({
   currentUserLat,
   currentUserLng,
   onOpenMap,
+  onOpenLiveTracking,
   onStartNavigation,
   onStopShare
 }) {
   const isStopped = msg.live_status === 'stopped';
   const isExpired = msg.live_expires_at && new Date(msg.live_expires_at).getTime() < Date.now();
   const isActive = !isStopped && !isExpired;
+
+  // Xử lý mở chế độ xem vị trí trực tiếp toàn màn hình
+  const handleOpenTracking = () => {
+    if (onOpenLiveTracking) {
+      onOpenLiveTracking(msg);
+    } else if (onOpenMap) {
+      onOpenMap(msg);
+    }
+  };
 
   // Tính khoảng cách Haversine
   const calcDist = () => {
@@ -107,12 +117,25 @@ export default function LiveLocationCard({
 
       {/* Nút hành động */}
       <div className="space-y-1.5 pt-1">
+        {/* Nút Xem Vị Trí Trực Tiếp Toàn Màn Hình */}
+        <button
+          type="button"
+          onClick={handleOpenTracking}
+          className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-[#00E5FF]/20 via-[#10FFA0]/20 to-[#00FF66]/20 hover:from-[#00E5FF]/30 hover:to-[#00FF66]/30 border border-[#10FFA0]/50 text-[#10FFA0] text-xs font-bold flex items-center justify-between transition-all cursor-pointer shadow-md active:scale-95 group"
+        >
+          <div className="flex items-center gap-1.5">
+            <i className="bi bi-broadcast text-sm animate-pulse text-[#10FFA0]" />
+            <span>Xem Vị Trí Trực Tiếp</span>
+          </div>
+          <i className="bi bi-chevron-right text-xs opacity-70 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+
         <div className="grid grid-cols-2 gap-1.5">
           <VivuButton
             size="sm"
             variant="secondary"
             pill={true}
-            onClick={() => onOpenMap?.(msg)}
+            onClick={handleOpenTracking}
             icon="bi-map-fill"
             className="text-[11px] py-1 font-bold w-full"
           >

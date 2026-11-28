@@ -19,10 +19,10 @@ export function useSocket(userId) {
       auth: { userId },
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: 10,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      timeout: 15000
+      timeout: 20000
     });
 
     socketRef.current = socket;
@@ -43,7 +43,8 @@ export function useSocket(userId) {
       setIsConnected(false);
     });
 
-    // Bắt sự kiện beforeunload / pagehide khi người dùng thoát hoặc đóng tab
+    // Bắt sự kiện beforeunload khi người dùng thực sự đóng trang/thoát web
+    // (KHÔNG dùng pagehide để tránh ngắt kết nối ảo khi điện thoại tắt/mờ màn hình)
     const handleBeforeUnload = () => {
       try {
         if (socket && socket.connected) {
@@ -61,20 +62,20 @@ export function useSocket(userId) {
       if (document.visibilityState === 'visible') {
         try {
           if (socket && !socket.connected) {
-            console.log('[Socket.IO Client] Tab hiển thị trở lại, đang kiểm tra kết nối...');
+            console.log('[Socket.IO Client] Tab hiển thị trở lại, đang kết nối lại...');
             socket.connect();
+          } else if (socket && socket.connected) {
+            socket.emit('user:heartbeat', { userId });
           }
         } catch (_) {}
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('pagehide', handleBeforeUnload);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('pagehide', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (socket) {
         socket.emit('user:going-offline', { userId });

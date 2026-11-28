@@ -210,7 +210,9 @@ export function useGeolocation() {
             return;
           }
 
-          // Lọc micro-drift: chỉ cập nhật nếu di chuyển > 8m
+          // Lọc micro-drift khi di chuyển nhẹ, nhưng VẪN LÀM TƯƠI toạ độ và timestamp định kỳ (> 3.5s) khi đứng yên
+          // để máy đứng cố định không bị ngắt quãng tín hiệu hoặc bị báo offline ảo
+          const nowMs = pos.timestamp || Date.now();
           if (locationRef.current) {
             const dist = getDistanceMeters(
               locationRef.current.lat,
@@ -218,7 +220,10 @@ export function useGeolocation() {
               pos.coords.latitude,
               pos.coords.longitude
             );
-            if (dist < 8) return;
+            const timeSinceLastUpdateMs = nowMs - (locationRef.current.timestamp || 0);
+            if (dist < 8 && timeSinceLastUpdateMs < 3500) {
+              return;
+            }
           }
 
           let computedSpeedKmh = 0;

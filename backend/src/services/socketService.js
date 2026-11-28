@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { dbService } from './dbService.js';
+import { dbService, setSocketPresenceChecker } from './dbService.js';
 import { dbStore } from './dbStore.js';
 import { notificationService } from './notificationService.js';
 import { callSignalingService } from './callSignalingService.js';
@@ -9,6 +9,18 @@ const userSockets = new Map();
 const activeBumpSessions = new Map();
 const getBumpSessionKey = (u1, u2) => [String(u1), String(u2)].sort().join(':');
 let ioInstance = null;
+
+/**
+ * Kiểm tra xem một người dùng có ít nhất một kết nối Socket.IO đang hoạt động hay không
+ */
+export function isUserSocketConnected(userId) {
+  if (!userId) return false;
+  const s = userSockets.get(userId) || userSockets.get(String(userId));
+  return Boolean(s && s.size > 0);
+}
+
+// Đăng ký bộ kiểm tra presence cho dbService để xác định trạng thái online chính xác
+setSocketPresenceChecker(isUserSocketConnected);
 
 /**
  * Khởi tạo Socket.IO Server và đăng ký toàn bộ sự kiện realtime.
@@ -21,8 +33,8 @@ export function initSocketIO(httpServer) {
       methods: ['GET', 'POST']
     },
     transports: ['websocket', 'polling'],
-    pingInterval: 4000,
-    pingTimeout: 6000
+    pingInterval: 8000,
+    pingTimeout: 16000
   });
 
   ioInstance = io;
@@ -176,6 +188,111 @@ export function initSocketIO(httpServer) {
         });
       } catch (err) {
         socket.emit('chat:messages', { conversationId: data.conversationId, messages: [] });
+      }
+    });
+
+    // ================================================================
+    // LIVE LOCATION STREAMING (THEO DÕI VỊ TRÍ TRỰC TIẾP KHÔNG GIÁN ĐOẠN)
+    // ================================================================
+    socket.on('live_location:update', async (data) => {
+      try {
+        const { conversationId, targetUserId, lat, lng, speed, heading, accuracy, messageId } = data || {};
+        if (lat == null || lng == null) return;
+
+        const numLat = Number(lat);
+        const numLng = Number(lng);
+        const numSpeed = speed != null ? Number(speed) : 0;
+        const nowIso = new Date().toISOString();
+
+        // 1. Cập nhật profile & user last_seen_at ngay lập tức trong bộ nhớ
+        const pIdx = dbStore.profiles.findIndex(p => p.id === userId);
+        if (pIdx >= 0) {
+          dbStore.profiles[pIdx].lat = numLat;
+          dbStore.profiles[pIdx].lng = numLng;
+          dbStore.profiles[pIdx].speed = numSpeed;
+          dbStore.profiles[pIdx].is_online = true;
+          dbStore.profiles[pIdx].last_seen_at = nowIso;
+        }
+        const uIdx = dbStore.users.findIndex(u => u.id === userId);
+        if (uIdx >= 0) {
+          dbStore.users[uIdx].last_seen_at = nowIso;
+        }
+
+        const payload = {
+          conversationId,
+          userId,
+          messageId,
+          lat: numLat,
+          lng: numLng,
+          speed: numSpeed,
+          heading: heading != null ? Number(heading) : null,
+          accuracy: accuracy != null ? Number(accuracy) : null,
+          timestamp: Date.now()
+        };
+
+        // 2. Relay tức thì không độ trễ tới người nhận
+        if (targetUserId) {
+          emitToUser(targetUserId, 'live_location:update', payload);
+          emitToUser(targetUserId, 'chat:live_location_update', payload);
+        } else if (conversationId) {
+          const conv = dbStore.conversations.find(c => c.id === conversationId);
+          if (conv && Array.isArray(conv.participants)) {
+            conv.participants.forEach(pid => {
+              if (pid !== userId) {
+                emitToUser(pid, 'live_location:update', payload);
+                emitToUser(pid, 'chat:live_location_update', payload);
+              }
+            });
+          }
+        }
+
+        // Cập nhật toạ độ vào tin nhắn chia sẻ vị trí live nếu có messageId
+        if (messageId) {
+          const msg = dbStore.messages.find(m => m.id === messageId || m.client_msg_id === messageId);
+          if (msg && msg.live_status !== 'stopped') {
+            msg.lat = numLat;
+            msg.lng = numLng;
+            msg.speed = numSpeed;
+            msg.updated_at = nowIso;
+          }
+        }
+      } catch (err) {
+        console.warn('[Socket.IO] live_location:update error:', err.message);
+      }
+    });
+
+    socket.on('live_location:stop', async (data) => {
+      try {
+        const { messageId, conversationId, targetUserId } = data || {};
+        if (messageId) {
+          try {
+            await dbService.stopLiveLocation(messageId, userId);
+          } catch (dbErr) {
+            console.warn('[Socket.IO] live_location:stop db notice:', dbErr.message);
+          }
+        }
+        const stopPayload = {
+          conversationId,
+          userId,
+          messageId,
+          stopped_at: new Date().toISOString()
+        };
+        if (targetUserId) {
+          emitToUser(targetUserId, 'live_location:stopped', stopPayload);
+          emitToUser(targetUserId, 'chat:live_location_stopped', stopPayload);
+        } else if (conversationId) {
+          const conv = dbStore.conversations.find(c => c.id === conversationId);
+          if (conv && Array.isArray(conv.participants)) {
+            conv.participants.forEach(pid => {
+              if (pid !== userId) {
+                emitToUser(pid, 'live_location:stopped', stopPayload);
+                emitToUser(pid, 'chat:live_location_stopped', stopPayload);
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[Socket.IO] live_location:stop error:', err.message);
       }
     });
 

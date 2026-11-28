@@ -42,6 +42,7 @@ export default function MessengerChatView({
   onLeaveGroup,
   onKickMember,
   onOpenMapForStory,
+  onOpenLiveTracking,
   onStartNavigation,
   onOpenDirectChat,
   onViewCircleOnMap,
@@ -194,6 +195,7 @@ export default function MessengerChatView({
         onOpenTakeoverMeme={onOpenTakeoverMeme}
         setIsGroupMembersModalOpen={setIsGroupMembersModalOpen}
         onOpenMapForStory={onOpenMapForStory}
+        onOpenLiveTracking={onOpenLiveTracking}
         onStartNavigation={onStartNavigation}
         onOpenCreatePoll={() => setIsCreatePollModalOpen(true)}
         onOpenCreateCircle={onOpenCreateCircle}
